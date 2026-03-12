@@ -11,6 +11,7 @@ function LoginForm() {
   const [loading, setLoading] = useState(false);
   const searchParams = useSearchParams();
   const callbackUrl = searchParams.get("callbackUrl") || "/";
+  const urlError = searchParams.get("error");
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -50,9 +51,9 @@ function LoginForm() {
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-6">
-        {error && (
+        {(error || urlError) && (
           <div className="p-3 rounded-lg bg-red-50 text-red-600 text-sm">
-            {error}
+            {error || (urlError === "Configuration" ? "خطأ في إعدادات الخادم. تأكد من إضافة AUTH_SECRET في Vercel." : "حدث خطأ. حاول مرة أخرى.")}
           </div>
         )}
 
