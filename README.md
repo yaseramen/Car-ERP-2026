@@ -61,7 +61,7 @@
 **بيانات Super Admin الافتراضية:** santws1@gmail.com / `Admin@123`  
 لتغيير كلمة المرور: `SEED_SUPER_ADMIN_PASSWORD=الجديدة npm run db:seed`
 
-**متغيرات Vercel المطلوبة:** `TURSO_DATABASE_URL`, `TURSO_AUTH_TOKEN`, `AUTH_SECRET`
+**متغيرات Vercel المطلوبة:** `TURSO_DATABASE_URL`, `TURSO_AUTH_TOKEN`, `AUTH_SECRET`, `NEXTAUTH_URL`, `AUTH_TRUST_HOST=true`
 
 ## الميزات الرئيسية
 

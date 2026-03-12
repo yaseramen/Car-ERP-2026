@@ -26,6 +26,7 @@ declare module "@auth/core/jwt" {
 }
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
+  trustHost: true,
   providers: [
     Credentials({
       credentials: {
@@ -81,13 +82,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       return session;
     },
     redirect({ url, baseUrl }) {
-      // التحقق من callbackUrl للتحويل حسب الدور
-      const callbackUrl = new URL(url);
-      const path = callbackUrl.pathname;
-      // إذا كان التحويل للصفحة الرئيسية، نترك middleware يتولى التوجيه
-      if (path === "/" || path === baseUrl + "/" || path === baseUrl) {
-        return baseUrl + "/";
-      }
+      if (!url.startsWith(baseUrl)) return baseUrl;
       return url;
     },
   },
