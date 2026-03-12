@@ -34,12 +34,9 @@ export default auth((req) => {
     return NextResponse.next();
   }
 
-  // الصفحة الرئيسية
+  // الصفحة الرئيسية - صفحة ترحيبية عامة (لا تتطلب تسجيل دخول)
   if (path === "/") {
-    if (!isLoggedIn) {
-      return NextResponse.redirect(new URL("/login", nextUrl));
-    }
-    if (req.auth?.user?.role === "super_admin") {
+    if (isLoggedIn && req.auth?.user?.role === "super_admin") {
       return NextResponse.redirect(new URL("/admin", nextUrl));
     }
     return NextResponse.next();

@@ -1,22 +1,22 @@
-import { auth } from "@/auth";
-import { redirect } from "next/navigation";
+import Link from "next/link";
 
-export default async function HomePage() {
-  const session = await auth();
-
-  if (!session?.user) {
-    redirect("/login");
-  }
-
-  // Super Admin يُوجّه عبر middleware إلى /admin
-  if (session.user.role === "super_admin") {
-    redirect("/admin");
-  }
-
+export default function HomePage() {
   return (
-    <div className="min-h-screen bg-gray-50 p-8">
-      <h1 className="text-2xl font-bold">لوحة التحكم - الأمين لخدمات السيارات</h1>
-      <p className="text-gray-600 mt-2">مرحباً، {session.user.name || session.user.email}</p>
+    <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-b from-gray-50 to-white p-8" dir="rtl">
+      <div className="text-center max-w-md">
+        <h1 className="text-3xl font-bold text-gray-900 mb-4">
+          الأمين لخدمات السيارات
+        </h1>
+        <p className="text-gray-600 mb-8">
+          منصة متكاملة لإدارة مراكز خدمة السيارات
+        </p>
+        <Link
+          href="/login"
+          className="inline-flex items-center justify-center w-full sm:w-auto px-8 py-4 bg-emerald-600 hover:bg-emerald-700 text-white font-medium rounded-xl transition-colors shadow-lg shadow-emerald-600/25"
+        >
+          دخول للنظام
+        </Link>
+      </div>
     </div>
   );
 }
