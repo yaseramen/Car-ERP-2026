@@ -48,10 +48,20 @@
    npm run db:migrate
    ```
 
-4. **تشغيل التطبيق:**
+4. **إضافة Super Admin (اختياري):**
+   ```bash
+   SEED_SUPER_ADMIN_PASSWORD=كلمة_المرور_المرغوبة npm run db:seed
+   ```
+
+5. **تشغيل التطبيق:**
    ```bash
    npm run dev
    ```
+
+**بيانات Super Admin الافتراضية:** santws1@gmail.com / `Admin@123`  
+لتغيير كلمة المرور: `SEED_SUPER_ADMIN_PASSWORD=الجديدة npm run db:seed`
+
+**متغيرات Vercel المطلوبة:** `TURSO_DATABASE_URL`, `TURSO_AUTH_TOKEN`, `AUTH_SECRET`
 
 ## الميزات الرئيسية
 
