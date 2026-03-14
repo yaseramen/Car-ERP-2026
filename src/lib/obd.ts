@@ -179,38 +179,41 @@ export async function resolveCode(code: string): Promise<{ result: ObdResult; ob
   return { result, obdCodeId };
 }
 
-export const EXTRACT_CODES_PROMPT = `هذا تقرير تشخيص لسيارة من أي ماركة في العالم (Toyota, BMW, Mercedes, Ford, Honda, Skoda, Chevrolet, Kia, Hyundai, Mitsubishi, Nissan, Volkswagen, Audi, Peugeot, Renault, Fiat, etc.).
+export const EXTRACT_CODES_PROMPT = `هذا تقرير تشخيص لسيارة. استخرج كل أكواد الأعطال (DTC) التي تظهر في التقرير.
 
-استخرج:
-1. كل أكواد الأعطال (DTC) بجميع صيغها من أي مصنّع:
-   - OBD-II: P0100, B0001, C1234, U0100
-   - مع لاحقة: B3902-00, U0184-00
-   - 6 أرقام: B250000
-   - 5 أرقام: 01314, 00898
-   - أي صيغة أخرى لأكواد الأعطال
-2. معلومات المركبة: العلامة التجارية (brand)، النموذج (model)، السنة (year)، VIN
+صيغ الأكواد المدعومة (استخرجها كما هي):
+- P0100, P0796, P0746
+- C1211, C1206, C1201, C1215, C1200, C1340, C1216, C1210
+- B1419, B3902-00
+- P0796.1, C1211.1 (مع نقطة ورقم)
+- 01314, B250000
 
-أجب بصيغة JSON فقط:
-{"codes":["P0100","P0171",...],"vehicle":{"brand":"Toyota","model":"Camry","year":2020,"vin":"..."}}
+وابحث عن: System fault code, DTC, كود العطل، أي حرف P/B/C/U متبوع بأرقام.
 
-إذا لم تجد أكواداً: {"codes":[],"vehicle":null}
-استخرج كل الأكواد بغض النظر عن الماركة أو الصيغة.`;
+أجب JSON فقط:
+{"codes":["P0796","P0746","C1211","C1206",...],"vehicle":{"brand":"Mitsubishi","model":"Mirage","year":2014,"vin":"..."}}
+
+إذا لم تجد: {"codes":[],"vehicle":null}`;
 
 const OBD_CODE_PATTERNS = [
   /^[PBCU]\d{4}$/,           // P0100, B0001
   /^[PBCU]\d{4}-\d{2}$/,     // B3902-00, U0184-00
+  /^[PBCU]\d{4}\.\d$/,       // P0796.1, C1211.1 (Mitsubishi, etc.)
   /^[PBCU]\d{5,6}$/,         // B250000, B251800
   /^0\d{4}$/,                // 01314, 01317 (VAG/Skoda manufacturer)
 ];
 
 function isValidObdCode(c: string): boolean {
   const s = String(c).trim().toUpperCase().replace(/\s/g, "");
-  if (s.length < 4 || s.length > 10) return false;
+  if (s.length < 4 || s.length > 12) return false;
   return OBD_CODE_PATTERNS.some((p) => p.test(s));
 }
 
+/** يُرجع الكود الأساسي للتخزين والبحث (يزيل .1, -00 إلخ) */
 function normalizeCode(c: string): string {
-  return String(c).trim().toUpperCase().replace(/\s/g, "");
+  let s = String(c).trim().toUpperCase().replace(/\s/g, "");
+  s = s.replace(/\.\d+$/, "").replace(/-\d{2}$/, ""); // P0796.1 -> P0796, B3902-00 -> B3902
+  return s;
 }
 
 export type ExtractedReport = {
@@ -248,13 +251,21 @@ export async function extractCodesFromFile(
       if (!res.ok) continue;
       const data = await res.json();
       const text = data.candidates?.[0]?.content?.parts?.[0]?.text ?? "";
+      let rawCodes: string[] = [];
+      let parsed: { codes?: string[]; vehicle?: { brand?: string; model?: string; year?: number; vin?: string } | null } = {};
       const match = text.match(/\{[\s\S]*\}/);
-      if (!match) continue;
-      const parsed = JSON.parse(match[0]) as {
-        codes?: string[];
-        vehicle?: { brand?: string; model?: string; year?: number; vin?: string } | null;
-      };
-      const rawCodes = parsed?.codes ?? [];
+      if (match) {
+        try {
+          parsed = JSON.parse(match[0]);
+          rawCodes = parsed?.codes ?? [];
+        } catch {
+          const codeRegex = /[PBCU]\d{4}(?:\.\d|-\d{2})?|\b0\d{4}\b|[PBCU]\d{5,6}/gi;
+          rawCodes = [...(text.match(codeRegex) ?? [])];
+        }
+      } else {
+        const codeRegex = /[PBCU]\d{4}(?:\.\d|-\d{2})?|\b0\d{4}\b|[PBCU]\d{5,6}/gi;
+        rawCodes = [...(text.match(codeRegex) ?? [])];
+      }
       const codes = [...new Set(rawCodes.map(normalizeCode).filter(isValidObdCode))];
       const v = parsed?.vehicle;
       const vehicle =
