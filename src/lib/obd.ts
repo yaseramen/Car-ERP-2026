@@ -1,6 +1,6 @@
 import { db } from "@/lib/db/client";
 import { randomUUID } from "crypto";
-import { PDFParse } from "pdf-parse";
+import { extractText, getDocumentProxy } from "unpdf";
 
 const SYSTEM_COMPANY_ID = "company-system";
 
@@ -350,10 +350,9 @@ export async function extractCodesFromFile(
   if (mimeType === "application/pdf" && groqKey) {
     try {
       const buffer = Buffer.from(base64, "base64");
-      const parser = new PDFParse({ data: buffer });
-      const textResult = await parser.getText();
-      parser.destroy();
-      const pdfText = textResult?.text ?? "";
+      const pdf = await getDocumentProxy(new Uint8Array(buffer));
+      const { text } = await extractText(pdf, { mergePages: true });
+      const pdfText = text ?? "";
       if (pdfText.length > 100) {
         const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
           method: "POST",

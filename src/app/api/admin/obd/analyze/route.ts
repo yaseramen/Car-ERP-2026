@@ -199,6 +199,7 @@ export async function POST(request: Request) {
     });
   } catch (error) {
     console.error("OBD analyze error:", error);
-    return NextResponse.json({ error: "فشل في تحليل الملف" }, { status: 500 });
+    const msg = error instanceof Error ? error.message : "فشل في تحليل الملف";
+    return NextResponse.json({ error: `فشل في تحليل الملف: ${msg}` }, { status: 500 });
   }
 }

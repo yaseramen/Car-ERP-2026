@@ -80,15 +80,29 @@ export function ObdContent() {
         body: formData,
       });
 
-      const data = await res.json();
+      const text = await res.text();
+      let data: { error?: string; results?: ObdResult[]; totalCost?: number; codesFound?: number; vehicle?: { brand: string; model: string; year: number | null; vin: string } } = {};
+      try {
+        data = JSON.parse(text);
+      } catch {
+        data = { error: text || "استجابة غير صالحة" };
+      }
       if (!res.ok) {
         alert(data.error || "فشل في تحليل الملف");
         return;
       }
 
-      setAnalyzeResults(data);
-    } catch {
-      alert("حدث خطأ");
+      if (data.results && data.totalCost != null && data.codesFound != null) {
+        setAnalyzeResults({
+          results: data.results,
+          totalCost: data.totalCost,
+          codesFound: data.codesFound,
+          vehicle: data.vehicle,
+        });
+      }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "حدث خطأ";
+      alert(`فشل في التحليل: ${msg}`);
     } finally {
       setLoading(false);
     }
