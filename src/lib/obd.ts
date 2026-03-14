@@ -1,5 +1,6 @@
 import { db } from "@/lib/db/client";
 import { randomUUID } from "crypto";
+import { PDFParse } from "pdf-parse";
 
 const SYSTEM_COMPANY_ID = "company-system";
 
@@ -255,8 +256,9 @@ function normalizeCode(c: string): string {
 export type ExtractedReport = {
   codes: string[];
   vehicle: { brand: string; model: string; year: number | null; vin: string } | null;
-  /** سبب عدم العثور على أكواد */
   reason?: "no_api_key" | "api_error" | "no_codes_in_file";
+  /** تفاصيل الخطأ من API */
+  errorDetail?: string;
 };
 
 export async function extractCodesFromFile(
@@ -265,12 +267,13 @@ export async function extractCodesFromFile(
 ): Promise<ExtractedReport> {
   const geminiKey = process.env.GEMINI_API_KEY;
   const groqKey = process.env.GROQ_API_KEY;
-  if (!geminiKey && !(groqKey && mimeType.startsWith("image/"))) {
+  if (!geminiKey && !(groqKey && (mimeType.startsWith("image/") || mimeType === "application/pdf"))) {
     return { codes: [], vehicle: null, reason: "no_api_key" };
   }
 
-  const models = ["gemini-2.5-flash", "gemini-2.0-flash", "gemini-1.5-flash"];
+  const models = ["gemini-2.0-flash", "gemini-1.5-flash", "gemini-2.5-flash"];
   let lastReason: "api_error" | "no_codes_in_file" = "no_codes_in_file";
+  let lastError = "";
 
   if (geminiKey) {
     for (const model of models) {
@@ -294,9 +297,22 @@ export async function extractCodesFromFile(
 
       if (!res.ok) {
         lastReason = "api_error";
+        const errBody = await res.text();
+        try {
+          const errJson = JSON.parse(errBody);
+          lastError = errJson?.error?.message || errBody.slice(0, 200);
+        } catch {
+          lastError = errBody.slice(0, 200);
+        }
         continue;
       }
       const data = await res.json();
+      const blockReason = data.candidates?.[0]?.finishReason || data.promptFeedback?.blockReason;
+      if (blockReason && blockReason !== "STOP" && blockReason !== "END_TURN") {
+        lastReason = "api_error";
+        lastError = `تم حظر المحتوى: ${blockReason}`;
+        continue;
+      }
       const text = data.candidates?.[0]?.content?.parts?.[0]?.text ?? "";
       let rawCodes: string[] = [];
       let parsed: { codes?: string[]; vehicle?: { brand?: string; model?: string; year?: number; vin?: string } | null } = {};
@@ -329,6 +345,65 @@ export async function extractCodesFromFile(
       lastReason = "api_error";
     }
   }
+  }
+
+  if (mimeType === "application/pdf" && groqKey) {
+    try {
+      const buffer = Buffer.from(base64, "base64");
+      const parser = new PDFParse({ data: buffer });
+      const textResult = await parser.getText();
+      parser.destroy();
+      const pdfText = textResult?.text ?? "";
+      if (pdfText.length > 100) {
+        const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${groqKey}`,
+          },
+          body: JSON.stringify({
+            model: "llama-3.3-70b-versatile",
+            messages: [
+              {
+                role: "user",
+                content: `استخرج كل أكواد الأعطال (DTC) من هذا النص. صيغ الأكواد: P0100, C1211, B1419, P0796.1, 01314. أجب JSON فقط: {"codes":["P0796","P0746",...],"vehicle":{"brand":"","model":"","year":null,"vin":""}}\n\nنص التقرير:\n${pdfText.slice(0, 100000)}`,
+              },
+            ],
+            temperature: 0.1,
+          }),
+        });
+        if (res.ok) {
+          const data = await res.json();
+          const text = data.choices?.[0]?.message?.content ?? "";
+          let rawCodes: string[] = [];
+          const match = text.match(/\{[\s\S]*\}/);
+          if (match) {
+            try {
+              const parsed = JSON.parse(match[0]) as { codes?: string[]; vehicle?: { brand?: string; model?: string; year?: number; vin?: string } };
+              rawCodes = parsed?.codes ?? [];
+              const codes = [...new Set(rawCodes.map(normalizeCode).filter(isValidObdCode))];
+              if (codes.length > 0) {
+                const v = parsed?.vehicle;
+                const vehicle = v && (v.brand || v.model || v.year || v.vin)
+                  ? { brand: String(v.brand ?? "").trim(), model: String(v.model ?? "").trim(), year: typeof v.year === "number" ? v.year : null, vin: String(v.vin ?? "").trim() }
+                  : null;
+                return { codes, vehicle };
+              }
+            } catch {
+              const codeRegex = /[PBCU]\d{4}(?:\.\d|-\d{2})?|\b0\d{4}\b|[PBCU]\d{5,6}/gi;
+              rawCodes = [...(text.match(codeRegex) ?? [])];
+            }
+          } else {
+            const codeRegex = /[PBCU]\d{4}(?:\.\d|-\d{2})?|\b0\d{4}\b|[PBCU]\d{5,6}/gi;
+            rawCodes = [...(text.match(codeRegex) ?? [])];
+          }
+          const codes = [...new Set(rawCodes.map(normalizeCode).filter(isValidObdCode))];
+          if (codes.length > 0) return { codes, vehicle: null };
+        }
+      }
+    } catch (e) {
+      lastError = String(e);
+    }
   }
 
   if (mimeType.startsWith("image/") && groqKey) {
@@ -388,5 +463,5 @@ export async function extractCodesFromFile(
     }
   }
 
-  return { codes: [], vehicle: null, reason: lastReason };
+  return { codes: [], vehicle: null, reason: lastReason, errorDetail: lastError || undefined };
 }
