@@ -26,6 +26,7 @@ export function WalletsContent() {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
+  const [modalType, setModalType] = useState<"charge" | "debit">("charge");
   const [addCompanyOpen, setAddCompanyOpen] = useState(false);
   const [selectedCompany, setSelectedCompany] = useState<Company | null>(null);
   const [chargeAmount, setChargeAmount] = useState("");
@@ -58,12 +59,13 @@ export function WalletsContent() {
     fetchTransactions();
   }, []);
 
-  async function handleCharge(e: React.FormEvent) {
+  async function handleWalletAction(e: React.FormEvent) {
     e.preventDefault();
     if (!selectedCompany) return;
     setSaving(true);
     try {
-      const res = await fetch("/api/admin/wallets/charge", {
+      const endpoint = modalType === "charge" ? "/api/admin/wallets/charge" : "/api/admin/wallets/debit";
+      const res = await fetch(endpoint, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -75,7 +77,7 @@ export function WalletsContent() {
 
       if (!res.ok) {
         const err = await res.json();
-        alert(err.error || "فشل في الشحن");
+        alert(err.error || (modalType === "charge" ? "فشل في الشحن" : "فشل في الخصم"));
         return;
       }
 
@@ -168,15 +170,26 @@ export function WalletsContent() {
                     <td className="px-4 py-3 text-sm font-bold text-emerald-600">
                       {c.balance.toFixed(2)} ج.م
                     </td>
-                    <td className="px-4 py-3">
+                    <td className="px-4 py-3 flex gap-2">
                       <button
                         onClick={() => {
                           setSelectedCompany(c);
+                          setModalType("charge");
                           setModalOpen(true);
                         }}
                         className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-sm rounded-lg transition"
                       >
                         شحن
+                      </button>
+                      <button
+                        onClick={() => {
+                          setSelectedCompany(c);
+                          setModalType("debit");
+                          setModalOpen(true);
+                        }}
+                        className="px-3 py-1.5 bg-amber-600 hover:bg-amber-700 text-white text-sm rounded-lg transition"
+                      >
+                        خصم
                       </button>
                     </td>
                   </tr>
@@ -212,8 +225,8 @@ export function WalletsContent() {
                       {new Date(tx.created_at).toLocaleString("ar-EG")}
                     </td>
                     <td className="px-4 py-3 text-sm">{tx.company_name}</td>
-                    <td className="px-4 py-3 text-sm font-medium text-emerald-600">
-                      +{tx.amount.toFixed(2)} ج.م
+                    <td className={`px-4 py-3 text-sm font-medium ${tx.type === "credit" ? "text-emerald-600" : "text-amber-600"}`}>
+                      {tx.type === "credit" ? "+" : "-"}{tx.amount.toFixed(2)} ج.م
                     </td>
                     <td className="px-4 py-3 text-sm text-gray-600">{tx.description || "—"}</td>
                     <td className="px-4 py-3 text-sm text-gray-500">{tx.performed_by_name || "—"}</td>
@@ -229,22 +242,31 @@ export function WalletsContent() {
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50" dir="rtl">
           <div className="bg-white rounded-xl shadow-xl w-full max-w-md">
             <div className="p-6 border-b border-gray-100">
-              <h3 className="text-lg font-bold text-gray-900">شحن محفظة: {selectedCompany.name}</h3>
+              <h3 className="text-lg font-bold text-gray-900">
+                {modalType === "charge" ? "شحن" : "خصم"} محفظة: {selectedCompany.name}
+              </h3>
               <p className="text-sm text-gray-500 mt-1">الرصيد الحالي: {selectedCompany.balance.toFixed(2)} ج.م</p>
+              {modalType === "debit" && (
+                <p className="text-xs text-amber-600 mt-1">لتصحيح إضافة رصيد بالخطأ</p>
+              )}
             </div>
-            <form onSubmit={handleCharge} className="p-6 space-y-4">
+            <form onSubmit={handleWalletAction} className="p-6 space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">المبلغ (ج.م) *</label>
                 <input
                   type="number"
                   step="0.01"
                   min="0.01"
+                  max={modalType === "debit" ? selectedCompany.balance : undefined}
                   value={chargeAmount}
                   onChange={(e) => setChargeAmount(e.target.value)}
                   required
                   className={inputClass}
                   placeholder="0.00"
                 />
+                {modalType === "debit" && (
+                  <p className="text-xs text-gray-500 mt-1">الحد الأقصى: {selectedCompany.balance.toFixed(2)} ج.م</p>
+                )}
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">الوصف (اختياري)</label>
@@ -253,7 +275,7 @@ export function WalletsContent() {
                   value={chargeDesc}
                   onChange={(e) => setChargeDesc(e.target.value)}
                   className={inputClass}
-                  placeholder="مثال: شحن رصيد"
+                  placeholder={modalType === "charge" ? "مثال: شحن رصيد" : "مثال: تصحيح إضافة بالخطأ"}
                 />
               </div>
               <div className="flex gap-3 pt-4">
@@ -269,10 +291,14 @@ export function WalletsContent() {
                 </button>
                 <button
                   type="submit"
-                  disabled={saving}
-                  className="flex-1 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 disabled:bg-emerald-400 text-white font-medium rounded-lg transition-colors"
+                  disabled={saving || (modalType === "debit" && Number(chargeAmount) > selectedCompany.balance)}
+                  className={`flex-1 px-4 py-2.5 disabled:opacity-50 text-white font-medium rounded-lg transition-colors ${
+                    modalType === "charge"
+                      ? "bg-emerald-600 hover:bg-emerald-700 disabled:bg-emerald-400"
+                      : "bg-amber-600 hover:bg-amber-700 disabled:bg-amber-400"
+                  }`}
                 >
-                  {saving ? "جاري الشحن..." : "شحن"}
+                  {saving ? "جاري..." : modalType === "charge" ? "شحن" : "خصم"}
                 </button>
               </div>
             </form>
