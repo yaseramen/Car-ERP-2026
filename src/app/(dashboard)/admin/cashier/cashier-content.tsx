@@ -43,6 +43,10 @@ export function CashierContent() {
   const [addItemId, setAddItemId] = useState("");
   const [addQty, setAddQty] = useState("1");
 
+  const [addCustomerOpen, setAddCustomerOpen] = useState(false);
+  const [newCustomerForm, setNewCustomerForm] = useState({ name: "", phone: "", email: "" });
+  const [savingCustomer, setSavingCustomer] = useState(false);
+
   async function fetchData() {
     try {
       const [itemsRes, customersRes, methodsRes] = await Promise.all([
@@ -170,6 +174,40 @@ export function CashierContent() {
     }
   }
 
+  async function handleAddCustomer(e: React.FormEvent) {
+    e.preventDefault();
+    if (!newCustomerForm.name.trim()) {
+      alert("اسم العميل مطلوب");
+      return;
+    }
+    setSavingCustomer(true);
+    try {
+      const res = await fetch("/api/admin/customers", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: newCustomerForm.name.trim(),
+          phone: newCustomerForm.phone.trim() || undefined,
+          email: newCustomerForm.email.trim() || undefined,
+        }),
+      });
+      if (!res.ok) {
+        const err = await res.json();
+        alert(err.error || "فشل في إضافة العميل");
+        return;
+      }
+      const newCustomer = await res.json();
+      setCustomers((prev) => [{ id: newCustomer.id, name: newCustomer.name }, ...prev]);
+      setCustomerId(newCustomer.id);
+      setAddCustomerOpen(false);
+      setNewCustomerForm({ name: "", phone: "", email: "" });
+    } catch {
+      alert("حدث خطأ");
+    } finally {
+      setSavingCustomer(false);
+    }
+  }
+
   const inputClass =
     "w-full px-4 py-2.5 rounded-lg border border-gray-300 bg-white text-gray-900 placeholder-gray-500 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none";
 
@@ -274,17 +312,88 @@ export function CashierContent() {
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">العميل</label>
-            <select
-              value={customerId}
-              onChange={(e) => setCustomerId(e.target.value)}
-              className={inputClass}
-            >
-              <option value="">بدون عميل</option>
-              {customers.map((c) => (
-                <option key={c.id} value={c.id}>{c.name}</option>
-              ))}
-            </select>
+            <div className="flex gap-2">
+              <select
+                value={customerId}
+                onChange={(e) => {
+                  const v = e.target.value;
+                  if (v === "__new__") {
+                    setAddCustomerOpen(true);
+                    setCustomerId("");
+                  } else {
+                    setCustomerId(v);
+                  }
+                }}
+                className={inputClass}
+              >
+                <option value="">بدون عميل</option>
+                {customers.map((c) => (
+                  <option key={c.id} value={c.id}>{c.name}</option>
+                ))}
+                <option value="__new__">+ إضافة عميل جديد</option>
+              </select>
+            </div>
           </div>
+
+          {addCustomerOpen && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50" dir="rtl">
+              <div className="bg-white rounded-xl shadow-xl w-full max-w-sm p-6">
+                <h3 className="text-lg font-bold text-gray-900 mb-4">إضافة عميل جديد</h3>
+                <form onSubmit={handleAddCustomer} className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">الاسم *</label>
+                    <input
+                      type="text"
+                      value={newCustomerForm.name}
+                      onChange={(e) => setNewCustomerForm((f) => ({ ...f, name: e.target.value }))}
+                      required
+                      className={inputClass}
+                      placeholder="اسم العميل"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">الهاتف</label>
+                    <input
+                      type="text"
+                      value={newCustomerForm.phone}
+                      onChange={(e) => setNewCustomerForm((f) => ({ ...f, phone: e.target.value }))}
+                      className={inputClass}
+                      placeholder="01xxxxxxxxx"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">البريد</label>
+                    <input
+                      type="email"
+                      value={newCustomerForm.email}
+                      onChange={(e) => setNewCustomerForm((f) => ({ ...f, email: e.target.value }))}
+                      className={inputClass}
+                      placeholder="email@example.com"
+                    />
+                  </div>
+                  <div className="flex gap-3 pt-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setAddCustomerOpen(false);
+                        setNewCustomerForm({ name: "", phone: "", email: "" });
+                      }}
+                      className="flex-1 px-4 py-2.5 text-gray-600 hover:bg-gray-100 rounded-lg transition"
+                    >
+                      إلغاء
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={savingCustomer}
+                      className="flex-1 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 disabled:bg-emerald-400 text-white font-medium rounded-lg transition-colors"
+                    >
+                      {savingCustomer ? "جاري..." : "إضافة"}
+                    </button>
+                  </div>
+                </form>
+              </div>
+            </div>
+          )}
 
           <div className="border-t border-gray-100 pt-4">
             <div className="flex justify-between text-sm mb-2">
