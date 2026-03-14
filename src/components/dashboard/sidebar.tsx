@@ -14,6 +14,7 @@ const navItems = [
   { href: "/admin/customers", label: "العملاء" },
   { href: "/admin/suppliers", label: "الموردون" },
   { href: "/admin/reports", label: "التقارير" },
+  { href: "/admin/treasuries", label: "الخزائن" },
   { href: "/admin/wallets", label: "المحافظ" },
 ];
 

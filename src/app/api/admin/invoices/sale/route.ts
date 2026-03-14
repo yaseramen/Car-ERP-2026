@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { db } from "@/lib/db/client";
 import { randomUUID } from "crypto";
+import { ensureTreasuries, getTreasuryIdByType } from "@/lib/treasuries";
 
 const SYSTEM_COMPANY_ID = "company-system";
 const SYSTEM_WAREHOUSE_ID = "warehouse-system";
@@ -158,10 +159,26 @@ export async function POST(request: Request) {
     }
 
     if (paid > 0 && payment_method_id) {
+      let treasuryId: string | null = null;
+      await ensureTreasuries();
+      treasuryId = getTreasuryIdByType("sales");
+
+      if (treasuryId) {
+        await db.execute({
+          sql: "UPDATE treasuries SET balance = balance + ?, updated_at = datetime('now') WHERE id = ?",
+          args: [paid, treasuryId],
+        });
+        await db.execute({
+          sql: `INSERT INTO treasury_transactions (id, treasury_id, amount, type, description, reference_type, reference_id, payment_method_id, performed_by)
+                VALUES (?, ?, ?, 'in', ?, 'invoice', ?, ?, ?)`,
+          args: [randomUUID(), treasuryId, paid, `فاتورة بيع ${invNum}`, invoiceId, payment_method_id, session.user.id],
+        });
+      }
+
       await db.execute({
-        sql: `INSERT INTO invoice_payments (id, invoice_id, amount, payment_method_id, created_by)
-              VALUES (?, ?, ?, ?, ?)`,
-        args: [randomUUID(), invoiceId, paid, payment_method_id, session.user.id],
+        sql: `INSERT INTO invoice_payments (id, invoice_id, amount, payment_method_id, treasury_id, created_by)
+              VALUES (?, ?, ?, ?, ?, ?)`,
+        args: [randomUUID(), invoiceId, paid, payment_method_id, treasuryId, session.user.id],
       });
     }
 
