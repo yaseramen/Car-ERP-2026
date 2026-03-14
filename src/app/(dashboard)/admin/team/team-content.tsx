@@ -1,0 +1,359 @@
+"use client";
+
+import { useState, useEffect } from "react";
+
+type User = {
+  id: string;
+  email: string;
+  name: string;
+  phone: string | null;
+  role: string;
+  is_active: boolean;
+  is_blocked: boolean;
+  created_at?: string;
+};
+
+type ScreenPerm = {
+  screen_id: string;
+  module: string;
+  name_ar: string;
+  can_read: boolean;
+  can_create: boolean;
+  can_update: boolean;
+  can_delete: boolean;
+};
+
+const ROLE_LABELS: Record<string, string> = {
+  super_admin: "مدير النظام",
+  tenant_owner: "صاحب المركز",
+  employee: "موظف",
+};
+
+export function TeamContent() {
+  const [users, setUsers] = useState<User[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [showForm, setShowForm] = useState(false);
+  const [editingUser, setEditingUser] = useState<User | null>(null);
+  const [permUser, setPermUser] = useState<User | null>(null);
+  const [screens, setScreens] = useState<{ id: string; name_ar: string; module: string }[]>([]);
+  const [perms, setPerms] = useState<ScreenPerm[]>([]);
+
+  const [form, setForm] = useState({ email: "", password: "", name: "", phone: "", role: "employee" });
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState("");
+
+  const loadUsers = () => {
+    fetch("/api/admin/users")
+      .then((r) => r.json())
+      .then((data) => (Array.isArray(data) ? setUsers(data) : setUsers([])))
+      .catch(() => setUsers([]))
+      .finally(() => setLoading(false));
+  };
+
+  useEffect(() => {
+    loadUsers();
+  }, []);
+
+  useEffect(() => {
+    if (permUser) {
+      fetch("/api/admin/screens")
+        .then((r) => r.json())
+        .then(setScreens)
+        .catch(() => setScreens([]));
+      fetch(`/api/admin/users/${permUser.id}/permissions`)
+        .then((r) => r.json())
+        .then((data) => (Array.isArray(data) ? setPerms(data) : setPerms([])))
+        .catch(() => setPerms([]));
+    } else {
+      setPerms([]);
+      setScreens([]);
+    }
+  }, [permUser]);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError("");
+    setSubmitting(true);
+    try {
+      const url = editingUser ? `/api/admin/users/${editingUser.id}` : "/api/admin/users";
+      const method = editingUser ? "PATCH" : "POST";
+      const body = editingUser
+        ? { name: form.name, phone: form.phone || null }
+        : { email: form.email, password: form.password, name: form.name, phone: form.phone || null, role: form.role };
+
+      const res = await fetch(url, { method, headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+      const data = await res.json();
+
+      if (!res.ok) {
+        setError(data.error || "حدث خطأ");
+        return;
+      }
+      setShowForm(false);
+      setEditingUser(null);
+      setForm({ email: "", password: "", name: "", phone: "", role: "employee" });
+      loadUsers();
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleBlock = async (u: User) => {
+    if (!confirm(`هل تريد ${u.is_blocked ? "إلغاء حظر" : "حظر"} ${u.name}؟`)) return;
+    const res = await fetch(`/api/admin/users/${u.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ is_blocked: !u.is_blocked }),
+    });
+    if (res.ok) loadUsers();
+  };
+
+  const handleSavePerms = async () => {
+    if (!permUser) return;
+    const permissions = perms
+      .filter((p) => p.can_read || p.can_create || p.can_update || p.can_delete)
+      .map((p) => ({
+        screen_id: p.screen_id,
+        can_read: p.can_read ? 1 : 0,
+        can_create: p.can_create ? 1 : 0,
+        can_update: p.can_update ? 1 : 0,
+        can_delete: p.can_delete ? 1 : 0,
+      }));
+
+    const res = await fetch(`/api/admin/users/${permUser.id}/permissions`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ permissions }),
+    });
+    if (res.ok) {
+      setPermUser(null);
+    }
+  };
+
+  const togglePerm = (idx: number, key: "can_read" | "can_create" | "can_update" | "can_delete") => {
+    setPerms((prev) => {
+      const next = [...prev];
+      next[idx] = { ...next[idx], [key]: !next[idx][key] };
+      return next;
+    });
+  };
+
+  if (loading) {
+    return <p className="text-gray-500">جاري التحميل...</p>;
+  }
+
+  return (
+    <div className="space-y-6">
+      <div className="flex justify-between items-center">
+        <h2 className="text-lg font-semibold text-gray-900">قائمة المستخدمين</h2>
+        <button
+          onClick={() => {
+            setShowForm(true);
+            setEditingUser(null);
+            setForm({ email: "", password: "", name: "", phone: "", role: "employee" });
+          }}
+          className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 text-sm font-medium"
+        >
+          + إضافة مستخدم
+        </button>
+      </div>
+
+      {showForm && (
+        <div className="bg-white rounded-xl border border-gray-200 p-6">
+          <h3 className="font-bold text-gray-900 mb-4">{editingUser ? "تعديل المستخدم" : "مستخدم جديد"}</h3>
+          <form onSubmit={handleSubmit} className="space-y-4 max-w-md">
+            {!editingUser && (
+              <>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">البريد الإلكتروني</label>
+                  <input
+                    type="email"
+                    required
+                    value={form.email}
+                    onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">كلمة المرور</label>
+                  <input
+                    type="password"
+                    required={!editingUser}
+                    minLength={6}
+                    value={form.password}
+                    onChange={(e) => setForm((f) => ({ ...f, password: e.target.value }))}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">الدور</label>
+                  <select
+                    value={form.role}
+                    onChange={(e) => setForm((f) => ({ ...f, role: e.target.value }))}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                  >
+                    <option value="employee">موظف</option>
+                    <option value="tenant_owner">صاحب مركز</option>
+                  </select>
+                </div>
+              </>
+            )}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">الاسم</label>
+              <input
+                type="text"
+                required
+                value={form.name}
+                onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">الهاتف</label>
+              <input
+                type="text"
+                value={form.phone}
+                onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+              />
+            </div>
+            {error && <p className="text-red-600 text-sm">{error}</p>}
+            <div className="flex gap-2">
+              <button type="submit" disabled={submitting} className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 disabled:opacity-50">
+                {editingUser ? "حفظ" : "إضافة"}
+              </button>
+              <button type="button" onClick={() => setShowForm(false)} className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50">
+                إلغاء
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
+
+      <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+        <table className="w-full text-right">
+          <thead className="bg-gray-50 border-b border-gray-200">
+            <tr>
+              <th className="px-4 py-3 text-sm font-medium text-gray-700">الاسم</th>
+              <th className="px-4 py-3 text-sm font-medium text-gray-700">البريد</th>
+              <th className="px-4 py-3 text-sm font-medium text-gray-700">الدور</th>
+              <th className="px-4 py-3 text-sm font-medium text-gray-700">الحالة</th>
+              <th className="px-4 py-3 text-sm font-medium text-gray-700">إجراءات</th>
+            </tr>
+          </thead>
+          <tbody>
+            {users.map((u) => (
+              <tr key={u.id} className="border-b border-gray-100 hover:bg-gray-50">
+                <td className="px-4 py-3">{u.name}</td>
+                <td className="px-4 py-3 text-gray-600">{u.email}</td>
+                <td className="px-4 py-3">{ROLE_LABELS[u.role] || u.role}</td>
+                <td className="px-4 py-3">
+                  {u.is_blocked ? (
+                    <span className="text-red-600 font-medium">محظور</span>
+                  ) : (
+                    <span className="text-emerald-600">نشط</span>
+                  )}
+                </td>
+                <td className="px-4 py-3 flex gap-2">
+                  {u.role === "employee" && (
+                    <button
+                      onClick={() => setPermUser(u)}
+                      className="text-sm text-emerald-600 hover:underline"
+                    >
+                      صلاحيات
+                    </button>
+                  )}
+                  {u.role === "employee" && (
+                    <button
+                      onClick={() => {
+                        setEditingUser(u);
+                        setForm({ email: u.email, password: "", name: u.name, phone: u.phone || "", role: u.role });
+                        setShowForm(true);
+                      }}
+                      className="text-sm text-blue-600 hover:underline"
+                    >
+                      تعديل
+                    </button>
+                  )}
+                  {u.role === "employee" && (
+                    <button onClick={() => handleBlock(u)} className="text-sm text-amber-600 hover:underline">
+                      {u.is_blocked ? "إلغاء الحظر" : "حظر"}
+                    </button>
+                  )}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      {permUser && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl max-w-2xl w-full max-h-[90vh] overflow-auto p-6">
+            <h3 className="font-bold text-gray-900 mb-4">صلاحيات: {permUser.name}</h3>
+            <p className="text-sm text-gray-500 mb-4">حدد الصلاحيات لكل شاشة (قراءة، إضافة، تعديل، حذف)</p>
+            <div className="overflow-x-auto">
+              <table className="w-full text-right text-sm">
+                <thead>
+                  <tr className="border-b border-gray-200">
+                    <th className="py-2 px-2">الشاشة</th>
+                    <th className="py-2 px-2">قراءة</th>
+                    <th className="py-2 px-2">إضافة</th>
+                    <th className="py-2 px-2">تعديل</th>
+                    <th className="py-2 px-2">حذف</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {perms.map((p, idx) => (
+                    <tr key={p.screen_id} className="border-b border-gray-100">
+                      <td className="py-2 px-2 font-medium">{p.name_ar}</td>
+                      <td className="py-2 px-2">
+                        <input
+                          type="checkbox"
+                          checked={p.can_read}
+                          onChange={() => togglePerm(idx, "can_read")}
+                          className="rounded"
+                        />
+                      </td>
+                      <td className="py-2 px-2">
+                        <input
+                          type="checkbox"
+                          checked={p.can_create}
+                          onChange={() => togglePerm(idx, "can_create")}
+                          className="rounded"
+                        />
+                      </td>
+                      <td className="py-2 px-2">
+                        <input
+                          type="checkbox"
+                          checked={p.can_update}
+                          onChange={() => togglePerm(idx, "can_update")}
+                          className="rounded"
+                        />
+                      </td>
+                      <td className="py-2 px-2">
+                        <input
+                          type="checkbox"
+                          checked={p.can_delete}
+                          onChange={() => togglePerm(idx, "can_delete")}
+                          className="rounded"
+                        />
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <div className="mt-6 flex gap-2">
+              <button onClick={handleSavePerms} className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700">
+                حفظ الصلاحيات
+              </button>
+              <button onClick={() => setPermUser(null)} className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50">
+                إغلاق
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}

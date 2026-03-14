@@ -15,7 +15,7 @@ export default auth((req) => {
   if (path === "/login") {
     if (isLoggedIn) {
       const role = req.auth?.user?.role;
-      if (role === "super_admin") {
+      if (["super_admin", "tenant_owner", "employee"].includes(role ?? "")) {
         return NextResponse.redirect(new URL("/admin", nextUrl));
       }
       return NextResponse.redirect(new URL("/", nextUrl));
@@ -23,12 +23,13 @@ export default auth((req) => {
     return NextResponse.next();
   }
 
-  // حماية /admin - Super Admin فقط
+  // حماية /admin - Super Admin أو Tenant Owner أو Employee
   if (path.startsWith("/admin")) {
     if (!isLoggedIn) {
       return NextResponse.redirect(new URL("/login", nextUrl));
     }
-    if (req.auth?.user?.role !== "super_admin") {
+    const role = req.auth?.user?.role;
+    if (role !== "super_admin" && role !== "tenant_owner" && role !== "employee") {
       return NextResponse.redirect(new URL("/", nextUrl));
     }
     return NextResponse.next();
@@ -36,7 +37,8 @@ export default auth((req) => {
 
   // الصفحة الرئيسية - صفحة ترحيبية عامة (لا تتطلب تسجيل دخول)
   if (path === "/") {
-    if (isLoggedIn && req.auth?.user?.role === "super_admin") {
+    const role = req.auth?.user?.role;
+    if (isLoggedIn && ["super_admin", "tenant_owner", "employee"].includes(role ?? "")) {
       return NextResponse.redirect(new URL("/admin", nextUrl));
     }
     return NextResponse.next();

@@ -8,13 +8,13 @@ export default async function AdminLayout({
   children: React.ReactNode;
 }) {
   const session = await auth();
-  if (!session?.user || session.user.role !== "super_admin") {
+  if (!session?.user || !["super_admin", "tenant_owner", "employee"].includes(session.user.role)) {
     redirect("/login");
   }
 
   return (
     <div className="min-h-screen bg-gray-50 flex" dir="rtl">
-      <Sidebar />
+      <Sidebar role={session.user.role} />
       <main className="flex-1 overflow-auto">{children}</main>
     </div>
   );

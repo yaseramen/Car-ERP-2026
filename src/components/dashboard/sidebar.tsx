@@ -3,34 +3,63 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { signOut } from "next-auth/react";
+import { useState, useEffect } from "react";
 
-const navItems = [
+const navItems: {
+  href: string;
+  label: string;
+  module?: string;
+  superAdminOnly?: boolean;
+  ownerOrAdmin?: boolean;
+}[] = [
   { href: "/admin", label: "الرئيسية" },
-  { href: "/admin/inventory", label: "المخزن" },
-  { href: "/admin/workshop", label: "الورشة" },
-  { href: "/admin/obd", label: "OBD" },
-  { href: "/admin/cashier", label: "الكاشير" },
-  { href: "/admin/purchases", label: "فواتير الشراء" },
-  { href: "/admin/invoices", label: "الفواتير" },
-  { href: "/admin/customers", label: "العملاء" },
-  { href: "/admin/suppliers", label: "الموردون" },
-  { href: "/admin/reports", label: "التقارير" },
-  { href: "/admin/treasuries", label: "الخزائن" },
-  { href: "/admin/wallets", label: "المحافظ" },
+  { href: "/admin/inventory", label: "المخزن", module: "inventory" },
+  { href: "/admin/workshop", label: "الورشة", module: "workshop" },
+  { href: "/admin/obd", label: "OBD", module: "obd" },
+  { href: "/admin/cashier", label: "الكاشير", module: "cashier" },
+  { href: "/admin/purchases", label: "فواتير الشراء", module: "purchases" },
+  { href: "/admin/invoices", label: "الفواتير", module: "invoices" },
+  { href: "/admin/customers", label: "العملاء", module: "customers" },
+  { href: "/admin/suppliers", label: "الموردون", module: "suppliers" },
+  { href: "/admin/reports", label: "التقارير", module: "reports" },
+  { href: "/admin/treasuries", label: "الخزائن", module: "treasuries" },
+  { href: "/admin/wallets", label: "المحافظ", module: "wallets", superAdminOnly: true },
+  { href: "/admin/team", label: "المستخدمون", ownerOrAdmin: true },
 ];
 
-export function Sidebar() {
+export function Sidebar({ role = "super_admin" }: { role?: string }) {
+  const [perms, setPerms] = useState<Record<string, { read: boolean }> | null>(null);
+
+  useEffect(() => {
+    if (role === "employee") {
+      fetch("/api/admin/me/permissions")
+        .then((r) => r.json())
+        .then((d) => setPerms(d.permissions || {}))
+        .catch(() => setPerms({}));
+    } else {
+      setPerms(null);
+    }
+  }, [role]);
+
+  const items = navItems.filter((item) => {
+    if (item.superAdminOnly && role !== "super_admin") return false;
+    if (item.ownerOrAdmin && role === "employee") return false;
+    if (role === "employee" && item.module && perms) {
+      return perms[item.module]?.read === true;
+    }
+    return true;
+  });
   const pathname = usePathname();
 
   return (
     <aside className="w-64 min-h-screen bg-white border-l border-gray-200 flex flex-col">
       <div className="p-6 border-b border-gray-100">
         <h2 className="font-bold text-gray-900">الأمين لخدمات السيارات</h2>
-        <p className="text-xs text-gray-500 mt-1">لوحة Super Admin</p>
+        <p className="text-xs text-gray-500 mt-1">{role === "super_admin" ? "لوحة Super Admin" : "لوحة المالك"}</p>
       </div>
 
       <nav className="flex-1 p-4 space-y-1">
-        {navItems.map((item) => {
+        {items.map((item) => {
           const isActive = pathname === item.href || (item.href !== "/admin" && pathname.startsWith(item.href));
           return (
             <Link
