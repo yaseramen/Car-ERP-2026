@@ -25,6 +25,8 @@ interface RepairOrder {
   created_at: string;
   items_count?: number;
   items_total?: number;
+  services_count?: number;
+  services_total?: number;
   invoice_number?: string | null;
 }
 
@@ -43,15 +45,26 @@ interface OrderItem {
   total: number;
 }
 
+interface OrderService {
+  id: string;
+  description: string;
+  quantity: number;
+  unit_price: number;
+  total: number;
+}
+
 export function WorkshopContent() {
   const [orders, setOrders] = useState<RepairOrder[]>([]);
   const [loading, setLoading] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
   const [addPartsOpen, setAddPartsOpen] = useState(false);
+  const [addServicesOpen, setAddServicesOpen] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState<RepairOrder | null>(null);
   const [orderItems, setOrderItems] = useState<OrderItem[]>([]);
+  const [orderServices, setOrderServices] = useState<OrderService[]>([]);
   const [inventoryItems, setInventoryItems] = useState<InventoryItem[]>([]);
   const [addForm, setAddForm] = useState({ item_id: "", quantity: "1" });
+  const [serviceForm, setServiceForm] = useState({ description: "", quantity: "1", unit_price: "" });
   const [saving, setSaving] = useState(false);
   const [customers, setCustomers] = useState<{ id: string; name: string }[]>([]);
   const [form, setForm] = useState({
@@ -79,6 +92,15 @@ export function WorkshopContent() {
       if (res.ok) setOrderItems(await res.json());
     } catch {
       setOrderItems([]);
+    }
+  }
+
+  async function fetchOrderServices(orderId: string) {
+    try {
+      const res = await fetch(`/api/admin/workshop/orders/${orderId}/services`);
+      if (res.ok) setOrderServices(await res.json());
+    } catch {
+      setOrderServices([]);
     }
   }
 
@@ -113,6 +135,12 @@ export function WorkshopContent() {
     }
   }, [addPartsOpen, selectedOrder]);
 
+  useEffect(() => {
+    if (addServicesOpen && selectedOrder) {
+      fetchOrderServices(selectedOrder.id);
+    }
+  }, [addServicesOpen, selectedOrder]);
+
   async function handleCreate(e: React.FormEvent) {
     e.preventDefault();
     setSaving(true);
@@ -138,6 +166,35 @@ export function WorkshopContent() {
       await fetchOrders();
       setModalOpen(false);
       setForm({ vehicle_plate: "", vehicle_model: "", vehicle_year: "", mileage: "", customer_id: "" });
+    } catch {
+      alert("حدث خطأ");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function handleAddService(e: React.FormEvent) {
+    e.preventDefault();
+    if (!selectedOrder) return;
+    setSaving(true);
+    try {
+      const res = await fetch(`/api/admin/workshop/orders/${selectedOrder.id}/services`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          description: serviceForm.description.trim(),
+          quantity: Number(serviceForm.quantity) || 1,
+          unit_price: Number(serviceForm.unit_price) || 0,
+        }),
+      });
+      if (!res.ok) {
+        const err = await res.json();
+        alert(err.error || "فشل في إضافة الخدمة");
+        return;
+      }
+      await fetchOrderServices(selectedOrder.id);
+      await fetchOrders();
+      setServiceForm({ description: "", quantity: "1", unit_price: "" });
     } catch {
       alert("حدث خطأ");
     } finally {
@@ -260,9 +317,11 @@ export function WorkshopContent() {
                       {order.vehicle_model && (
                         <div className="text-xs text-gray-500">{order.vehicle_model}</div>
                       )}
-                      {(order.items_count ?? 0) > 0 && (
+                      {((order.items_count ?? 0) > 0 || (order.services_count ?? 0) > 0) && (
                         <div className="text-xs text-emerald-600 mt-1">
-                          {order.items_count} قطعة - {Number(order.items_total ?? 0).toFixed(2)} ج.م
+                          {(order.items_count ?? 0) > 0 && <span>{order.items_count} قطعة </span>}
+                          {(order.services_count ?? 0) > 0 && <span>{order.services_count} خدمة </span>}
+                          — {(Number(order.items_total ?? 0) + Number(order.services_total ?? 0)).toFixed(2)} ج.م
                         </div>
                       )}
                       {order.stage === "completed" && order.invoice_number && (
@@ -270,15 +329,26 @@ export function WorkshopContent() {
                       )}
                       <div className="mt-2 flex flex-col gap-1">
                         {canAddParts(order.stage) && (
-                          <button
-                            onClick={() => {
-                              setSelectedOrder(order);
-                              setAddPartsOpen(true);
-                            }}
-                            className="w-full py-1.5 text-xs bg-purple-600 hover:bg-purple-700 text-white rounded transition"
-                          >
-                            إضافة قطعة
-                          </button>
+                          <>
+                            <button
+                              onClick={() => {
+                                setSelectedOrder(order);
+                                setAddPartsOpen(true);
+                              }}
+                              className="w-full py-1.5 text-xs bg-purple-600 hover:bg-purple-700 text-white rounded transition"
+                            >
+                              إضافة قطعة
+                            </button>
+                            <button
+                              onClick={() => {
+                                setSelectedOrder(order);
+                                setAddServicesOpen(true);
+                              }}
+                              className="w-full py-1.5 text-xs bg-blue-600 hover:bg-blue-700 text-white rounded transition"
+                            >
+                              إضافة خدمة
+                            </button>
+                          </>
                         )}
                         {next && (
                           <button
@@ -451,6 +521,89 @@ export function WorkshopContent() {
                     type="submit"
                     disabled={saving}
                     className="flex-1 px-4 py-2.5 bg-purple-600 hover:bg-purple-700 disabled:bg-purple-400 text-white font-medium rounded-lg transition-colors"
+                  >
+                    {saving ? "جاري..." : "إضافة"}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {addServicesOpen && selectedOrder && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50" dir="rtl">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-md max-h-[90vh] overflow-y-auto">
+            <div className="p-6 border-b border-gray-100">
+              <h3 className="text-lg font-bold text-gray-900">إضافة خدمة - {selectedOrder.order_number}</h3>
+              <p className="text-sm text-gray-500 mt-1">{selectedOrder.vehicle_plate}</p>
+            </div>
+            <div className="p-6 space-y-4">
+              {orderServices.length > 0 && (
+                <div>
+                  <h4 className="text-sm font-medium text-gray-700 mb-2">الخدمات المضافة</h4>
+                  <ul className="space-y-1 text-sm">
+                    {orderServices.map((s) => (
+                      <li key={s.id} className="flex justify-between">
+                        <span>{s.description} x {s.quantity}</span>
+                        <span>{s.total.toFixed(2)} ج.م</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+              <form onSubmit={handleAddService} className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">وصف الخدمة *</label>
+                  <input
+                    type="text"
+                    value={serviceForm.description}
+                    onChange={(e) => setServiceForm((f) => ({ ...f, description: e.target.value }))}
+                    required
+                    className={inputClass}
+                    placeholder="مثال: فحص المحرك، تغيير الزيت، إلخ"
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">الكمية</label>
+                    <input
+                      type="number"
+                      min="0.01"
+                      step="0.01"
+                      value={serviceForm.quantity}
+                      onChange={(e) => setServiceForm((f) => ({ ...f, quantity: e.target.value }))}
+                      className={inputClass}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">السعر (ج.م)</label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      value={serviceForm.unit_price}
+                      onChange={(e) => setServiceForm((f) => ({ ...f, unit_price: e.target.value }))}
+                      className={inputClass}
+                      placeholder="0"
+                    />
+                  </div>
+                </div>
+                <div className="flex gap-3">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setAddServicesOpen(false);
+                      setSelectedOrder(null);
+                    }}
+                    className="flex-1 px-4 py-2.5 text-gray-600 hover:bg-gray-100 rounded-lg transition"
+                  >
+                    إغلاق
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={saving}
+                    className="flex-1 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white font-medium rounded-lg transition-colors"
                   >
                     {saving ? "جاري..." : "إضافة"}
                   </button>

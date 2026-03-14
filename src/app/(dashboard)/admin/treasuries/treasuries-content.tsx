@@ -18,6 +18,121 @@ interface Transaction {
   created_at: string;
 }
 
+function SettleButton({ treasuries, onSuccess }: { treasuries: Treasury[]; onSuccess: () => void }) {
+  const [loading, setLoading] = useState(false);
+  const [modalOpen, setModalOpen] = useState(false);
+  const [fromDate, setFromDate] = useState("");
+  const [toDate, setToDate] = useState("");
+  const [note, setNote] = useState("");
+
+  const sales = treasuries.find((t) => t.type === "sales");
+  const workshop = treasuries.find((t) => t.type === "workshop");
+  const main = treasuries.find((t) => t.type === "main");
+  const totalToSettle = (sales?.balance ?? 0) + (workshop?.balance ?? 0);
+
+  if (!main || totalToSettle <= 0) return null;
+
+  async function handleSettle() {
+    if (!confirm(`تسليم ${totalToSettle.toFixed(2)} ج.م من خزينة المبيعات والورشة إلى الخزينة الرئيسية؟`)) return;
+    setLoading(true);
+    try {
+      const res = await fetch("/api/admin/treasuries/settle", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          from_date: fromDate || undefined,
+          to_date: toDate || undefined,
+          note: note.trim() || undefined,
+        }),
+      });
+      if (!res.ok) {
+        const err = await res.json();
+        alert(err.error || "فشل في التسليم");
+        return;
+      }
+      setModalOpen(false);
+      setFromDate("");
+      setToDate("");
+      setNote("");
+      onSuccess();
+    } catch {
+      alert("حدث خطأ");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  return (
+    <>
+      <button
+        onClick={() => setModalOpen(true)}
+        className="px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white font-medium rounded-lg transition-colors"
+      >
+        تسليم إلى الخزينة الرئيسية
+      </button>
+      {modalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50" dir="rtl">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-sm p-6">
+            <h3 className="text-lg font-bold text-gray-900 mb-4">تسليم إلى الخزينة الرئيسية</h3>
+            <p className="text-sm text-gray-600 mb-4">
+              المبلغ الإجمالي: <strong>{totalToSettle.toFixed(2)} ج.م</strong>
+              <br />
+              <span className="text-xs">(خزينة المبيعات: {sales?.balance?.toFixed(2)} + الورشة: {workshop?.balance?.toFixed(2)})</span>
+            </p>
+            <div className="space-y-3 mb-4">
+              <div>
+                <label className="block text-xs text-gray-500 mb-1">من تاريخ</label>
+                <input
+                  type="date"
+                  value={fromDate}
+                  onChange={(e) => setFromDate(e.target.value)}
+                  className="w-full px-3 py-2 rounded-lg border border-gray-300"
+                />
+              </div>
+              <div>
+                <label className="block text-xs text-gray-500 mb-1">إلى تاريخ</label>
+                <input
+                  type="date"
+                  value={toDate}
+                  onChange={(e) => setToDate(e.target.value)}
+                  className="w-full px-3 py-2 rounded-lg border border-gray-300"
+                />
+              </div>
+              <div>
+                <label className="block text-xs text-gray-500 mb-1">ملاحظة</label>
+                <input
+                  type="text"
+                  value={note}
+                  onChange={(e) => setNote(e.target.value)}
+                  className="w-full px-3 py-2 rounded-lg border border-gray-300"
+                  placeholder="تسليم نهاية اليوم"
+                />
+              </div>
+            </div>
+            <div className="flex gap-3">
+              <button
+                type="button"
+                onClick={() => setModalOpen(false)}
+                className="flex-1 px-4 py-2.5 text-gray-600 hover:bg-gray-100 rounded-lg transition"
+              >
+                إلغاء
+              </button>
+              <button
+                type="button"
+                onClick={handleSettle}
+                disabled={loading}
+                className="flex-1 px-4 py-2.5 bg-amber-600 hover:bg-amber-700 disabled:bg-amber-400 text-white font-medium rounded-lg transition-colors"
+              >
+                {loading ? "جاري..." : "تسليم"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
+  );
+}
+
 export function TreasuriesContent() {
   const [treasuries, setTreasuries] = useState<Treasury[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -128,7 +243,7 @@ export function TreasuriesContent() {
         ))}
       </div>
 
-      <div className="flex gap-2">
+      <div className="flex gap-2 flex-wrap">
         <button
           onClick={() => {
             if (treasuries.length >= 2) {
@@ -141,6 +256,7 @@ export function TreasuriesContent() {
         >
           تحويل بين الخزائن
         </button>
+        <SettleButton treasuries={treasuries} onSuccess={fetchTreasuries} />
       </div>
 
       <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">

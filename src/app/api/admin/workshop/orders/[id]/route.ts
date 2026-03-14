@@ -39,6 +39,11 @@ export async function PATCH(
         args: [id],
       });
 
+      const servicesResult = await db.execute({
+        sql: "SELECT description, quantity, unit_price, total FROM repair_order_services WHERE repair_order_id = ?",
+        args: [id],
+      });
+
       const invCountResult = await db.execute({
         sql: "SELECT COUNT(*) as cnt FROM invoices WHERE company_id = ?",
         args: [SYSTEM_COMPANY_ID],
@@ -58,13 +63,23 @@ export async function PATCH(
         args: [invoiceId, SYSTEM_COMPANY_ID, invNum, customerId, id, order.warehouse_id, session.user.id],
       });
 
+      let sortOrder = 0;
       for (let i = 0; i < itemsResult.rows.length; i++) {
         const item = itemsResult.rows[i];
         const itemTotal = Number(item.total ?? 0);
         subtotal += itemTotal;
         await db.execute({
-          sql: "INSERT INTO invoice_items (id, invoice_id, item_id, quantity, unit_price, total, sort_order) VALUES (?, ?, ?, ?, ?, ?, ?)",
-          args: [randomUUID(), invoiceId, item.item_id, item.quantity, item.unit_price, itemTotal, i],
+          sql: "INSERT INTO invoice_items (id, invoice_id, item_id, description, quantity, unit_price, total, sort_order) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+          args: [randomUUID(), invoiceId, item.item_id, null, item.quantity, item.unit_price, itemTotal, sortOrder++],
+        });
+      }
+      for (let i = 0; i < servicesResult.rows.length; i++) {
+        const svc = servicesResult.rows[i];
+        const svcTotal = Number(svc.total ?? 0);
+        subtotal += svcTotal;
+        await db.execute({
+          sql: "INSERT INTO invoice_items (id, invoice_id, item_id, description, quantity, unit_price, total, sort_order) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+          args: [randomUUID(), invoiceId, null, svc.description, svc.quantity, svc.unit_price, svcTotal, sortOrder++],
         });
       }
 

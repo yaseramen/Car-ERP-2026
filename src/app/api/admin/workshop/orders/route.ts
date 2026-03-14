@@ -40,7 +40,9 @@ export async function GET() {
     const result = await db.execute({
       sql: `SELECT ro.*, c.name as customer_name, inv.invoice_number,
             (SELECT COUNT(*) FROM repair_order_items WHERE repair_order_id = ro.id) as items_count,
-            (SELECT SUM(total) FROM repair_order_items WHERE repair_order_id = ro.id) as items_total
+            (SELECT COALESCE(SUM(total), 0) FROM repair_order_items WHERE repair_order_id = ro.id) as items_total,
+            (SELECT COUNT(*) FROM repair_order_services WHERE repair_order_id = ro.id) as services_count,
+            (SELECT COALESCE(SUM(total), 0) FROM repair_order_services WHERE repair_order_id = ro.id) as services_total
             FROM repair_orders ro
             LEFT JOIN customers c ON ro.customer_id = c.id
             LEFT JOIN invoices inv ON ro.invoice_id = inv.id
@@ -73,6 +75,8 @@ export async function GET() {
       created_at: row.created_at,
       items_count: row.items_count ?? 0,
       items_total: row.items_total ?? 0,
+      services_count: row.services_count ?? 0,
+      services_total: row.services_total ?? 0,
       invoice_number: row.invoice_number ?? null,
     }));
 
