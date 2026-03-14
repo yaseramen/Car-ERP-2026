@@ -24,3 +24,15 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+@media print {
+  .no-print,
+  aside,
+  nav,
+  [data-sidebar] {
+    display: none !important;
+  }
+  main {
+    width: 100% !important;
+  }
+}

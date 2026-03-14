@@ -2,6 +2,8 @@ import { auth } from "@/auth";
 import { redirect, notFound } from "next/navigation";
 import Link from "next/link";
 import { db } from "@/lib/db/client";
+import { AddPayment } from "./add-payment";
+import { PrintButton } from "./print-button";
 
 const SYSTEM_COMPANY_ID = "company-system";
 
@@ -69,6 +71,21 @@ export default async function InvoiceDetailPage({
       total: Number(r.total ?? 0),
     }));
 
+    const paymentsResult = await db.execute({
+      sql: `SELECT ip.*, pm.name as method_name FROM invoice_payments ip
+            JOIN payment_methods pm ON ip.payment_method_id = pm.id
+            WHERE ip.invoice_id = ? ORDER BY ip.created_at`,
+      args: [id],
+    });
+
+    const payments = paymentsResult.rows.map((r) => ({
+      id: String(r.id ?? ""),
+      amount: Number(r.amount ?? 0),
+      method_name: String(r.method_name ?? ""),
+      reference_number: r.reference_number ? String(r.reference_number) : null,
+      created_at: String(r.created_at ?? ""),
+    }));
+
     const TYPE_LABELS: Record<string, string> = {
       sale: "بيع",
       purchase: "شراء",
@@ -86,13 +103,14 @@ export default async function InvoiceDetailPage({
 
     return (
     <div className="p-8">
-      <div className="mb-6">
+      <div className="mb-6 flex justify-between items-center">
         <Link
           href="/admin/invoices"
-          className="text-sm text-emerald-600 hover:text-emerald-700"
+          className="text-sm text-emerald-600 hover:text-emerald-700 no-print"
         >
           ← العودة للفواتير
         </Link>
+        <PrintButton />
       </div>
 
       <div className="mb-8">
@@ -214,6 +232,36 @@ export default async function InvoiceDetailPage({
           ) : (
             <div className="p-8 text-center text-gray-500">لا توجد بنود</div>
           )}
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+        <div className="no-print">
+          <AddPayment
+            invoiceId={id}
+            total={data.total}
+            paidAmount={data.paid_amount}
+            status={data.status}
+          />
+        </div>
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+          <div className="p-4 border-b border-gray-100">
+            <h2 className="font-bold text-gray-900">سجل المدفوعات</h2>
+          </div>
+          <div className="p-4">
+            {payments.length > 0 ? (
+              <ul className="space-y-3">
+                {payments.map((p) => (
+                  <li key={p.id} className="flex justify-between items-center text-sm">
+                    <span>{p.method_name} — {new Date(p.created_at).toLocaleString("ar-EG")}</span>
+                    <span className="font-medium text-emerald-600">+{p.amount.toFixed(2)} ج.م</span>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="text-gray-500 text-sm">لا توجد مدفوعات مسجلة</p>
+            )}
+          </div>
         </div>
       </div>
 

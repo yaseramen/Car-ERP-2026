@@ -8,6 +8,7 @@ const navItems = [
   { href: "/admin", label: "الرئيسية" },
   { href: "/admin/inventory", label: "المخزن" },
   { href: "/admin/workshop", label: "الورشة" },
+  { href: "/admin/cashier", label: "الكاشير" },
   { href: "/admin/invoices", label: "الفواتير" },
   { href: "/admin/customers", label: "العملاء" },
   { href: "/admin/wallets", label: "المحافظ" },
