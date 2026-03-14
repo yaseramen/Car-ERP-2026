@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { db } from "@/lib/db/client";
+import { ensureTreasuries } from "@/lib/treasuries";
 
 const SYSTEM_COMPANY_ID = "company-system";
 
@@ -33,6 +34,8 @@ export async function GET(request: Request) {
   }
 
   try {
+    await ensureTreasuries();
+
     const now = new Date();
     const todayStart = startOfDay(now);
     const weekStart = startOfWeek(now);
@@ -79,10 +82,38 @@ export async function GET(request: Request) {
       args: [SYSTEM_COMPANY_ID],
     });
 
+    const treasuries = await db.execute({
+      sql: "SELECT type, balance FROM treasuries WHERE company_id = ? AND is_active = 1",
+      args: [SYSTEM_COMPANY_ID],
+    });
+
+    const sevenDaysAgo = new Date(now);
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+    const sevenDaysStr = sevenDaysAgo.toISOString().slice(0, 19).replace("T", " ");
+
+    const dailySales = await db.execute({
+      sql: `SELECT DATE(created_at) as day, COALESCE(SUM(total), 0) as total
+            FROM invoices WHERE company_id = ? AND type IN ('sale', 'maintenance')
+            AND status NOT IN ('cancelled', 'returned')
+            AND created_at >= ?
+            GROUP BY DATE(created_at) ORDER BY day`,
+      args: [SYSTEM_COMPANY_ID, sevenDaysStr],
+    });
+
     const workshopByStage: Record<string, number> = {};
     for (const row of workshopStats.rows) {
       workshopByStage[String(row.stage ?? "")] = Number(row.cnt ?? 0);
     }
+
+    const treasuryBalances: Record<string, number> = {};
+    for (const row of treasuries.rows) {
+      treasuryBalances[String(row.type ?? "")] = Number(row.balance ?? 0);
+    }
+
+    const dailyData = dailySales.rows.map((r) => ({
+      day: String(r.day ?? ""),
+      total: Number(r.total ?? 0),
+    }));
 
     return NextResponse.json({
       sales: {
@@ -96,6 +127,8 @@ export async function GET(request: Request) {
         count: Number(pendingInvoices.rows[0]?.cnt ?? 0),
         remaining: Number(pendingInvoices.rows[0]?.remaining ?? 0),
       },
+      treasuries: treasuryBalances,
+      dailySales: dailyData,
     });
   } catch (error) {
     console.error("Reports summary error:", error);
