@@ -32,9 +32,12 @@ async function ensureWarehouse() {
     args: [SYSTEM_WAREHOUSE_ID],
   });
   if (existing.rows.length > 0) return SYSTEM_WAREHOUSE_ID;
-
   await ensureSystemCompany();
   return SYSTEM_WAREHOUSE_ID;
+}
+
+function generateBarcode() {
+  return "BC" + Date.now().toString(36).toUpperCase() + Math.random().toString(36).slice(2, 8).toUpperCase();
 }
 
 export async function GET() {
@@ -45,7 +48,7 @@ export async function GET() {
 
   try {
     const result = await db.execute({
-      sql: `SELECT id, name, code, category, unit, purchase_price, sale_price, 
+      sql: `SELECT id, name, code, barcode, category, unit, purchase_price, sale_price, 
             COALESCE((SELECT SUM(quantity) FROM item_warehouse_stock WHERE item_id = items.id), 0) as quantity
             FROM items 
             WHERE company_id = ? AND is_active = 1 
@@ -57,6 +60,7 @@ export async function GET() {
       id: row.id,
       name: row.name,
       code: row.code,
+      barcode: row.barcode,
       category: row.category,
       unit: row.unit || "قطعة",
       purchase_price: row.purchase_price ?? 0,
@@ -67,10 +71,7 @@ export async function GET() {
     return NextResponse.json(items);
   } catch (error) {
     console.error("Inventory GET error:", error);
-    return NextResponse.json(
-      { error: "فشل في جلب البيانات" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "فشل في جلب البيانات" }, { status: 500 });
   }
 }
 
@@ -82,28 +83,33 @@ export async function POST(request: Request) {
 
   try {
     const body = await request.json();
-    const { name, code, category, unit, purchase_price, sale_price } = body;
+    let { name, code, barcode, category, unit, purchase_price, sale_price } = body;
 
     if (!name?.trim()) {
-      return NextResponse.json(
-        { error: "اسم القطعة مطلوب" },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: "اسم القطعة مطلوب" }, { status: 400 });
     }
 
     const companyId = await ensureSystemCompany();
+    const warehouseId = await ensureWarehouse();
     const id = randomUUID();
 
-    const warehouseId = await ensureWarehouse();
+    const countResult = await db.execute({
+      sql: "SELECT COUNT(*) as cnt FROM items WHERE company_id = ?",
+      args: [SYSTEM_COMPANY_ID],
+    });
+    const count = (countResult.rows[0]?.cnt as number) ?? 0;
+    const autoCode = code?.trim() || `PRD-${String(count + 1).padStart(4, "0")}`;
+    const autoBarcode = barcode?.trim() || generateBarcode();
 
     await db.execute({
-      sql: `INSERT INTO items (id, company_id, name, code, category, unit, purchase_price, sale_price)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      sql: `INSERT INTO items (id, company_id, name, code, barcode, category, unit, purchase_price, sale_price)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       args: [
         id,
         companyId,
         name.trim(),
-        code?.trim() || null,
+        autoCode,
+        autoBarcode,
         category?.trim() || null,
         unit?.trim() || "قطعة",
         Number(purchase_price) || 0,
@@ -117,7 +123,7 @@ export async function POST(request: Request) {
     });
 
     const newItem = await db.execute({
-      sql: `SELECT id, name, code, category, unit, purchase_price, sale_price, 0 as quantity
+      sql: `SELECT id, name, code, barcode, category, unit, purchase_price, sale_price, 0 as quantity
             FROM items WHERE id = ?`,
       args: [id],
     });
@@ -127,6 +133,7 @@ export async function POST(request: Request) {
       id: row.id,
       name: row.name,
       code: row.code,
+      barcode: row.barcode,
       category: row.category,
       unit: row.unit || "قطعة",
       purchase_price: row.purchase_price ?? 0,
@@ -135,9 +142,6 @@ export async function POST(request: Request) {
     });
   } catch (error) {
     console.error("Inventory POST error:", error);
-    return NextResponse.json(
-      { error: "فشل في حفظ الصنف" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "فشل في حفظ الصنف" }, { status: 500 });
   }
 }
