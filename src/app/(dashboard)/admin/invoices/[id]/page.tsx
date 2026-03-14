@@ -4,6 +4,7 @@ import Link from "next/link";
 import { db } from "@/lib/db/client";
 import { AddPayment } from "./add-payment";
 import { PrintButton } from "./print-button";
+import { ReturnButton } from "./return-button";
 
 const SYSTEM_COMPANY_ID = "company-system";
 
@@ -103,14 +104,17 @@ export default async function InvoiceDetailPage({
 
     return (
     <div className="p-8">
-      <div className="mb-6 flex justify-between items-center">
+      <div className="mb-6 flex justify-between items-center flex-wrap gap-2">
         <Link
           href="/admin/invoices"
           className="text-sm text-emerald-600 hover:text-emerald-700 no-print"
         >
           ← العودة للفواتير
         </Link>
-        <PrintButton />
+        <div className="flex gap-2 no-print">
+          <ReturnButton invoiceId={id} type={data.type} status={data.status} />
+          <PrintButton />
+        </div>
       </div>
 
       <div className="mb-8">

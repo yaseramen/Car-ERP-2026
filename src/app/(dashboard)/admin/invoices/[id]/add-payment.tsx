@@ -21,6 +21,7 @@ export function AddPayment({ invoiceId, total, paidAmount, status }: AddPaymentP
 
   const remaining = total - paidAmount;
   const isFullyPaid = status === "paid";
+  const isReturnedOrCancelled = status === "returned" || status === "cancelled";
 
   useEffect(() => {
     fetch("/api/admin/payment-methods")
@@ -69,6 +70,16 @@ export function AddPayment({ invoiceId, total, paidAmount, status }: AddPaymentP
     return (
       <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-4">
         <p className="text-emerald-800 font-medium">الفاتورة مدفوعة بالكامل</p>
+      </div>
+    );
+  }
+
+  if (isReturnedOrCancelled) {
+    return (
+      <div className="bg-gray-50 border border-gray-200 rounded-xl p-4">
+        <p className="text-gray-600 font-medium">
+          {status === "returned" ? "الفاتورة مرتجعة" : "الفاتورة ملغاة"}
+        </p>
       </div>
     );
   }
