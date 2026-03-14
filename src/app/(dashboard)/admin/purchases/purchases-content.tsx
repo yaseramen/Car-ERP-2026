@@ -35,6 +35,14 @@ export function PurchasesContent() {
   const [addQty, setAddQty] = useState("1");
   const [addPrice, setAddPrice] = useState("");
 
+  const [addSupplierOpen, setAddSupplierOpen] = useState(false);
+  const [newSupplierForm, setNewSupplierForm] = useState({ name: "", phone: "", email: "" });
+  const [savingSupplier, setSavingSupplier] = useState(false);
+
+  const [addProductOpen, setAddProductOpen] = useState(false);
+  const [newProductForm, setNewProductForm] = useState({ name: "", purchase_price: "", sale_price: "", unit: "قطعة" });
+  const [savingProduct, setSavingProduct] = useState(false);
+
   async function fetchData() {
     try {
       const [itemsRes, suppliersRes] = await Promise.all([
@@ -148,6 +156,76 @@ export function PurchasesContent() {
     }
   }
 
+  async function handleAddSupplier(e: React.FormEvent) {
+    e.preventDefault();
+    if (!newSupplierForm.name.trim()) {
+      alert("اسم المورد مطلوب");
+      return;
+    }
+    setSavingSupplier(true);
+    try {
+      const res = await fetch("/api/admin/suppliers", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: newSupplierForm.name.trim(),
+          phone: newSupplierForm.phone.trim() || undefined,
+          email: newSupplierForm.email.trim() || undefined,
+        }),
+      });
+      if (!res.ok) {
+        const err = await res.json();
+        alert(err.error || "فشل في إضافة المورد");
+        return;
+      }
+      const newSupplier = await res.json();
+      setSuppliers((prev) => [{ id: newSupplier.id, name: newSupplier.name }, ...prev]);
+      setSupplierId(newSupplier.id);
+      setAddSupplierOpen(false);
+      setNewSupplierForm({ name: "", phone: "", email: "" });
+    } catch {
+      alert("حدث خطأ");
+    } finally {
+      setSavingSupplier(false);
+    }
+  }
+
+  async function handleAddProduct(e: React.FormEvent) {
+    e.preventDefault();
+    if (!newProductForm.name.trim()) {
+      alert("اسم الصنف مطلوب");
+      return;
+    }
+    setSavingProduct(true);
+    try {
+      const res = await fetch("/api/admin/inventory/items", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: newProductForm.name.trim(),
+          unit: newProductForm.unit.trim() || "قطعة",
+          purchase_price: Number(newProductForm.purchase_price) || 0,
+          sale_price: Number(newProductForm.sale_price) || Number(newProductForm.purchase_price) || 0,
+        }),
+      });
+      if (!res.ok) {
+        const err = await res.json();
+        alert(err.error || "فشل في إضافة الصنف");
+        return;
+      }
+      const newItem = await res.json();
+      setItems((prev) => [{ id: newItem.id, name: newItem.name, purchase_price: newItem.purchase_price ?? 0 }, ...prev]);
+      setAddItemId(newItem.id);
+      setAddPrice(String(newItem.purchase_price ?? 0));
+      setAddProductOpen(false);
+      setNewProductForm({ name: "", purchase_price: "", sale_price: "", unit: "قطعة" });
+    } catch {
+      alert("حدث خطأ");
+    } finally {
+      setSavingProduct(false);
+    }
+  }
+
   const inputClass =
     "w-full px-4 py-2.5 rounded-lg border border-gray-300 bg-white text-gray-900 placeholder-gray-500 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none";
 
@@ -162,9 +240,15 @@ export function PurchasesContent() {
               <select
                 value={addItemId}
                 onChange={(e) => {
-                  setAddItemId(e.target.value);
-                  const item = items.find((i) => i.id === e.target.value);
-                  if (item) setAddPrice(String(item.purchase_price));
+                  const v = e.target.value;
+                  if (v === "__new__") {
+                    setAddProductOpen(true);
+                    setAddItemId("");
+                  } else {
+                    setAddItemId(v);
+                    const item = items.find((i) => i.id === v);
+                    if (item) setAddPrice(String(item.purchase_price));
+                  }
                 }}
                 className={inputClass}
               >
@@ -174,6 +258,7 @@ export function PurchasesContent() {
                     {i.name}
                   </option>
                 ))}
+                <option value="__new__">+ إضافة صنف جديد</option>
               </select>
             </div>
             <div className="w-24">
@@ -280,15 +365,164 @@ export function PurchasesContent() {
             <label className="block text-sm font-medium text-gray-700 mb-1">المورد</label>
             <select
               value={supplierId}
-              onChange={(e) => setSupplierId(e.target.value)}
+              onChange={(e) => {
+                const v = e.target.value;
+                if (v === "__new__") {
+                  setAddSupplierOpen(true);
+                  setSupplierId("");
+                } else {
+                  setSupplierId(v);
+                }
+              }}
               className={inputClass}
             >
               <option value="">بدون مورد</option>
               {suppliers.map((s) => (
                 <option key={s.id} value={s.id}>{s.name}</option>
               ))}
+              <option value="__new__">+ إضافة مورد جديد</option>
             </select>
           </div>
+
+          {addSupplierOpen && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50" dir="rtl">
+              <div className="bg-white rounded-xl shadow-xl w-full max-w-sm p-6">
+                <h3 className="text-lg font-bold text-gray-900 mb-4">إضافة مورد جديد</h3>
+                <form onSubmit={handleAddSupplier} className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">الاسم *</label>
+                    <input
+                      type="text"
+                      value={newSupplierForm.name}
+                      onChange={(e) => setNewSupplierForm((f) => ({ ...f, name: e.target.value }))}
+                      required
+                      className={inputClass}
+                      placeholder="اسم المورد"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">الهاتف</label>
+                    <input
+                      type="text"
+                      value={newSupplierForm.phone}
+                      onChange={(e) => setNewSupplierForm((f) => ({ ...f, phone: e.target.value }))}
+                      className={inputClass}
+                      placeholder="01xxxxxxxxx"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">البريد</label>
+                    <input
+                      type="email"
+                      value={newSupplierForm.email}
+                      onChange={(e) => setNewSupplierForm((f) => ({ ...f, email: e.target.value }))}
+                      className={inputClass}
+                      placeholder="email@example.com"
+                    />
+                  </div>
+                  <div className="flex gap-3 pt-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setAddSupplierOpen(false);
+                        setNewSupplierForm({ name: "", phone: "", email: "" });
+                      }}
+                      className="flex-1 px-4 py-2.5 text-gray-600 hover:bg-gray-100 rounded-lg transition"
+                    >
+                      إلغاء
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={savingSupplier}
+                      className="flex-1 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 disabled:bg-emerald-400 text-white font-medium rounded-lg transition-colors"
+                    >
+                      {savingSupplier ? "جاري..." : "إضافة"}
+                    </button>
+                  </div>
+                </form>
+              </div>
+            </div>
+          )}
+
+          {addProductOpen && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50" dir="rtl">
+              <div className="bg-white rounded-xl shadow-xl w-full max-w-sm p-6">
+                <h3 className="text-lg font-bold text-gray-900 mb-4">إضافة صنف جديد</h3>
+                <form onSubmit={handleAddProduct} className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">اسم الصنف *</label>
+                    <input
+                      type="text"
+                      value={newProductForm.name}
+                      onChange={(e) => setNewProductForm((f) => ({ ...f, name: e.target.value }))}
+                      required
+                      className={inputClass}
+                      placeholder="اسم الصنف"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">الوحدة</label>
+                    <select
+                      value={newProductForm.unit}
+                      onChange={(e) => setNewProductForm((f) => ({ ...f, unit: e.target.value }))}
+                      className={inputClass}
+                    >
+                      <option value="قطعة">قطعة</option>
+                      <option value="لتر">لتر</option>
+                      <option value="كيلو">كيلو</option>
+                      <option value="علبة">علبة</option>
+                      <option value="زجاجة">زجاجة</option>
+                    </select>
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">سعر الشراء (ج.م)</label>
+                      <input
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        value={newProductForm.purchase_price}
+                        onChange={(e) => setNewProductForm((f) => ({ ...f, purchase_price: e.target.value }))}
+                        className={inputClass}
+                        placeholder="0"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">سعر البيع (ج.م)</label>
+                      <input
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        value={newProductForm.sale_price}
+                        onChange={(e) => setNewProductForm((f) => ({ ...f, sale_price: e.target.value }))}
+                        className={inputClass}
+                        placeholder="0"
+                      />
+                    </div>
+                  </div>
+                  <div className="flex gap-3 pt-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setAddProductOpen(false);
+                        setNewProductForm({ name: "", purchase_price: "", sale_price: "", unit: "قطعة" });
+                      }}
+                      className="flex-1 px-4 py-2.5 text-gray-600 hover:bg-gray-100 rounded-lg transition"
+                    >
+                      إلغاء
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={savingProduct}
+                      className="flex-1 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 disabled:bg-emerald-400 text-white font-medium rounded-lg transition-colors"
+                    >
+                      {savingProduct ? "جاري..." : "إضافة"}
+                    </button>
+                  </div>
+                </form>
+              </div>
+            </div>
+          )}
 
           <div className="border-t border-gray-100 pt-4">
             <div className="flex justify-between font-bold text-lg">
