@@ -8,6 +8,7 @@ import {
   extractCodesFromFile,
   type ObdResult,
 } from "@/lib/obd";
+import { ensureVehicleBrand, ensureVehicleModel } from "@/lib/obd-vehicles";
 
 const SYSTEM_COMPANY_ID = "company-system";
 const MAX_FILE_SIZE = 4 * 1024 * 1024; // 4MB
@@ -129,10 +130,23 @@ export async function POST(request: Request) {
       });
     }
 
+    let vehicleBrandId: string | null = null;
+    let vehicleModelId: string | null = null;
+    try {
+      if (vehicle?.brand) {
+        vehicleBrandId = await ensureVehicleBrand(vehicle.brand);
+        if (vehicleBrandId && vehicle?.model) {
+          vehicleModelId = await ensureVehicleModel(vehicleBrandId, vehicle.model);
+        }
+      }
+    } catch (e) {
+      console.warn("Auto-expand vehicle tables:", e);
+    }
+
     try {
       await db.execute({
-        sql: `INSERT INTO obd_reports (id, company_id, file_name, vehicle_brand, vehicle_model, vehicle_year, vehicle_vin, codes_extracted, codes_count, total_cost, created_by)
-              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        sql: `INSERT INTO obd_reports (id, company_id, file_name, vehicle_brand, vehicle_model, vehicle_year, vehicle_vin, vehicle_brand_id, vehicle_model_id, codes_extracted, codes_count, total_cost, created_by)
+              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         args: [
           randomUUID(),
           SYSTEM_COMPANY_ID,
@@ -141,6 +155,8 @@ export async function POST(request: Request) {
           vehicle?.model || null,
           vehicle?.year || null,
           vehicle?.vin || null,
+          vehicleBrandId,
+          vehicleModelId,
           JSON.stringify(uniqueCodes),
           uniqueCodes.length,
           totalCost,
@@ -148,7 +164,27 @@ export async function POST(request: Request) {
         ],
       });
     } catch (e) {
-      console.warn("obd_reports insert failed (table may not exist):", e);
+      try {
+        await db.execute({
+          sql: `INSERT INTO obd_reports (id, company_id, file_name, vehicle_brand, vehicle_model, vehicle_year, vehicle_vin, codes_extracted, codes_count, total_cost, created_by)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          args: [
+            randomUUID(),
+            SYSTEM_COMPANY_ID,
+            file.name,
+            vehicle?.brand || null,
+            vehicle?.model || null,
+            vehicle?.year || null,
+            vehicle?.vin || null,
+            JSON.stringify(uniqueCodes),
+            uniqueCodes.length,
+            totalCost,
+            session.user.id,
+          ],
+        });
+      } catch (e2) {
+        console.warn("obd_reports insert failed:", e2);
+      }
     }
 
     return NextResponse.json({

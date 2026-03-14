@@ -179,20 +179,22 @@ export async function resolveCode(code: string): Promise<{ result: ObdResult; ob
   return { result, obdCodeId };
 }
 
-export const EXTRACT_CODES_PROMPT = `استخرج من هذا التقرير أو الصورة:
-1. كل أكواد الأعطال (DTC) بجميع صيغها:
-   - صيغة OBD-II القياسية: P0100, P0171, B0001, C1234, U0100 (حرف + 4 أرقام)
-   - مع لاحقة: B3902-00, B0223-01, U0184-00
-   - 6 أرقام: B250000, B251800, B252000
-   - 5 أرقام (كود مصنّع): 01314, 01317, 00898, 01504, 02399, 00532, 00779, 00771, 01305, 01304, 00109, 00332, 01038, 00121, 00944, 01044, 00123, 00103
-2. معلومات المركبة إن وُجدت: السلسلة/العلامة، النموذج، السنة، VIN
+export const EXTRACT_CODES_PROMPT = `هذا تقرير تشخيص لسيارة من أي ماركة في العالم (Toyota, BMW, Mercedes, Ford, Honda, Skoda, Chevrolet, Kia, Hyundai, Mitsubishi, Nissan, Volkswagen, Audi, Peugeot, Renault, Fiat, etc.).
+
+استخرج:
+1. كل أكواد الأعطال (DTC) بجميع صيغها من أي مصنّع:
+   - OBD-II: P0100, B0001, C1234, U0100
+   - مع لاحقة: B3902-00, U0184-00
+   - 6 أرقام: B250000
+   - 5 أرقام: 01314, 00898
+   - أي صيغة أخرى لأكواد الأعطال
+2. معلومات المركبة: العلامة التجارية (brand)، النموذج (model)، السنة (year)، VIN
 
 أجب بصيغة JSON فقط:
-{"codes":["P0100","P0171","01314","B3902-00","B250000"],"vehicle":{"brand":"Skoda","model":"","year":2007,"vin":"TMBCA41Z272033398"}}
+{"codes":["P0100","P0171",...],"vehicle":{"brand":"Toyota","model":"Camry","year":2020,"vin":"..."}}
 
 إذا لم تجد أكواداً: {"codes":[],"vehicle":null}
-إذا وجدت أكواداً فقط بدون معلومات مركبة: {"codes":[...],"vehicle":null}
-استخرج كل الأكواد التي تظهر في التقرير بغض النظر عن الصيغة.`;
+استخرج كل الأكواد بغض النظر عن الماركة أو الصيغة.`;
 
 const OBD_CODE_PATTERNS = [
   /^[PBCU]\d{4}$/,           // P0100, B0001
