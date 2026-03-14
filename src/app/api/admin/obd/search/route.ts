@@ -15,7 +15,58 @@ async function searchLocal(code: string) {
   return result.rows[0] ?? null;
 }
 
-async function searchWithAI(code: string): Promise<{ description_ar: string; causes: string; solutions: string; symptoms: string } | null> {
+const OBD_PROMPT = `كود OBD: {code}
+أعطني:
+1. الوصف (ما يعني هذا الكود)
+2. الأسباب المحتملة (كل سبب في سطر، افصل بـ |)
+3. الحلول المقترحة (كل حل في سطر، افصل بـ |)
+4. الأعراض (كل عرض في سطر، افصل بـ |)
+أجب بصيغة JSON فقط: {"description_ar":"...","causes":"...","solutions":"...","symptoms":"..."}`;
+
+function parseAIResponse(text: string): { description_ar: string; causes: string; solutions: string; symptoms: string } | null {
+  const match = text.match(/\{[\s\S]*\}/);
+  if (!match) return null;
+  try {
+    return JSON.parse(match[0]) as { description_ar: string; causes: string; solutions: string; symptoms: string };
+  } catch {
+    return null;
+  }
+}
+
+async function searchWithGemini(code: string): Promise<{ description_ar: string; causes: string; solutions: string; symptoms: string } | null> {
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey) return null;
+
+  const models = ["gemini-2.0-flash", "gemini-1.5-flash"];
+  for (const model of models) {
+    try {
+      const res = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            systemInstruction: {
+              parts: [{ text: "أنت خبير في تشخيص أعطال السيارات. أجب بالعربية فقط. قدم الإجابات بصيغة مختصرة وواضحة." }],
+            },
+            contents: [{ parts: [{ text: OBD_PROMPT.replace("{code}", code) }] }],
+            generationConfig: { temperature: 0.3 },
+          }),
+        }
+      );
+      if (!res.ok) continue;
+      const data = await res.json();
+      const text = data.candidates?.[0]?.content?.parts?.[0]?.text ?? "";
+      const parsed = parseAIResponse(text);
+      if (parsed) return parsed;
+    } catch {
+      // try next model
+    }
+  }
+  return null;
+}
+
+async function searchWithOpenAI(code: string): Promise<{ description_ar: string; causes: string; solutions: string; symptoms: string } | null> {
   const apiKey = process.env.OPENAI_API_KEY;
   if (!apiKey) return null;
 
@@ -29,20 +80,8 @@ async function searchWithAI(code: string): Promise<{ description_ar: string; cau
       body: JSON.stringify({
         model: "gpt-4o-mini",
         messages: [
-          {
-            role: "system",
-            content: "أنت خبير في تشخيص أعطال السيارات. أجب بالعربية فقط. قدم الإجابات بصيغة مختصرة وواضحة.",
-          },
-          {
-            role: "user",
-            content: `كود OBD: ${code}
-أعطني:
-1. الوصف (ما يعني هذا الكود)
-2. الأسباب المحتملة (كل سبب في سطر، افصل بـ |)
-3. الحلول المقترحة (كل حل في سطر، افصل بـ |)
-4. الأعراض (كل عرض في سطر، افصل بـ |)
-أجب بصيغة JSON فقط: {"description_ar":"...","causes":"...","solutions":"...","symptoms":"..."}`,
-          },
+          { role: "system", content: "أنت خبير في تشخيص أعطال السيارات. أجب بالعربية فقط. قدم الإجابات بصيغة مختصرة وواضحة." },
+          { role: "user", content: OBD_PROMPT.replace("{code}", code) },
         ],
         temperature: 0.3,
       }),
@@ -51,12 +90,16 @@ async function searchWithAI(code: string): Promise<{ description_ar: string; cau
     if (!res.ok) return null;
     const data = await res.json();
     const text = data.choices?.[0]?.message?.content ?? "";
-    const match = text.match(/\{[\s\S]*\}/);
-    if (!match) return null;
-    return JSON.parse(match[0]) as { description_ar: string; causes: string; solutions: string; symptoms: string };
+    return parseAIResponse(text);
   } catch {
     return null;
   }
+}
+
+async function searchWithAI(code: string): Promise<{ description_ar: string; causes: string; solutions: string; symptoms: string } | null> {
+  const gemini = await searchWithGemini(code);
+  if (gemini) return gemini;
+  return searchWithOpenAI(code);
 }
 
 export async function POST(request: Request) {
@@ -162,7 +205,7 @@ export async function POST(request: Request) {
       } else {
         result = {
           code: code.toUpperCase(),
-          description_ar: "لم يتم العثور على الكود في القاعدة المحلية. لإضافة نتائج الذكاء الاصطناعي، أضف OPENAI_API_KEY في الإعدادات.",
+          description_ar: "لم يتم العثور على الكود في القاعدة المحلية. لإضافة نتائج الذكاء الاصطناعي، أضف GEMINI_API_KEY أو OPENAI_API_KEY في إعدادات Vercel.",
           description_en: null,
           causes: null,
           solutions: null,
