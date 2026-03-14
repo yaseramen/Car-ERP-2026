@@ -108,6 +108,7 @@ export function ObdContent() {
           codesFound: data.codesFound,
           vehicle: data.vehicle,
         });
+        setMode("logs");
       }
     } catch (err) {
       const msg = err instanceof Error ? err.message : "حدث خطأ";
@@ -395,7 +396,7 @@ export function ObdContent() {
 
       {mode === "manage" && <ObdManage inputClass={inputClass} />}
 
-      {mode === "logs" && <ObdLogs />}
+      {mode === "logs" && <ObdLogs justAnalyzed={!!analyzeResults} />}
 
       {mode === "upload" && (
         <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
@@ -461,13 +462,6 @@ export function ObdContent() {
             <span className="font-medium text-gray-900">
               تم العثور على {analyzeResults.codesFound} كود — إجمالي التكلفة: {analyzeResults.totalCost} ج.م
             </span>
-            <button
-              type="button"
-              onClick={() => setMode("logs")}
-              className="text-sm text-emerald-700 hover:underline"
-            >
-              ✓ تم الحفظ — عرض السجلات
-            </button>
             {analyzeResults.vehicle && (analyzeResults.vehicle.brand || analyzeResults.vehicle.model || analyzeResults.vehicle.year) && (
               <span className="text-sm text-gray-600">
                 {[analyzeResults.vehicle.brand, analyzeResults.vehicle.model, analyzeResults.vehicle.year].filter(Boolean).join(" · ")}
@@ -684,7 +678,7 @@ function ObdManage({ inputClass }: { inputClass: string }) {
   );
 }
 
-function ObdLogs() {
+function ObdLogs({ justAnalyzed }: { justAnalyzed?: boolean }) {
   const [data, setData] = useState<{
     reports: { id: string; file_name: string; vehicle_brand: string | null; vehicle_model: string | null; vehicle_year: number | null; codes_count: number; total_cost: number; codes_extracted: string; created_at: string }[];
     stats: { reports_count: number; codes_count: number; searches_count: number };
@@ -715,6 +709,11 @@ function ObdLogs() {
 
   return (
     <div className="space-y-6">
+      {justAnalyzed && (
+        <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-4 text-emerald-800">
+          ✓ تم حفظ التقرير تلقائياً في قاعدة البيانات
+        </div>
+      )}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div className="bg-emerald-50 rounded-xl p-4 border border-emerald-100">
           <p className="text-sm text-emerald-700">تقارير مرفوعة</p>
