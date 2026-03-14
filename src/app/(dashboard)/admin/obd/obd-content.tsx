@@ -14,7 +14,7 @@ type ObdResult = {
 };
 
 export function ObdContent() {
-  const [mode, setMode] = useState<"search" | "upload" | "manage">("search");
+  const [mode, setMode] = useState<"search" | "upload" | "manage" | "logs">("search");
   const [code, setCode] = useState("");
   const [loading, setLoading] = useState(false);
   const [aiStatus, setAiStatus] = useState<{ aiAvailable: boolean; message: string; providers?: string[] } | null>(null);
@@ -203,6 +203,15 @@ export function ObdContent() {
         >
           إدارة قاعدة البيانات
         </button>
+        <button
+          type="button"
+          onClick={() => setMode("logs")}
+          className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+            mode === "logs" ? "bg-emerald-600 text-white" : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+          }`}
+        >
+          سجلات التحليل
+        </button>
       </div>
 
       {mode === "search" && (
@@ -231,6 +240,8 @@ export function ObdContent() {
       )}
 
       {mode === "manage" && <ObdManage inputClass={inputClass} />}
+
+      {mode === "logs" && <ObdLogs />}
 
       {mode === "upload" && (
         <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
@@ -296,6 +307,13 @@ export function ObdContent() {
             <span className="font-medium text-gray-900">
               تم العثور على {analyzeResults.codesFound} كود — إجمالي التكلفة: {analyzeResults.totalCost} ج.م
             </span>
+            <button
+              type="button"
+              onClick={() => setMode("logs")}
+              className="text-sm text-emerald-700 hover:underline"
+            >
+              ✓ تم الحفظ — عرض السجلات
+            </button>
             {analyzeResults.vehicle && (analyzeResults.vehicle.brand || analyzeResults.vehicle.model || analyzeResults.vehicle.year) && (
               <span className="text-sm text-gray-600">
                 {[analyzeResults.vehicle.brand, analyzeResults.vehicle.model, analyzeResults.vehicle.year].filter(Boolean).join(" · ")}
@@ -507,6 +525,108 @@ function ObdManage({ inputClass }: { inputClass: string }) {
             حفظ الكود
           </button>
         </form>
+      </div>
+    </div>
+  );
+}
+
+function ObdLogs() {
+  const [data, setData] = useState<{
+    reports: { id: string; file_name: string; vehicle_brand: string | null; vehicle_model: string | null; vehicle_year: number | null; codes_count: number; total_cost: number; codes_extracted: string; created_at: string }[];
+    stats: { reports_count: number; codes_count: number; searches_count: number };
+  } | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  async function fetchLogs() {
+    setLoading(true);
+    try {
+      const r = await fetch("/api/admin/obd/reports");
+      const d = await r.json();
+      if (r.ok) setData(d);
+    } catch {
+      alert("تعذر تحميل السجلات");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    fetchLogs();
+  }, []);
+
+  if (loading) return <div className="p-6 text-gray-500">جاري التحميل...</div>;
+  if (!data) return null;
+
+  const { reports, stats } = data;
+
+  return (
+    <div className="space-y-6">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="bg-emerald-50 rounded-xl p-4 border border-emerald-100">
+          <p className="text-sm text-emerald-700">تقارير مرفوعة</p>
+          <p className="text-2xl font-bold text-emerald-900">{stats.reports_count}</p>
+        </div>
+        <div className="bg-blue-50 rounded-xl p-4 border border-blue-100">
+          <p className="text-sm text-blue-700">أكواد مخزنة</p>
+          <p className="text-2xl font-bold text-blue-900">{stats.codes_count}</p>
+        </div>
+        <div className="bg-amber-50 rounded-xl p-4 border border-amber-100">
+          <p className="text-sm text-amber-700">عمليات بحث</p>
+          <p className="text-2xl font-bold text-amber-900">{stats.searches_count}</p>
+        </div>
+      </div>
+      <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+        <div className="p-4 border-b border-gray-100 flex justify-between items-center">
+          <h3 className="font-bold text-gray-900">آخر التقارير المرفوعة</h3>
+          <button onClick={fetchLogs} className="text-sm text-emerald-600 hover:underline">
+            تحديث
+          </button>
+        </div>
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="bg-gray-50 text-right">
+                <th className="p-3 font-medium text-gray-600">الملف</th>
+                <th className="p-3 font-medium text-gray-600">المركبة</th>
+                <th className="p-3 font-medium text-gray-600">الأكواد</th>
+                <th className="p-3 font-medium text-gray-600">التكلفة</th>
+                <th className="p-3 font-medium text-gray-600">التاريخ</th>
+              </tr>
+            </thead>
+            <tbody>
+              {reports.length === 0 ? (
+                <tr>
+                  <td colSpan={5} className="p-6 text-center text-gray-500">
+                    لا توجد تقارير مسجلة بعد
+                  </td>
+                </tr>
+              ) : (
+                reports.map((r) => (
+                  <tr key={r.id} className="border-t border-gray-100 hover:bg-gray-50">
+                    <td className="p-3 text-gray-900">{r.file_name}</td>
+                    <td className="p-3 text-gray-700">
+                      {[r.vehicle_brand, r.vehicle_model, r.vehicle_year].filter(Boolean).join(" · ") || "—"}
+                    </td>
+                    <td className="p-3 text-gray-700" dir="ltr">
+                      {r.codes_extracted
+                        ? (() => {
+                            try {
+                              const arr = JSON.parse(r.codes_extracted);
+                              return Array.isArray(arr) ? arr.join(", ") : r.codes_count;
+                            } catch {
+                              return r.codes_count;
+                            }
+                          })()
+                        : r.codes_count}
+                    </td>
+                    <td className="p-3 text-gray-700">{r.total_cost} ج.م</td>
+                    <td className="p-3 text-gray-500">{new Date(r.created_at).toLocaleDateString("ar-EG")}</td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
   );
