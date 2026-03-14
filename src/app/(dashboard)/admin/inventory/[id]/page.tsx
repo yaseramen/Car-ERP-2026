@@ -2,6 +2,7 @@ import { auth } from "@/auth";
 import { redirect, notFound } from "next/navigation";
 import Link from "next/link";
 import { db } from "@/lib/db/client";
+import { EditMinQuantity } from "./edit-min-quantity";
 
 const SYSTEM_COMPANY_ID = "company-system";
 
@@ -150,12 +151,18 @@ export default async function ItemReportPage({
                 <dt className="text-gray-500">سعر البيع</dt>
                 <dd className="text-gray-900">{item.sale_price?.toFixed(2)} ج.م</dd>
               </div>
-              <div className="flex justify-between">
-                <dt className="text-gray-500">الكمية الإجمالية</dt>
-                <dd className="text-gray-900 font-bold">{item.total_quantity}</dd>
-              </div>
-            </dl>
-          </div>
+            <div className="flex justify-between">
+              <dt className="text-gray-500">الكمية الإجمالية</dt>
+              <dd className="text-gray-900 font-bold">{item.total_quantity}</dd>
+            </div>
+            <div className="pt-3 border-t border-gray-100">
+              <dt className="text-gray-500 text-xs mb-2">الحد الأدنى (تنبيه نقص الكمية)</dt>
+              <dd>
+                <EditMinQuantity itemId={id} currentMin={item.min_quantity} />
+              </dd>
+            </div>
+          </dl>
+        </div>
 
           <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100">
             <h2 className="font-bold text-gray-900 mb-4">المخزون حسب المخزن</h2>

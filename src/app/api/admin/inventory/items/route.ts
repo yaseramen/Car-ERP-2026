@@ -48,7 +48,7 @@ export async function GET() {
 
   try {
     const result = await db.execute({
-      sql: `SELECT id, name, code, barcode, category, unit, purchase_price, sale_price, 
+      sql: `SELECT id, name, code, barcode, category, unit, purchase_price, sale_price, min_quantity,
             COALESCE((SELECT SUM(quantity) FROM item_warehouse_stock WHERE item_id = items.id), 0) as quantity
             FROM items 
             WHERE company_id = ? AND is_active = 1 
@@ -65,6 +65,7 @@ export async function GET() {
       unit: row.unit || "قطعة",
       purchase_price: row.purchase_price ?? 0,
       sale_price: row.sale_price ?? 0,
+      min_quantity: row.min_quantity ?? 0,
       quantity: row.quantity ?? 0,
     }));
 
@@ -83,7 +84,7 @@ export async function POST(request: Request) {
 
   try {
     const body = await request.json();
-    let { name, code, barcode, category, unit, purchase_price, sale_price } = body;
+    let { name, code, barcode, category, unit, purchase_price, sale_price, min_quantity, min_quantity_enabled } = body;
 
     if (!name?.trim()) {
       return NextResponse.json({ error: "اسم القطعة مطلوب" }, { status: 400 });
@@ -101,9 +102,11 @@ export async function POST(request: Request) {
     const autoCode = code?.trim() || `PRD-${String(count + 1).padStart(4, "0")}`;
     const autoBarcode = barcode?.trim() || generateBarcode();
 
+    const minQty = min_quantity_enabled ? Number(min_quantity) || 0 : 0;
+
     await db.execute({
-      sql: `INSERT INTO items (id, company_id, name, code, barcode, category, unit, purchase_price, sale_price)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      sql: `INSERT INTO items (id, company_id, name, code, barcode, category, unit, purchase_price, sale_price, min_quantity)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       args: [
         id,
         companyId,
@@ -114,6 +117,7 @@ export async function POST(request: Request) {
         unit?.trim() || "قطعة",
         Number(purchase_price) || 0,
         Number(sale_price) || 0,
+        minQty,
       ],
     });
 
@@ -123,7 +127,7 @@ export async function POST(request: Request) {
     });
 
     const newItem = await db.execute({
-      sql: `SELECT id, name, code, barcode, category, unit, purchase_price, sale_price, 0 as quantity
+      sql: `SELECT id, name, code, barcode, category, unit, purchase_price, sale_price, min_quantity, 0 as quantity
             FROM items WHERE id = ?`,
       args: [id],
     });
@@ -138,6 +142,7 @@ export async function POST(request: Request) {
       unit: row.unit || "قطعة",
       purchase_price: row.purchase_price ?? 0,
       sale_price: row.sale_price ?? 0,
+      min_quantity: row.min_quantity ?? 0,
       quantity: 0,
     });
   } catch (error) {
