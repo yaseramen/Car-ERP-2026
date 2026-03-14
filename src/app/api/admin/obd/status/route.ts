@@ -8,13 +8,18 @@ export async function GET() {
     return NextResponse.json({ error: "غير مصرح" }, { status: 401 });
   }
   const gemini = !!process.env.GEMINI_API_KEY;
+  const groq = !!process.env.GROQ_API_KEY;
   const openai = !!process.env.OPENAI_API_KEY;
+  const aiAvailable = gemini || groq || openai;
+  const providers = [gemini && "Gemini", groq && "Groq", openai && "OpenAI"].filter(Boolean);
   return NextResponse.json({
     geminiAvailable: gemini,
+    groqAvailable: groq,
     openaiAvailable: openai,
-    aiAvailable: gemini || openai,
-    message: gemini || openai
-      ? "الذكاء الاصطناعي متاح"
-      : "أضف GEMINI_API_KEY أو OPENAI_API_KEY في Vercel → Settings → Environment Variables ثم أعد النشر",
+    aiAvailable,
+    providers,
+    message: aiAvailable
+      ? `الذكاء الاصطناعي متاح (${providers.join("، ")})`
+      : "أضف GEMINI_API_KEY أو GROQ_API_KEY أو OPENAI_API_KEY في Vercel → Settings → Environment Variables ثم أعد النشر",
   });
 }

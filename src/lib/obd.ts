@@ -42,8 +42,7 @@ async function searchWithGemini(code: string): Promise<{ description_ar: string;
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) return null;
 
-  const models = ["gemini-2.0-flash", "gemini-1.5-flash"];
-  let lastReason: "api_error" | "no_codes_in_file" = "no_codes_in_file";
+  const models = ["gemini-2.5-flash", "gemini-2.0-flash", "gemini-1.5-flash"];
   for (const model of models) {
     try {
       const res = await fetch(
@@ -63,6 +62,40 @@ async function searchWithGemini(code: string): Promise<{ description_ar: string;
       if (!res.ok) continue;
       const data = await res.json();
       const text = data.candidates?.[0]?.content?.parts?.[0]?.text ?? "";
+      const parsed = parseAIResponse(text);
+      if (parsed) return parsed;
+    } catch {
+      // try next model
+    }
+  }
+  return null;
+}
+
+async function searchWithGroq(code: string): Promise<{ description_ar: string; causes: string; solutions: string; symptoms: string } | null> {
+  const apiKey = process.env.GROQ_API_KEY;
+  if (!apiKey) return null;
+
+  const models = ["llama-3.3-70b-versatile", "llama-3.1-8b-instant"];
+  for (const model of models) {
+    try {
+      const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${apiKey}`,
+        },
+        body: JSON.stringify({
+          model,
+          messages: [
+            { role: "system", content: "أنت خبير في تشخيص أعطال السيارات. أجب بالعربية فقط. قدم الإجابات بصيغة مختصرة وواضحة." },
+            { role: "user", content: OBD_PROMPT.replace("{code}", code) },
+          ],
+          temperature: 0.3,
+        }),
+      });
+      if (!res.ok) continue;
+      const data = await res.json();
+      const text = data.choices?.[0]?.message?.content ?? "";
       const parsed = parseAIResponse(text);
       if (parsed) return parsed;
     } catch {
@@ -105,6 +138,8 @@ async function searchWithOpenAI(code: string): Promise<{ description_ar: string;
 export async function searchWithAI(code: string): Promise<{ description_ar: string; causes: string; solutions: string; symptoms: string } | null> {
   const gemini = await searchWithGemini(code);
   if (gemini) return gemini;
+  const groq = await searchWithGroq(code);
+  if (groq) return groq;
   return searchWithOpenAI(code);
 }
 
@@ -228,12 +263,17 @@ export async function extractCodesFromFile(
   base64: string,
   mimeType: string
 ): Promise<ExtractedReport> {
-  const apiKey = process.env.GEMINI_API_KEY;
-  if (!apiKey) return { codes: [], vehicle: null, reason: "no_api_key" };
+  const geminiKey = process.env.GEMINI_API_KEY;
+  const groqKey = process.env.GROQ_API_KEY;
+  if (!geminiKey && !(groqKey && mimeType.startsWith("image/"))) {
+    return { codes: [], vehicle: null, reason: "no_api_key" };
+  }
 
-  const models = ["gemini-2.0-flash", "gemini-1.5-flash"];
+  const models = ["gemini-2.5-flash", "gemini-2.0-flash", "gemini-1.5-flash"];
   let lastReason: "api_error" | "no_codes_in_file" = "no_codes_in_file";
-  for (const model of models) {
+
+  if (geminiKey) {
+    for (const model of models) {
     try {
       const parts: Array<{ inlineData?: { mimeType: string; data: string }; text?: string }> = [
         { inlineData: { mimeType, data: base64 } },
@@ -241,7 +281,7 @@ export async function extractCodesFromFile(
       ];
 
       const res = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
+        `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${geminiKey}`,
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -289,5 +329,64 @@ export async function extractCodesFromFile(
       lastReason = "api_error";
     }
   }
+  }
+
+  if (mimeType.startsWith("image/") && groqKey) {
+    try {
+      const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${groqKey}`,
+        },
+        body: JSON.stringify({
+          model: "meta-llama/llama-4-scout-17b-16e-instruct",
+          messages: [
+            {
+              role: "user",
+              content: [
+                { type: "text", text: EXTRACT_CODES_PROMPT },
+                { type: "image_url", image_url: { url: `data:${mimeType};base64,${base64}` } },
+              ],
+            },
+          ],
+          temperature: 0.1,
+        }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        const text = data.choices?.[0]?.message?.content ?? "";
+        let rawCodes: string[] = [];
+        const match = text.match(/\{[\s\S]*\}/);
+        if (match) {
+          try {
+            const parsed = JSON.parse(match[0]) as { codes?: string[]; vehicle?: { brand?: string; model?: string; year?: number; vin?: string } };
+            rawCodes = parsed?.codes ?? [];
+            const codes = [...new Set(rawCodes.map(normalizeCode).filter(isValidObdCode))];
+            if (codes.length > 0) {
+              const v = parsed?.vehicle;
+              const vehicle = v && (v.brand || v.model || v.year || v.vin)
+                ? { brand: String(v.brand ?? "").trim(), model: String(v.model ?? "").trim(), year: typeof v.year === "number" ? v.year : null, vin: String(v.vin ?? "").trim() }
+                : null;
+              return { codes, vehicle };
+            }
+          } catch {
+            const codeRegex = /[PBCU]\d{4}(?:\.\d|-\d{2})?|\b0\d{4}\b|[PBCU]\d{5,6}/gi;
+            rawCodes = [...(text.match(codeRegex) ?? [])];
+          }
+        } else {
+          const codeRegex = /[PBCU]\d{4}(?:\.\d|-\d{2})?|\b0\d{4}\b|[PBCU]\d{5,6}/gi;
+          rawCodes = [...(text.match(codeRegex) ?? [])];
+        }
+        const codes = [...new Set(rawCodes.map(normalizeCode).filter(isValidObdCode))];
+        if (codes.length > 0) {
+          return { codes, vehicle: null };
+        }
+      }
+    } catch {
+      // Groq vision failed
+    }
+  }
+
   return { codes: [], vehicle: null, reason: lastReason };
 }

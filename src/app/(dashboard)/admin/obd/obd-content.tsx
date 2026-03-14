@@ -17,7 +17,7 @@ export function ObdContent() {
   const [mode, setMode] = useState<"search" | "upload" | "manage">("search");
   const [code, setCode] = useState("");
   const [loading, setLoading] = useState(false);
-  const [aiStatus, setAiStatus] = useState<{ aiAvailable: boolean; message: string } | null>(null);
+  const [aiStatus, setAiStatus] = useState<{ aiAvailable: boolean; message: string; providers?: string[] } | null>(null);
   const [result, setResult] = useState<ObdResult | null>(null);
   const [analyzeResults, setAnalyzeResults] = useState<{
     results: ObdResult[];
@@ -32,7 +32,7 @@ export function ObdContent() {
   useEffect(() => {
     fetch("/api/admin/obd/status")
       .then((r) => r.json())
-      .then((d) => setAiStatus({ aiAvailable: d.aiAvailable, message: d.message }))
+      .then((d) => setAiStatus({ aiAvailable: d.aiAvailable, message: d.message, providers: d.providers }))
       .catch(() => setAiStatus({ aiAvailable: false, message: "تعذر التحقق" }));
   }, []);
 
@@ -158,7 +158,7 @@ export function ObdContent() {
       )}
       {aiStatus && aiStatus.aiAvailable && (
         <div className="bg-emerald-50 border border-emerald-200 rounded-lg px-4 py-2 text-emerald-800 text-sm">
-          ✓ الذكاء الاصطناعي متاح — البحث والتحليل يعملان
+          ✓ {aiStatus.message}
         </div>
       )}
       <div className="flex gap-2 border-b border-gray-200 pb-2">
