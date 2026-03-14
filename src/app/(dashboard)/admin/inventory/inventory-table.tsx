@@ -21,6 +21,8 @@ export function InventoryTable() {
   const [items, setItems] = useState<Item[]>([]);
   const [loading, setLoading] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
+  const [editItem, setEditItem] = useState<Item | null>(null);
+  const [deleteConfirm, setDeleteConfirm] = useState<Item | null>(null);
   const [saving, setSaving] = useState(false);
   const [showScanner, setShowScanner] = useState(false);
   const [categories, setCategories] = useState<string[]>([]);
@@ -66,48 +68,119 @@ export function InventoryTable() {
     fetchCategories();
   }, []);
 
+  function resetForm() {
+    setForm({
+      name: "",
+      code: "",
+      barcode: "",
+      category: "",
+      unit: "قطعة",
+      purchase_price: "",
+      sale_price: "",
+      min_quantity_enabled: false,
+      min_quantity: "",
+    });
+    setNewCategory("");
+    setNewUnit("");
+    setEditItem(null);
+  }
+
+  function openEditModal(item: Item) {
+    setEditItem(item);
+    setForm({
+      name: item.name,
+      code: item.code || "",
+      barcode: item.barcode || "",
+      category: item.category || "",
+      unit: item.unit || "قطعة",
+      purchase_price: String(item.purchase_price),
+      sale_price: String(item.sale_price),
+      min_quantity_enabled: item.min_quantity > 0,
+      min_quantity: item.min_quantity > 0 ? String(item.min_quantity) : "",
+    });
+    setModalOpen(true);
+  }
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setSaving(true);
     try {
-      const res = await fetch("/api/admin/inventory/items", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          name: form.name.trim(),
-          code: form.code.trim() || undefined,
-          barcode: form.barcode.trim() || undefined,
-          category: (form.category === "__new__" ? newCategory : form.category)?.trim() || null,
-          unit: (form.unit === "__new__" ? newUnit : form.unit)?.trim() || "قطعة",
-          purchase_price: Number(form.purchase_price) || 0,
-          sale_price: Number(form.sale_price) || 0,
-          min_quantity_enabled: form.min_quantity_enabled,
-          min_quantity: form.min_quantity_enabled ? Number(form.min_quantity) || 0 : 0,
-        }),
-      });
+      const payload = {
+        name: form.name.trim(),
+        code: form.code.trim() || undefined,
+        barcode: form.barcode.trim() || undefined,
+        category: (form.category === "__new__" ? newCategory : form.category)?.trim() || null,
+        unit: (form.unit === "__new__" ? newUnit : form.unit)?.trim() || "قطعة",
+        purchase_price: Number(form.purchase_price) || 0,
+        sale_price: Number(form.sale_price) || 0,
+        min_quantity_enabled: form.min_quantity_enabled,
+        min_quantity: form.min_quantity_enabled ? Number(form.min_quantity) || 0 : 0,
+      };
 
-      if (!res.ok) {
-        const err = await res.json();
-        alert(err.error || "فشل في الحفظ");
-        return;
+      if (editItem) {
+        const res = await fetch(`/api/admin/inventory/items/${editItem.id}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+        if (!res.ok) {
+          const err = await res.json();
+          alert(err.error || "فشل في التحديث");
+          return;
+        }
+        setItems((prev) =>
+          prev.map((i) =>
+            i.id === editItem.id
+              ? {
+                  ...i,
+                  name: payload.name,
+                  code: payload.code ?? null,
+                  barcode: payload.barcode ?? null,
+                  category: payload.category ?? null,
+                  unit: payload.unit,
+                  purchase_price: payload.purchase_price,
+                  sale_price: payload.sale_price,
+                  min_quantity: payload.min_quantity_enabled ? payload.min_quantity : 0,
+                }
+              : i
+          )
+        );
+      } else {
+        const res = await fetch("/api/admin/inventory/items", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+        if (!res.ok) {
+          const err = await res.json();
+          alert(err.error || "فشل في الحفظ");
+          return;
+        }
+        const newItem = await res.json();
+        setItems((prev) => [newItem, ...prev]);
+        fetchCategories();
       }
 
-      const newItem = await res.json();
-      setItems((prev) => [newItem, ...prev]);
       setModalOpen(false);
-      setForm({
-        name: "",
-        code: "",
-        barcode: "",
-        category: "",
-        unit: "قطعة",
-        purchase_price: "",
-        sale_price: "",
-        min_quantity_enabled: false,
-        min_quantity: "",
-      });
-      setNewCategory("");
-      setNewUnit("");
+      resetForm();
+    } catch {
+      alert("حدث خطأ. حاول مرة أخرى.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function handleDelete(item: Item) {
+    setSaving(true);
+    try {
+      const res = await fetch(`/api/admin/inventory/items/${item.id}`, { method: "DELETE" });
+      if (!res.ok) {
+        const err = await res.json();
+        alert(err.error || "فشل في الحذف");
+        return;
+      }
+      setItems((prev) => prev.filter((i) => i.id !== item.id));
+      setDeleteConfirm(null);
       fetchCategories();
     } catch {
       alert("حدث خطأ. حاول مرة أخرى.");
@@ -158,7 +231,10 @@ export function InventoryTable() {
         <div className="p-4 border-b border-gray-100 flex justify-between items-center">
           <h2 className="font-medium text-gray-900">الأصناف</h2>
           <button
-            onClick={() => setModalOpen(true)}
+            onClick={() => {
+              resetForm();
+              setModalOpen(true);
+            }}
             className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-medium rounded-lg transition-colors"
           >
             إضافة صنف جديد
@@ -177,12 +253,13 @@ export function InventoryTable() {
                 <th className="text-right px-4 py-3 text-sm font-medium text-gray-600">الحد الأدنى</th>
                 <th className="text-right px-4 py-3 text-sm font-medium text-gray-600">سعر التكلفة</th>
                 <th className="text-right px-4 py-3 text-sm font-medium text-gray-600">سعر البيع</th>
+                <th className="text-right px-4 py-3 text-sm font-medium text-gray-600">إجراءات</th>
               </tr>
             </thead>
             <tbody>
               {items.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="px-4 py-12 text-center text-gray-500">
+                  <td colSpan={9} className="px-4 py-12 text-center text-gray-500">
                     لا توجد أصناف. اضغط "إضافة صنف جديد" للبدء.
                   </td>
                 </tr>
@@ -210,6 +287,24 @@ export function InventoryTable() {
                     </td>
                     <td className="px-4 py-3 text-sm text-gray-900">{item.purchase_price.toFixed(2)} ج.م</td>
                     <td className="px-4 py-3 text-sm text-gray-900">{item.sale_price.toFixed(2)} ج.م</td>
+                    <td className="px-4 py-3">
+                      <div className="flex gap-2 justify-end">
+                        <button
+                          type="button"
+                          onClick={() => openEditModal(item)}
+                          className="px-3 py-1.5 text-sm text-emerald-600 hover:bg-emerald-50 rounded-lg transition"
+                        >
+                          تعديل
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setDeleteConfirm(item)}
+                          className="px-3 py-1.5 text-sm text-red-600 hover:bg-red-50 rounded-lg transition"
+                        >
+                          حذف
+                        </button>
+                      </div>
+                    </td>
                   </tr>
                 ))
               )}
@@ -222,7 +317,9 @@ export function InventoryTable() {
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50" dir="rtl">
           <div className="bg-white rounded-xl shadow-xl w-full max-w-md max-h-[90vh] overflow-y-auto">
             <div className="p-6 border-b border-gray-100">
-              <h3 className="text-lg font-bold text-gray-900">إضافة صنف جديد</h3>
+              <h3 className="text-lg font-bold text-gray-900">
+                {editItem ? "تعديل صنف" : "إضافة صنف جديد"}
+              </h3>
             </div>
 
             <form onSubmit={handleSubmit} className="p-6 space-y-4">
@@ -381,7 +478,10 @@ export function InventoryTable() {
               <div className="flex gap-3 pt-4">
                 <button
                   type="button"
-                  onClick={() => setModalOpen(false)}
+                  onClick={() => {
+                    setModalOpen(false);
+                    resetForm();
+                  }}
                   className="flex-1 px-4 py-2.5 text-gray-600 hover:bg-gray-100 rounded-lg transition"
                 >
                   إلغاء
@@ -391,10 +491,43 @@ export function InventoryTable() {
                   disabled={saving}
                   className="flex-1 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 disabled:bg-emerald-400 text-white font-medium rounded-lg transition-colors"
                 >
-                  {saving ? "جاري الحفظ..." : "حفظ"}
+                  {saving ? "جاري الحفظ..." : editItem ? "تحديث" : "حفظ"}
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {deleteConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50" dir="rtl">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-sm p-6">
+            <h3 className="text-lg font-bold text-gray-900 mb-2">تأكيد الحذف</h3>
+            <p className="text-gray-600 mb-6">
+              هل أنت متأكد من حذف الصنف &quot;{deleteConfirm.name}&quot;؟
+              {deleteConfirm.quantity > 0 && (
+                <span className="block mt-2 text-amber-600 text-sm">
+                  الصنف له كمية ({deleteConfirm.quantity})، سيتم تعطيله إذا كان مستخدماً في فواتير سابقة.
+                </span>
+              )}
+            </p>
+            <div className="flex gap-3">
+              <button
+                type="button"
+                onClick={() => setDeleteConfirm(null)}
+                className="flex-1 px-4 py-2.5 text-gray-600 hover:bg-gray-100 rounded-lg transition"
+              >
+                إلغاء
+              </button>
+              <button
+                type="button"
+                onClick={() => handleDelete(deleteConfirm)}
+                disabled={saving}
+                className="flex-1 px-4 py-2.5 bg-red-600 hover:bg-red-700 disabled:bg-red-400 text-white font-medium rounded-lg transition-colors"
+              >
+                {saving ? "جاري الحذف..." : "حذف"}
+              </button>
+            </div>
           </div>
         </div>
       )}
