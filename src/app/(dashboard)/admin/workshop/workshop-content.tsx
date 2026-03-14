@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import Link from "next/link";
 
 const STAGES = [
   { id: "received", label: "استلام", color: "bg-blue-100 text-blue-800" },
@@ -230,8 +231,18 @@ export function WorkshopContent() {
                       key={order.id}
                       className="bg-white rounded-lg p-3 border border-gray-100 shadow-sm"
                     >
-                      <div className="font-medium text-gray-900">{order.order_number}</div>
-                      <div className="text-sm text-gray-600 mt-1">{order.vehicle_plate}</div>
+                      <Link
+                        href={`/admin/workshop/${order.id}`}
+                        className="font-medium text-emerald-600 hover:text-emerald-700 hover:underline block"
+                      >
+                        {order.order_number}
+                      </Link>
+                      <Link
+                        href={`/admin/workshop/${order.id}`}
+                        className="text-sm text-gray-600 hover:text-emerald-600 mt-1 block"
+                      >
+                        {order.vehicle_plate}
+                      </Link>
                       {order.vehicle_model && (
                         <div className="text-xs text-gray-500">{order.vehicle_model}</div>
                       )}
