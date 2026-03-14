@@ -77,12 +77,15 @@ export async function POST(request: Request) {
       });
     }
 
-    const { codes, vehicle } = await extractCodesFromFile(base64, mimeType);
+    const { codes, vehicle, reason } = await extractCodesFromFile(base64, mimeType);
     if (codes.length === 0) {
-      return NextResponse.json(
-        { error: "لم يتم العثور على أكواد OBD في الملف. تأكد أن التقرير يحتوي على أكواد مثل P0100 أو P0171 أو 01314 أو B3902-00" },
-        { status: 400 }
-      );
+      const msg =
+        reason === "no_api_key"
+          ? "GEMINI_API_KEY غير مفعّل. أضفه في Vercel → Settings → Environment Variables (اختر Production) ثم أعد النشر (Redeploy)."
+          : reason === "api_error"
+            ? "فشل في الاتصال بـ Gemini. تحقق من صلاحية المفتاح أو حد الطلبات."
+            : "لم يتم العثور على أكواد OBD في الملف. تأكد أن التقرير يحتوي على أكواد مثل P0100 أو P0171 أو 01314 أو B3902-00";
+      return NextResponse.json({ error: msg }, { status: 400 });
     }
 
     const uniqueCodes = [...new Set(codes)];

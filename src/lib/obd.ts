@@ -43,6 +43,7 @@ async function searchWithGemini(code: string): Promise<{ description_ar: string;
   if (!apiKey) return null;
 
   const models = ["gemini-2.0-flash", "gemini-1.5-flash"];
+  let lastReason: "api_error" | "no_codes_in_file" = "no_codes_in_file";
   for (const model of models) {
     try {
       const res = await fetch(
@@ -219,6 +220,8 @@ function normalizeCode(c: string): string {
 export type ExtractedReport = {
   codes: string[];
   vehicle: { brand: string; model: string; year: number | null; vin: string } | null;
+  /** سبب عدم العثور على أكواد */
+  reason?: "no_api_key" | "api_error" | "no_codes_in_file";
 };
 
 export async function extractCodesFromFile(
@@ -226,9 +229,10 @@ export async function extractCodesFromFile(
   mimeType: string
 ): Promise<ExtractedReport> {
   const apiKey = process.env.GEMINI_API_KEY;
-  if (!apiKey) return { codes: [], vehicle: null };
+  if (!apiKey) return { codes: [], vehicle: null, reason: "no_api_key" };
 
   const models = ["gemini-2.0-flash", "gemini-1.5-flash"];
+  let lastReason: "api_error" | "no_codes_in_file" = "no_codes_in_file";
   for (const model of models) {
     try {
       const parts: Array<{ inlineData?: { mimeType: string; data: string }; text?: string }> = [
@@ -248,7 +252,10 @@ export async function extractCodesFromFile(
         }
       );
 
-      if (!res.ok) continue;
+      if (!res.ok) {
+        lastReason = "api_error";
+        continue;
+      }
       const data = await res.json();
       const text = data.candidates?.[0]?.content?.parts?.[0]?.text ?? "";
       let rawCodes: string[] = [];
@@ -279,8 +286,8 @@ export async function extractCodesFromFile(
           : null;
       return { codes, vehicle };
     } catch {
-      // try next model
+      lastReason = "api_error";
     }
   }
-  return { codes: [], vehicle: null };
+  return { codes: [], vehicle: null, reason: lastReason };
 }

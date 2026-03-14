@@ -17,6 +17,7 @@ export function ObdContent() {
   const [mode, setMode] = useState<"search" | "upload" | "manage">("search");
   const [code, setCode] = useState("");
   const [loading, setLoading] = useState(false);
+  const [aiStatus, setAiStatus] = useState<{ aiAvailable: boolean; message: string } | null>(null);
   const [result, setResult] = useState<ObdResult | null>(null);
   const [analyzeResults, setAnalyzeResults] = useState<{
     results: ObdResult[];
@@ -27,6 +28,13 @@ export function ObdContent() {
   const [file, setFile] = useState<File | null>(null);
   const [dragOver, setDragOver] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    fetch("/api/admin/obd/status")
+      .then((r) => r.json())
+      .then((d) => setAiStatus({ aiAvailable: d.aiAvailable, message: d.message }))
+      .catch(() => setAiStatus({ aiAvailable: false, message: "تعذر التحقق" }));
+  }, []);
 
   async function handleSearch(e: React.FormEvent) {
     e.preventDefault();
@@ -142,6 +150,17 @@ export function ObdContent() {
 
   return (
     <div className="space-y-6">
+      {aiStatus && !aiStatus.aiAvailable && (
+        <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 text-amber-800">
+          <p className="font-medium">⚠️ الذكاء الاصطناعي غير متاح</p>
+          <p className="text-sm mt-1">{aiStatus.message}</p>
+        </div>
+      )}
+      {aiStatus && aiStatus.aiAvailable && (
+        <div className="bg-emerald-50 border border-emerald-200 rounded-lg px-4 py-2 text-emerald-800 text-sm">
+          ✓ الذكاء الاصطناعي متاح — البحث والتحليل يعملان
+        </div>
+      )}
       <div className="flex gap-2 border-b border-gray-200 pb-2">
         <button
           type="button"
