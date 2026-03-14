@@ -53,11 +53,13 @@ export function WorkshopContent() {
   const [inventoryItems, setInventoryItems] = useState<InventoryItem[]>([]);
   const [addForm, setAddForm] = useState({ item_id: "", quantity: "1" });
   const [saving, setSaving] = useState(false);
+  const [customers, setCustomers] = useState<{ id: string; name: string }[]>([]);
   const [form, setForm] = useState({
     vehicle_plate: "",
     vehicle_model: "",
     vehicle_year: "",
     mileage: "",
+    customer_id: "",
   });
 
   async function fetchOrders() {
@@ -89,8 +91,19 @@ export function WorkshopContent() {
     }
   }
 
+  async function fetchCustomers() {
+    try {
+      const res = await fetch("/api/admin/customers");
+      if (res.ok) {
+        const data = await res.json();
+        setCustomers(data.map((c: { id: string; name: string }) => ({ id: c.id, name: c.name })));
+      }
+    } catch {}
+  }
+
   useEffect(() => {
     fetchOrders();
+    fetchCustomers();
   }, []);
 
   useEffect(() => {
@@ -112,6 +125,7 @@ export function WorkshopContent() {
           vehicle_model: form.vehicle_model.trim() || undefined,
           vehicle_year: form.vehicle_year ? Number(form.vehicle_year) : undefined,
           mileage: form.mileage ? Number(form.mileage) : undefined,
+          customer_id: form.customer_id || undefined,
         }),
       });
 
@@ -123,7 +137,7 @@ export function WorkshopContent() {
 
       await fetchOrders();
       setModalOpen(false);
-      setForm({ vehicle_plate: "", vehicle_model: "", vehicle_year: "", mileage: "" });
+      setForm({ vehicle_plate: "", vehicle_model: "", vehicle_year: "", mileage: "", customer_id: "" });
     } catch {
       alert("حدث خطأ");
     } finally {
@@ -295,6 +309,19 @@ export function WorkshopContent() {
               <p className="text-sm text-gray-500 mt-1">المرحلة الأولى: استلام</p>
             </div>
             <form onSubmit={handleCreate} className="p-6 space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">العميل</label>
+                <select
+                  value={form.customer_id}
+                  onChange={(e) => setForm((f) => ({ ...f, customer_id: e.target.value }))}
+                  className={inputClass}
+                >
+                  <option value="">بدون عميل</option>
+                  {customers.map((c) => (
+                    <option key={c.id} value={c.id}>{c.name}</option>
+                  ))}
+                </select>
+              </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">رقم اللوحة *</label>
                 <input

@@ -27,7 +27,7 @@ export async function PATCH(
 
     if (stage === "completed") {
       const orderResult = await db.execute({
-        sql: "SELECT order_number, warehouse_id FROM repair_orders WHERE id = ? AND company_id = ?",
+        sql: "SELECT order_number, warehouse_id, customer_id FROM repair_orders WHERE id = ? AND company_id = ?",
         args: [id, SYSTEM_COMPANY_ID],
       });
       if (orderResult.rows.length === 0) {
@@ -49,10 +49,13 @@ export async function PATCH(
       const invoiceId = randomUUID();
       let subtotal = 0;
 
+      const order = orderResult.rows[0];
+      const customerId = order.customer_id || null;
+
       await db.execute({
-        sql: `INSERT INTO invoices (id, company_id, invoice_number, type, status, repair_order_id, warehouse_id, subtotal, total, paid_amount, created_by)
-              VALUES (?, ?, ?, 'maintenance', 'pending', ?, ?, 0, 0, 0, ?)`,
-        args: [invoiceId, SYSTEM_COMPANY_ID, invNum, id, orderResult.rows[0].warehouse_id, session.user.id],
+        sql: `INSERT INTO invoices (id, company_id, invoice_number, type, status, customer_id, repair_order_id, warehouse_id, subtotal, total, paid_amount, created_by)
+              VALUES (?, ?, ?, 'maintenance', 'pending', ?, ?, ?, 0, 0, 0, ?)`,
+        args: [invoiceId, SYSTEM_COMPANY_ID, invNum, customerId, id, order.warehouse_id, session.user.id],
       });
 
       for (let i = 0; i < itemsResult.rows.length; i++) {
