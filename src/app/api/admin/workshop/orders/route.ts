@@ -38,9 +38,12 @@ export async function GET() {
 
   try {
     const result = await db.execute({
-      sql: `SELECT ro.*, c.name as customer_name
+      sql: `SELECT ro.*, c.name as customer_name, inv.invoice_number,
+            (SELECT COUNT(*) FROM repair_order_items WHERE repair_order_id = ro.id) as items_count,
+            (SELECT SUM(total) FROM repair_order_items WHERE repair_order_id = ro.id) as items_total
             FROM repair_orders ro
             LEFT JOIN customers c ON ro.customer_id = c.id
+            LEFT JOIN invoices inv ON ro.invoice_id = inv.id
             WHERE ro.company_id = ?
             ORDER BY 
               CASE ro.stage 
@@ -68,6 +71,9 @@ export async function GET() {
       received_at: row.received_at,
       completed_at: row.completed_at,
       created_at: row.created_at,
+      items_count: row.items_count ?? 0,
+      items_total: row.items_total ?? 0,
+      invoice_number: row.invoice_number ?? null,
     }));
 
     return NextResponse.json(orders);

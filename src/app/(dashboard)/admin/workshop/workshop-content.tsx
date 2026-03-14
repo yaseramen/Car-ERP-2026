@@ -22,12 +22,35 @@ interface RepairOrder {
   received_at: string;
   completed_at: string | null;
   created_at: string;
+  items_count?: number;
+  items_total?: number;
+  invoice_number?: string | null;
+}
+
+interface InventoryItem {
+  id: string;
+  name: string;
+  quantity: number;
+  sale_price: number;
+}
+
+interface OrderItem {
+  id: string;
+  item_name: string;
+  quantity: number;
+  unit_price: number;
+  total: number;
 }
 
 export function WorkshopContent() {
   const [orders, setOrders] = useState<RepairOrder[]>([]);
   const [loading, setLoading] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
+  const [addPartsOpen, setAddPartsOpen] = useState(false);
+  const [selectedOrder, setSelectedOrder] = useState<RepairOrder | null>(null);
+  const [orderItems, setOrderItems] = useState<OrderItem[]>([]);
+  const [inventoryItems, setInventoryItems] = useState<InventoryItem[]>([]);
+  const [addForm, setAddForm] = useState({ item_id: "", quantity: "1" });
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState({
     vehicle_plate: "",
@@ -47,9 +70,34 @@ export function WorkshopContent() {
     }
   }
 
+  async function fetchOrderItems(orderId: string) {
+    try {
+      const res = await fetch(`/api/admin/workshop/orders/${orderId}/items`);
+      if (res.ok) setOrderItems(await res.json());
+    } catch {
+      setOrderItems([]);
+    }
+  }
+
+  async function fetchInventoryItems() {
+    try {
+      const res = await fetch("/api/admin/inventory/items");
+      if (res.ok) setInventoryItems(await res.json());
+    } catch {
+      setInventoryItems([]);
+    }
+  }
+
   useEffect(() => {
     fetchOrders();
   }, []);
+
+  useEffect(() => {
+    if (addPartsOpen && selectedOrder) {
+      fetchOrderItems(selectedOrder.id);
+      fetchInventoryItems();
+    }
+  }, [addPartsOpen, selectedOrder]);
 
   async function handleCreate(e: React.FormEvent) {
     e.preventDefault();
@@ -82,6 +130,36 @@ export function WorkshopContent() {
     }
   }
 
+  async function handleAddPart(e: React.FormEvent) {
+    e.preventDefault();
+    if (!selectedOrder) return;
+    setSaving(true);
+    try {
+      const res = await fetch(`/api/admin/workshop/orders/${selectedOrder.id}/items`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          item_id: addForm.item_id,
+          quantity: Number(addForm.quantity) || 1,
+        }),
+      });
+
+      if (!res.ok) {
+        const err = await res.json();
+        alert(err.error || "فشل في إضافة القطعة");
+        return;
+      }
+
+      await fetchOrderItems(selectedOrder.id);
+      await fetchOrders();
+      setAddForm({ item_id: "", quantity: "1" });
+    } catch {
+      alert("حدث خطأ");
+    } finally {
+      setSaving(false);
+    }
+  }
+
   async function updateStage(orderId: string, newStage: string) {
     try {
       const res = await fetch(`/api/admin/workshop/orders/${orderId}`, {
@@ -96,9 +174,7 @@ export function WorkshopContent() {
         return;
       }
 
-      setOrders((prev) =>
-        prev.map((o) => (o.id === orderId ? { ...o, stage: newStage } : o))
-      );
+      await fetchOrders();
     } catch {
       alert("حدث خطأ");
     }
@@ -111,6 +187,8 @@ export function WorkshopContent() {
 
   const inputClass =
     "w-full px-4 py-2.5 rounded-lg border border-gray-300 bg-white text-gray-900 placeholder-gray-500 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none";
+
+  const canAddParts = (stage: string) => stage === "maintenance" || stage === "ready";
 
   if (loading) {
     return (
@@ -157,14 +235,35 @@ export function WorkshopContent() {
                       {order.vehicle_model && (
                         <div className="text-xs text-gray-500">{order.vehicle_model}</div>
                       )}
-                      {next && (
-                        <button
-                          onClick={() => updateStage(order.id, next.id)}
-                          className="mt-2 w-full py-1.5 text-xs bg-emerald-600 hover:bg-emerald-700 text-white rounded transition"
-                        >
-                          ← {next.label}
-                        </button>
+                      {(order.items_count ?? 0) > 0 && (
+                        <div className="text-xs text-emerald-600 mt-1">
+                          {order.items_count} قطعة - {Number(order.items_total ?? 0).toFixed(2)} ج.م
+                        </div>
                       )}
+                      {order.stage === "completed" && order.invoice_number && (
+                        <div className="text-xs text-gray-500 mt-1">فاتورة: {order.invoice_number}</div>
+                      )}
+                      <div className="mt-2 flex flex-col gap-1">
+                        {canAddParts(order.stage) && (
+                          <button
+                            onClick={() => {
+                              setSelectedOrder(order);
+                              setAddPartsOpen(true);
+                            }}
+                            className="w-full py-1.5 text-xs bg-purple-600 hover:bg-purple-700 text-white rounded transition"
+                          >
+                            إضافة قطعة
+                          </button>
+                        )}
+                        {next && (
+                          <button
+                            onClick={() => updateStage(order.id, next.id)}
+                            className="w-full py-1.5 text-xs bg-emerald-600 hover:bg-emerald-700 text-white rounded transition"
+                          >
+                            ← {next.label}
+                          </button>
+                        )}
+                      </div>
                     </div>
                   );
                 })}
@@ -245,6 +344,81 @@ export function WorkshopContent() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {addPartsOpen && selectedOrder && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50" dir="rtl">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-md max-h-[90vh] overflow-y-auto">
+            <div className="p-6 border-b border-gray-100">
+              <h3 className="text-lg font-bold text-gray-900">إضافة قطعة - {selectedOrder.order_number}</h3>
+              <p className="text-sm text-gray-500 mt-1">{selectedOrder.vehicle_plate}</p>
+            </div>
+            <div className="p-6 space-y-4">
+              {orderItems.length > 0 && (
+                <div>
+                  <h4 className="text-sm font-medium text-gray-700 mb-2">القطع المضافة</h4>
+                  <ul className="space-y-1 text-sm">
+                    {orderItems.map((oi) => (
+                      <li key={oi.id} className="flex justify-between">
+                        <span>{oi.item_name} x {oi.quantity}</span>
+                        <span>{oi.total.toFixed(2)} ج.م</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+              <form onSubmit={handleAddPart} className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">الصنف</label>
+                  <select
+                    value={addForm.item_id}
+                    onChange={(e) => setAddForm((f) => ({ ...f, item_id: e.target.value }))}
+                    required
+                    className={inputClass}
+                  >
+                    <option value="">اختر الصنف</option>
+                    {inventoryItems.filter((i) => i.quantity > 0).map((i) => (
+                      <option key={i.id} value={i.id}>
+                        {i.name} (متاح: {i.quantity})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">الكمية</label>
+                  <input
+                    type="number"
+                    min="0.01"
+                    step="0.01"
+                    value={addForm.quantity}
+                    onChange={(e) => setAddForm((f) => ({ ...f, quantity: e.target.value }))}
+                    required
+                    className={inputClass}
+                  />
+                </div>
+                <div className="flex gap-3">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setAddPartsOpen(false);
+                      setSelectedOrder(null);
+                    }}
+                    className="flex-1 px-4 py-2.5 text-gray-600 hover:bg-gray-100 rounded-lg transition"
+                  >
+                    إغلاق
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={saving}
+                    className="flex-1 px-4 py-2.5 bg-purple-600 hover:bg-purple-700 disabled:bg-purple-400 text-white font-medium rounded-lg transition-colors"
+                  >
+                    {saving ? "جاري..." : "إضافة"}
+                  </button>
+                </div>
+              </form>
+            </div>
           </div>
         </div>
       )}

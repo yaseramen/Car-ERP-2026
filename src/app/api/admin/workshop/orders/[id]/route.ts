@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { db } from "@/lib/db/client";
+import { randomUUID } from "crypto";
 
 const SYSTEM_COMPANY_ID = "company-system";
 
@@ -24,6 +25,77 @@ export async function PATCH(
       return NextResponse.json({ error: "مرحلة غير صالحة" }, { status: 400 });
     }
 
+    if (stage === "completed") {
+      const orderResult = await db.execute({
+        sql: "SELECT order_number, warehouse_id FROM repair_orders WHERE id = ? AND company_id = ?",
+        args: [id, SYSTEM_COMPANY_ID],
+      });
+      if (orderResult.rows.length === 0) {
+        return NextResponse.json({ error: "أمر غير موجود" }, { status: 404 });
+      }
+
+      const itemsResult = await db.execute({
+        sql: "SELECT item_id, quantity, unit_price, total FROM repair_order_items WHERE repair_order_id = ?",
+        args: [id],
+      });
+
+      const invCountResult = await db.execute({
+        sql: "SELECT COUNT(*) as cnt FROM invoices WHERE company_id = ?",
+        args: [SYSTEM_COMPANY_ID],
+      });
+      const invCount = (invCountResult.rows[0]?.cnt as number) ?? 0;
+      const invNum = `INV-${String(invCount + 1).padStart(4, "0")}`;
+
+      const invoiceId = randomUUID();
+      let subtotal = 0;
+
+      await db.execute({
+        sql: `INSERT INTO invoices (id, company_id, invoice_number, type, status, repair_order_id, warehouse_id, subtotal, total, paid_amount, created_by)
+              VALUES (?, ?, ?, 'maintenance', 'pending', ?, ?, 0, 0, 0, ?)`,
+        args: [invoiceId, SYSTEM_COMPANY_ID, invNum, id, orderResult.rows[0].warehouse_id, session.user.id],
+      });
+
+      for (let i = 0; i < itemsResult.rows.length; i++) {
+        const item = itemsResult.rows[i];
+        const itemTotal = Number(item.total ?? 0);
+        subtotal += itemTotal;
+        await db.execute({
+          sql: "INSERT INTO invoice_items (id, invoice_id, item_id, quantity, unit_price, total, sort_order) VALUES (?, ?, ?, ?, ?, ?, ?)",
+          args: [randomUUID(), invoiceId, item.item_id, item.quantity, item.unit_price, itemTotal, i],
+        });
+      }
+
+      const digitalFee = Math.max(0.5, subtotal * 0.0001);
+      const total = subtotal + digitalFee;
+
+      await db.execute({
+        sql: "UPDATE invoices SET subtotal = ?, digital_service_fee = ?, total = ? WHERE id = ?",
+        args: [subtotal, digitalFee, total, invoiceId],
+      });
+
+      await db.execute({
+        sql: "UPDATE repair_orders SET stage = 'completed', completed_at = datetime('now'), invoice_id = ?, updated_at = datetime('now') WHERE id = ? AND company_id = ?",
+        args: [invoiceId, id, SYSTEM_COMPANY_ID],
+      });
+
+      const walletResult = await db.execute({
+        sql: "SELECT id, balance FROM company_wallets WHERE company_id = ?",
+        args: [SYSTEM_COMPANY_ID],
+      });
+      if (walletResult.rows.length > 0 && Number(walletResult.rows[0].balance ?? 0) >= digitalFee) {
+        await db.execute({
+          sql: "UPDATE company_wallets SET balance = balance - ? WHERE company_id = ?",
+          args: [digitalFee, SYSTEM_COMPANY_ID],
+        });
+        await db.execute({
+          sql: "INSERT INTO wallet_transactions (id, wallet_id, amount, type, description, reference_type, reference_id, performed_by) VALUES (?, ?, ?, 'digital_service', ?, 'invoice', ?, ?)",
+          args: [randomUUID(), walletResult.rows[0].id, digitalFee, `خدمة رقمية - فاتورة ${invNum}`, invoiceId, session.user.id],
+        });
+      }
+
+      return NextResponse.json({ success: true, invoice_id: invoiceId, invoice_number: invNum });
+    }
+
     const updates: string[] = ["stage = ?", "updated_at = datetime('now')"];
     const args: (string | number | null)[] = [stage];
 
@@ -34,9 +106,6 @@ export async function PATCH(
     if (estimated_completion !== undefined) {
       updates.push("estimated_completion = ?");
       args.push(estimated_completion);
-    }
-    if (stage === "completed") {
-      updates.push("completed_at = datetime('now')");
     }
 
     args.push(id, SYSTEM_COMPANY_ID);
