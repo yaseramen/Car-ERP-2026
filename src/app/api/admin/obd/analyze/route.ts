@@ -76,10 +76,10 @@ export async function POST(request: Request) {
       });
     }
 
-    const codes = await extractCodesFromFile(base64, mimeType);
+    const { codes, vehicle } = await extractCodesFromFile(base64, mimeType);
     if (codes.length === 0) {
       return NextResponse.json(
-        { error: "لم يتم العثور على أكواد OBD في الملف. تأكد أن التقرير يحتوي على أكواد مثل P0100 أو P0171" },
+        { error: "لم يتم العثور على أكواد OBD في الملف. تأكد أن التقرير يحتوي على أكواد مثل P0100 أو P0171 أو 01314 أو B3902-00" },
         { status: 400 }
       );
     }
@@ -129,10 +129,33 @@ export async function POST(request: Request) {
       });
     }
 
+    try {
+      await db.execute({
+        sql: `INSERT INTO obd_reports (id, company_id, file_name, vehicle_brand, vehicle_model, vehicle_year, vehicle_vin, codes_extracted, codes_count, total_cost, created_by)
+              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        args: [
+          randomUUID(),
+          SYSTEM_COMPANY_ID,
+          file.name,
+          vehicle?.brand || null,
+          vehicle?.model || null,
+          vehicle?.year || null,
+          vehicle?.vin || null,
+          JSON.stringify(uniqueCodes),
+          uniqueCodes.length,
+          totalCost,
+          session.user.id,
+        ],
+      });
+    } catch (e) {
+      console.warn("obd_reports insert failed (table may not exist):", e);
+    }
+
     return NextResponse.json({
       results,
       totalCost,
       codesFound: uniqueCodes.length,
+      vehicle: vehicle || undefined,
     });
   } catch (error) {
     console.error("OBD analyze error:", error);

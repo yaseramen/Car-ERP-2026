@@ -24,12 +24,18 @@ export function parseAIResponse(text: string): { description_ar: string; causes:
 }
 
 export async function searchLocal(code: string) {
-  const normalized = code.trim().toUpperCase();
-  const result = await db.execute({
-    sql: "SELECT * FROM obd_codes WHERE UPPER(TRIM(code)) = ? LIMIT 1",
-    args: [normalized],
-  });
-  return result.rows[0] ?? null;
+  const normalized = code.trim().toUpperCase().replace(/\s/g, "");
+  const candidates = [normalized];
+  const withoutSuffix = normalized.replace(/-\d{2}$/, "");
+  if (withoutSuffix !== normalized) candidates.push(withoutSuffix);
+  for (const c of candidates) {
+    const result = await db.execute({
+      sql: "SELECT * FROM obd_codes WHERE UPPER(TRIM(code)) = ? LIMIT 1",
+      args: [c],
+    });
+    if (result.rows[0]) return result.rows[0];
+  }
+  return null;
 }
 
 async function searchWithGemini(code: string): Promise<{ description_ar: string; causes: string; solutions: string; symptoms: string } | null> {
@@ -173,17 +179,49 @@ export async function resolveCode(code: string): Promise<{ result: ObdResult; ob
   return { result, obdCodeId };
 }
 
-export const EXTRACT_CODES_PROMPT = `استخرج كل أكواد OBD من هذا التقرير أو الصورة.
-أكواد OBD تبدأ بحرف متبوع بأربعة أرقام، مثل: P0100, P0171, B0001, C1234, U0100.
-أجب بصيغة JSON فقط بدون أي نص إضافي: {"codes":["P0100","P0171"]}
-إذا لم تجد أي أكواد، أجب: {"codes":[]}`;
+export const EXTRACT_CODES_PROMPT = `استخرج من هذا التقرير أو الصورة:
+1. كل أكواد الأعطال (DTC) بجميع صيغها:
+   - صيغة OBD-II القياسية: P0100, P0171, B0001, C1234, U0100 (حرف + 4 أرقام)
+   - مع لاحقة: B3902-00, B0223-01, U0184-00
+   - 6 أرقام: B250000, B251800, B252000
+   - 5 أرقام (كود مصنّع): 01314, 01317, 00898, 01504, 02399, 00532, 00779, 00771, 01305, 01304, 00109, 00332, 01038, 00121, 00944, 01044, 00123, 00103
+2. معلومات المركبة إن وُجدت: السلسلة/العلامة، النموذج، السنة، VIN
+
+أجب بصيغة JSON فقط:
+{"codes":["P0100","P0171","01314","B3902-00","B250000"],"vehicle":{"brand":"Skoda","model":"","year":2007,"vin":"TMBCA41Z272033398"}}
+
+إذا لم تجد أكواداً: {"codes":[],"vehicle":null}
+إذا وجدت أكواداً فقط بدون معلومات مركبة: {"codes":[...],"vehicle":null}
+استخرج كل الأكواد التي تظهر في التقرير بغض النظر عن الصيغة.`;
+
+const OBD_CODE_PATTERNS = [
+  /^[PBCU]\d{4}$/,           // P0100, B0001
+  /^[PBCU]\d{4}-\d{2}$/,     // B3902-00, U0184-00
+  /^[PBCU]\d{5,6}$/,         // B250000, B251800
+  /^0\d{4}$/,                // 01314, 01317 (VAG/Skoda manufacturer)
+];
+
+function isValidObdCode(c: string): boolean {
+  const s = String(c).trim().toUpperCase().replace(/\s/g, "");
+  if (s.length < 4 || s.length > 10) return false;
+  return OBD_CODE_PATTERNS.some((p) => p.test(s));
+}
+
+function normalizeCode(c: string): string {
+  return String(c).trim().toUpperCase().replace(/\s/g, "");
+}
+
+export type ExtractedReport = {
+  codes: string[];
+  vehicle: { brand: string; model: string; year: number | null; vin: string } | null;
+};
 
 export async function extractCodesFromFile(
   base64: string,
   mimeType: string
-): Promise<string[]> {
+): Promise<ExtractedReport> {
   const apiKey = process.env.GEMINI_API_KEY;
-  if (!apiKey) return [];
+  if (!apiKey) return { codes: [], vehicle: null };
 
   const models = ["gemini-2.0-flash", "gemini-1.5-flash"];
   for (const model of models) {
@@ -210,16 +248,26 @@ export async function extractCodesFromFile(
       const text = data.candidates?.[0]?.content?.parts?.[0]?.text ?? "";
       const match = text.match(/\{[\s\S]*\}/);
       if (!match) continue;
-      const parsed = JSON.parse(match[0]) as { codes?: string[] };
-      const codes = parsed?.codes;
-      if (Array.isArray(codes) && codes.length > 0) {
-        return codes
-          .map((c) => String(c).trim().toUpperCase())
-          .filter((c) => /^[PBCU]\d{4}$/.test(c));
-      }
+      const parsed = JSON.parse(match[0]) as {
+        codes?: string[];
+        vehicle?: { brand?: string; model?: string; year?: number; vin?: string } | null;
+      };
+      const rawCodes = parsed?.codes ?? [];
+      const codes = [...new Set(rawCodes.map(normalizeCode).filter(isValidObdCode))];
+      const v = parsed?.vehicle;
+      const vehicle =
+        v && (v.brand || v.model || v.year || v.vin)
+          ? {
+              brand: String(v.brand ?? "").trim(),
+              model: String(v.model ?? "").trim(),
+              year: typeof v.year === "number" ? v.year : null,
+              vin: String(v.vin ?? "").trim(),
+            }
+          : null;
+      return { codes, vehicle };
     } catch {
       // try next model
     }
   }
-  return [];
+  return { codes: [], vehicle: null };
 }

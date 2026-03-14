@@ -26,16 +26,38 @@ export async function runMigrations() {
   const statements = getStatements(schema);
   await db.batch(statements.map((stmt) => ({ sql: stmt })), "write");
 
+  await db.execute({
+    sql: "CREATE TABLE IF NOT EXISTS _migrations (name TEXT PRIMARY KEY, run_at TEXT DEFAULT (datetime('now')))",
+  });
+
   const migrationsDir = join(process.cwd(), "database", "migrations");
   try {
     const files = readdirSync(migrationsDir).filter((f) => f.endsWith(".sql")).sort();
     for (const file of files) {
+      const existing = await db.execute({
+        sql: "SELECT 1 FROM _migrations WHERE name = ?",
+        args: [file],
+      });
+      if (existing.rows.length > 0) {
+        console.log(`⏭️  Skipped (already run): ${file}`);
+        continue;
+      }
       const content = readFileSync(join(migrationsDir, file), "utf-8");
       const stmts = getStatements(content);
-      if (stmts.length > 0) {
-        await db.batch(stmts.map((stmt) => ({ sql: stmt })), "write");
-        console.log(`✅ Ran migration: ${file}`);
+      for (const stmt of stmts) {
+        try {
+          await db.execute({ sql: stmt });
+        } catch (e: unknown) {
+          const msg = String((e as Error)?.cause ?? e);
+          if (msg.includes("duplicate column") || msg.includes("already exists")) {
+            console.warn(`⚠️  Skipped (already applied): ${stmt.slice(0, 60)}...`);
+          } else {
+            throw e;
+          }
+        }
       }
+      await db.execute({ sql: "INSERT OR IGNORE INTO _migrations (name) VALUES (?)", args: [file] });
+      console.log(`✅ Ran migration: ${file}`);
     }
   } catch (e) {
     if ((e as NodeJS.ErrnoException).code !== "ENOENT") throw e;
