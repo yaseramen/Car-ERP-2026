@@ -13,7 +13,7 @@ export default async function ObdPage() {
       <div className="mb-8">
         <h1 className="text-2xl font-bold text-gray-900">التشخيص الذكي OBD</h1>
         <p className="text-gray-500 mt-1">
-          ابحث عن أكواد الأعطال — محلياً أولاً، ثم الذكاء الاصطناعي (تكلفة البحث: 1 ج.م)
+          بحث بكود، رفع تقرير PDF/صورة، أو تحليل بالوصف — مع استخراج الماركة والنموذج والسنة (1 ج.م/عملية)
         </p>
       </div>
 

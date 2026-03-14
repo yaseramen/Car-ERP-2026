@@ -14,7 +14,7 @@ type ObdResult = {
 };
 
 export function ObdContent() {
-  const [mode, setMode] = useState<"search" | "upload" | "manage" | "logs">("search");
+  const [mode, setMode] = useState<"search" | "upload" | "description" | "manage" | "logs">("search");
   const [code, setCode] = useState("");
   const [loading, setLoading] = useState(false);
   const [aiStatus, setAiStatus] = useState<{ aiAvailable: boolean; message: string; providers?: string[] } | null>(null);
@@ -28,6 +28,15 @@ export function ObdContent() {
   const [file, setFile] = useState<File | null>(null);
   const [dragOver, setDragOver] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [descForm, setDescForm] = useState({ description: "", brand: "", model: "", year: "" });
+  const [descResult, setDescResult] = useState<{
+    summary_ar: string;
+    possible_codes: string[];
+    causes: string;
+    solutions: string;
+    recommendations: string;
+    cost: number;
+  } | null>(null);
 
   useEffect(() => {
     fetch("/api/admin/obd/status")
@@ -103,6 +112,38 @@ export function ObdContent() {
     } catch (err) {
       const msg = err instanceof Error ? err.message : "حدث خطأ";
       alert(`فشل في التحليل: ${msg}`);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleAnalyzeByDescription(e: React.FormEvent) {
+    e.preventDefault();
+    if (!descForm.description.trim()) return;
+
+    setLoading(true);
+    setDescResult(null);
+    setResult(null);
+    setAnalyzeResults(null);
+    try {
+      const res = await fetch("/api/admin/obd/analyze-by-description", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          description: descForm.description.trim(),
+          brand: descForm.brand.trim() || undefined,
+          model: descForm.model.trim() || undefined,
+          year: descForm.year.trim() || undefined,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        alert(data.error || "فشل في التحليل");
+        return;
+      }
+      setDescResult(data);
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "حدث خطأ");
     } finally {
       setLoading(false);
     }
@@ -196,6 +237,15 @@ export function ObdContent() {
         </button>
         <button
           type="button"
+          onClick={() => setMode("description")}
+          className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+            mode === "description" ? "bg-emerald-600 text-white" : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+          }`}
+        >
+          تحليل بالوصف
+        </button>
+        <button
+          type="button"
           onClick={() => setMode("manage")}
           className={`px-4 py-2 rounded-lg font-medium transition-colors ${
             mode === "manage" ? "bg-emerald-600 text-white" : "bg-gray-100 text-gray-600 hover:bg-gray-200"
@@ -236,6 +286,110 @@ export function ObdContent() {
           <p className="text-sm text-gray-500 mt-2">
             تكلفة كل بحث: 1 ج.م (تُخصم من محفظة الشركة)
           </p>
+        </div>
+      )}
+
+      {mode === "description" && (
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+          <p className="text-gray-600 mb-4">
+            صف مشكلة السيارة بدون جهاز كشف أعطال — سيحلل الذكاء الاصطناعي ويقترح الأسباب والحلول والأكواد المحتملة.
+          </p>
+          <form onSubmit={handleAnalyzeByDescription} className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">وصف الحالة *</label>
+              <textarea
+                value={descForm.description}
+                onChange={(e) => setDescForm((f) => ({ ...f, description: e.target.value }))}
+                placeholder="مثال: المحرك يهتز عند التوقف، أو السيارة لا تشتغل في الصباح البارد، أو لمبة التحذير مضيئة..."
+                className={inputClass}
+                rows={4}
+              />
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-500 mb-1">الماركة (اختياري)</label>
+                <input
+                  type="text"
+                  value={descForm.brand}
+                  onChange={(e) => setDescForm((f) => ({ ...f, brand: e.target.value }))}
+                  placeholder="Toyota, Mitsubishi..."
+                  className={inputClass}
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-500 mb-1">النموذج (اختياري)</label>
+                <input
+                  type="text"
+                  value={descForm.model}
+                  onChange={(e) => setDescForm((f) => ({ ...f, model: e.target.value }))}
+                  placeholder="Camry, Mirage..."
+                  className={inputClass}
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-500 mb-1">سنة الصنع (اختياري)</label>
+                <input
+                  type="text"
+                  value={descForm.year}
+                  onChange={(e) => setDescForm((f) => ({ ...f, year: e.target.value }))}
+                  placeholder="2020"
+                  className={inputClass}
+                  dir="ltr"
+                />
+              </div>
+            </div>
+            <button
+              type="submit"
+              disabled={loading}
+              className="px-6 py-3 bg-emerald-600 hover:bg-emerald-700 disabled:bg-emerald-400 text-white font-medium rounded-lg"
+            >
+              {loading ? "جاري التحليل..." : "تحليل"}
+            </button>
+            <p className="text-sm text-gray-500">تكلفة التحليل: 1 ج.م</p>
+          </form>
+          {descResult && (
+            <div className="mt-6 p-4 bg-gray-50 rounded-lg space-y-4">
+              <h3 className="font-bold text-gray-900">نتيجة التحليل — {descResult.cost} ج.م</h3>
+              {descResult.summary_ar && (
+                <div>
+                  <p className="text-sm font-medium text-gray-500 mb-1">الملخص</p>
+                  <p className="text-gray-900">{descResult.summary_ar}</p>
+                </div>
+              )}
+              {descResult.possible_codes?.length > 0 && (
+                <div>
+                  <p className="text-sm font-medium text-gray-500 mb-1">أكواد محتملة</p>
+                  <p className="text-gray-900" dir="ltr">{descResult.possible_codes.join(", ")}</p>
+                </div>
+              )}
+              {descResult.causes && (
+                <div>
+                  <p className="text-sm font-medium text-gray-500 mb-1">الأسباب المحتملة</p>
+                  <ul className="list-disc list-inside text-gray-900 space-y-1">
+                    {descResult.causes.split("|").map((c, i) => (
+                      <li key={i}>{c.trim()}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+              {descResult.solutions && (
+                <div>
+                  <p className="text-sm font-medium text-gray-500 mb-1">الحلول المقترحة</p>
+                  <ul className="list-disc list-inside text-gray-900 space-y-1">
+                    {descResult.solutions.split("|").map((s, i) => (
+                      <li key={i}>{s.trim()}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+              {descResult.recommendations && (
+                <div>
+                  <p className="text-sm font-medium text-gray-500 mb-1">توصيات</p>
+                  <p className="text-gray-900">{descResult.recommendations}</p>
+                </div>
+              )}
+            </div>
+          )}
         </div>
       )}
 
