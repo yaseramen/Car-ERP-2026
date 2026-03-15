@@ -10,14 +10,22 @@ interface AddPaymentProps {
   status: string;
 }
 
+type PaymentMethod = { id: string; name: string; type?: string };
+
 export function AddPayment({ invoiceId, total, paidAmount, status }: AddPaymentProps) {
   const router = useRouter();
-  const [paymentMethods, setPaymentMethods] = useState<{ id: string; name: string }[]>([]);
+  const [paymentMethods, setPaymentMethods] = useState<PaymentMethod[]>([]);
   const [amount, setAmount] = useState("");
   const [paymentMethodId, setPaymentMethodId] = useState("");
   const [referenceNumber, setReferenceNumber] = useState("");
+  const [paymentDate, setPaymentDate] = useState("");
   const [notes, setNotes] = useState("");
   const [saving, setSaving] = useState(false);
+
+  const selectedMethod = paymentMethods.find((m) => m.id === paymentMethodId);
+  const methodType = selectedMethod?.type ?? "";
+  const showRefField = methodType && methodType !== "cash";
+  const isCredit = methodType === "credit";
 
   const remaining = total - paidAmount;
   const isFullyPaid = status === "paid";
@@ -41,7 +49,7 @@ export function AddPayment({ invoiceId, total, paidAmount, status }: AddPaymentP
         body: JSON.stringify({
           amount: Number(amount),
           payment_method_id: paymentMethodId,
-          reference_number: referenceNumber || undefined,
+          reference_number: methodType === "cash" ? undefined : (isCredit ? paymentDate : referenceNumber) || undefined,
           notes: notes || undefined,
         }),
       });
@@ -54,6 +62,7 @@ export function AddPayment({ invoiceId, total, paidAmount, status }: AddPaymentP
 
       setAmount("");
       setReferenceNumber("");
+      setPaymentDate("");
       setNotes("");
       router.refresh();
     } catch {
@@ -118,16 +127,35 @@ export function AddPayment({ invoiceId, total, paidAmount, status }: AddPaymentP
             ))}
           </select>
         </div>
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">رقم المرجع</label>
-          <input
-            type="text"
-            value={referenceNumber}
-            onChange={(e) => setReferenceNumber(e.target.value)}
-            className={inputClass}
-            placeholder="رقم الشيك أو التحويل"
-          />
-        </div>
+        {showRefField && (
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              {isCredit ? "تاريخ الدفع المتوقع" : methodType === "cheque" ? "رقم الشيك" : methodType === "bank" ? "رقم التحويل" : "رقم الهاتف المحول منه"}
+            </label>
+            {isCredit ? (
+              <input
+                type="date"
+                value={paymentDate}
+                onChange={(e) => setPaymentDate(e.target.value)}
+                className={inputClass}
+              />
+            ) : (
+              <input
+                type="text"
+                value={referenceNumber}
+                onChange={(e) => setReferenceNumber(e.target.value)}
+                className={inputClass}
+                placeholder={
+                  methodType === "cheque"
+                    ? "رقم الشيك"
+                    : methodType === "bank"
+                    ? "رقم التحويل"
+                    : "رقم الهاتف المحول منه"
+                }
+              />
+            )}
+          </div>
+        )}
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">ملاحظات</label>
           <input
