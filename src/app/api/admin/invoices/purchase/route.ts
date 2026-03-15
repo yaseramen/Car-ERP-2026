@@ -16,7 +16,7 @@ export async function POST(request: Request) {
 
   try {
     const body = await request.json();
-    const { supplier_id, items, notes } = body;
+    const { supplier_id, items, notes, discount, tax } = body;
 
     if (!items || !Array.isArray(items) || items.length === 0) {
       return NextResponse.json({ error: "يجب إضافة صنف واحد على الأقل" }, { status: 400 });
@@ -59,9 +59,14 @@ export async function POST(request: Request) {
       validItems.push({ item_id: itemId, quantity: qty, unit_price: unitPrice, total });
     }
 
+    const discountAmount = Number(discount) || 0;
+    const taxAmount = Number(tax) || 0;
+    const afterDiscount = Math.max(0, subtotal - discountAmount);
+    const finalTotal = afterDiscount + taxAmount;
+
     await db.execute({
-      sql: `INSERT INTO invoices (id, company_id, invoice_number, type, status, supplier_id, warehouse_id, subtotal, total, paid_amount, notes, created_by)
-            VALUES (?, ?, ?, 'purchase', 'pending', ?, ?, ?, ?, 0, ?, ?)`,
+      sql: `INSERT INTO invoices (id, company_id, invoice_number, type, status, supplier_id, warehouse_id, subtotal, discount, tax, total, paid_amount, notes, created_by)
+            VALUES (?, ?, ?, 'purchase', 'pending', ?, ?, ?, ?, ?, ?, 0, ?, ?)`,
       args: [
         invoiceId,
         companyId,
@@ -69,7 +74,9 @@ export async function POST(request: Request) {
         supplier_id?.trim() || null,
         warehouseId,
         subtotal,
-        subtotal,
+        discountAmount,
+        taxAmount,
+        finalTotal,
         notes?.trim() || null,
         session.user.id,
       ],
@@ -112,7 +119,7 @@ export async function POST(request: Request) {
     return NextResponse.json({
       id: invoiceId,
       invoice_number: invNum,
-      total: subtotal,
+      total: finalTotal,
     });
   } catch (error) {
     console.error("Purchase invoice error:", error);

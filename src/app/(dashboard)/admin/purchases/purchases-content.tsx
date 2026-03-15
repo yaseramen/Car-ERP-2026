@@ -28,6 +28,11 @@ export function PurchasesContent() {
   const [cart, setCart] = useState<CartItem[]>([]);
   const [supplierId, setSupplierId] = useState("");
   const [notes, setNotes] = useState("");
+  const [taxEnabled, setTaxEnabled] = useState(false);
+  const [taxRate, setTaxRate] = useState("14");
+  const [discountEnabled, setDiscountEnabled] = useState(false);
+  const [discountType, setDiscountType] = useState<"percent" | "fixed">("percent");
+  const [discountValue, setDiscountValue] = useState("");
   const [saving, setSaving] = useState(false);
   const [lastInvoice, setLastInvoice] = useState<{ id: string; invoice_number: string } | null>(null);
 
@@ -143,6 +148,14 @@ export function PurchasesContent() {
   }
 
   const subtotal = cart.reduce((sum, c) => sum + c.total, 0);
+  const discountAmount = discountEnabled
+    ? discountType === "percent"
+      ? (subtotal * (Number(discountValue) || 0)) / 100
+      : Number(discountValue) || 0
+    : 0;
+  const afterDiscount = Math.max(0, subtotal - discountAmount);
+  const taxAmount = taxEnabled ? (afterDiscount * (Number(taxRate) || 0)) / 100 : 0;
+  const total = afterDiscount + taxAmount;
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -164,6 +177,8 @@ export function PurchasesContent() {
             unit_price: c.unit_price,
           })),
           notes: notes.trim() || undefined,
+          discount: discountEnabled ? discountAmount : 0,
+          tax: taxEnabled ? taxAmount : 0,
         }),
       });
 
@@ -178,6 +193,9 @@ export function PurchasesContent() {
       setCart([]);
       setSupplierId("");
       setNotes("");
+      setTaxEnabled(false);
+      setDiscountEnabled(false);
+      setDiscountValue("");
       fetchData();
     } catch {
       alert("حدث خطأ. حاول مرة أخرى.");
@@ -452,10 +470,79 @@ export function PurchasesContent() {
             </select>
           </div>
 
-          <div className="border-t border-gray-100 pt-4">
-            <div className="flex justify-between font-bold text-lg">
-              <span>الإجمالي</span>
-              <span className="text-emerald-600">{subtotal.toFixed(2)} ج.م</span>
+          <div className="border-t border-gray-100 pt-4 space-y-3">
+            <div className="flex justify-between text-gray-700">
+              <span>المجموع الفرعي</span>
+              <span>{subtotal.toFixed(2)} ج.م</span>
+            </div>
+
+            <div className="flex items-center gap-3">
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={discountEnabled}
+                  onChange={(e) => setDiscountEnabled(e.target.checked)}
+                  className="rounded border-gray-300 text-emerald-600"
+                />
+                <span className="text-sm font-medium text-gray-700">تفعيل الخصم</span>
+              </label>
+            </div>
+            {discountEnabled && (
+              <div className="flex gap-2 items-center">
+                <select
+                  value={discountType}
+                  onChange={(e) => setDiscountType(e.target.value as "percent" | "fixed")}
+                  className="px-3 py-2 rounded-lg border border-gray-300 text-sm"
+                >
+                  <option value="percent">نسبة مئوية %</option>
+                  <option value="fixed">مبلغ ثابت (ج.م)</option>
+                </select>
+                <input
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  value={discountValue}
+                  onChange={(e) => setDiscountValue(e.target.value)}
+                  className="flex-1 px-3 py-2 rounded-lg border border-gray-300 text-sm"
+                  placeholder={discountType === "percent" ? "مثال: 10" : "مثال: 500"}
+                />
+                <span className="text-sm text-gray-500">
+                  {discountType === "percent" ? "%" : "ج.م"} = {discountAmount.toFixed(2)} ج.م
+                </span>
+              </div>
+            )}
+
+            <div className="flex items-center gap-3">
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={taxEnabled}
+                  onChange={(e) => setTaxEnabled(e.target.checked)}
+                  className="rounded border-gray-300 text-emerald-600"
+                />
+                <span className="text-sm font-medium text-gray-700">تفعيل الضريبة</span>
+              </label>
+            </div>
+            {taxEnabled && (
+              <div className="flex gap-2 items-center">
+                <span className="text-sm text-gray-600">نسبة الضريبة</span>
+                <input
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  max="100"
+                  value={taxRate}
+                  onChange={(e) => setTaxRate(e.target.value)}
+                  className="w-20 px-3 py-2 rounded-lg border border-gray-300 text-sm"
+                />
+                <span className="text-sm text-gray-500">%</span>
+                <span className="text-sm text-gray-500">= {taxAmount.toFixed(2)} ج.م (على {afterDiscount.toFixed(2)} ج.م)</span>
+              </div>
+            )}
+
+            <div className="flex justify-between font-bold text-lg pt-2 border-t border-gray-200">
+              <span>الإجمالي النهائي</span>
+              <span className="text-emerald-600">{total.toFixed(2)} ج.م</span>
             </div>
           </div>
 
