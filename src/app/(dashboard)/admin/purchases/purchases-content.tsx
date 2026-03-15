@@ -297,6 +297,7 @@ export function PurchasesContent() {
     "w-full px-4 py-2.5 rounded-lg border border-gray-300 bg-white text-gray-900 placeholder-gray-500 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none";
 
   return (
+    <>
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
       <div className="space-y-6">
         <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
@@ -427,7 +428,7 @@ export function PurchasesContent() {
           </div>
         )}
 
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form id="purchase-form" onSubmit={handleSubmit} className="space-y-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">المورد</label>
             <select
@@ -451,62 +452,91 @@ export function PurchasesContent() {
             </select>
           </div>
 
-          {addSupplierOpen && (
-            <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50" dir="rtl">
-              <div className="bg-white rounded-xl shadow-xl w-full max-w-sm p-6">
-                <h3 className="text-lg font-bold text-gray-900 mb-4">إضافة مورد جديد</h3>
-                <form onSubmit={handleAddSupplier} className="space-y-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">الاسم *</label>
-                    <input
-                      type="text"
-                      value={newSupplierForm.name}
-                      onChange={(e) => setNewSupplierForm((f) => ({ ...f, name: e.target.value }))}
-                      required
-                      className={inputClass}
-                      placeholder="اسم المورد"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">الهاتف</label>
-                    <input
-                      type="text"
-                      value={newSupplierForm.phone}
-                      onChange={(e) => setNewSupplierForm((f) => ({ ...f, phone: e.target.value }))}
-                      className={inputClass}
-                      placeholder="01xxxxxxxxx"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">البريد</label>
-                    <input
-                      type="email"
-                      value={newSupplierForm.email}
-                      onChange={(e) => setNewSupplierForm((f) => ({ ...f, email: e.target.value }))}
-                      className={inputClass}
-                      placeholder="email@example.com"
-                    />
-                  </div>
-                  <div className="flex gap-3 pt-2">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setAddSupplierOpen(false);
-                        setNewSupplierForm({ name: "", phone: "", email: "" });
-                      }}
-                      className="flex-1 px-4 py-2.5 text-gray-600 hover:bg-gray-100 rounded-lg transition"
-                    >
-                      إلغاء
-                    </button>
-                    <button
-                      type="submit"
-                      disabled={savingSupplier}
-                      className="flex-1 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 disabled:bg-emerald-400 text-white font-medium rounded-lg transition-colors"
-                    >
-                      {savingSupplier ? "جاري..." : "إضافة"}
-                    </button>
-                  </div>
-                </form>
+          <div className="border-t border-gray-100 pt-4">
+            <div className="flex justify-between font-bold text-lg">
+              <span>الإجمالي</span>
+              <span className="text-emerald-600">{subtotal.toFixed(2)} ج.م</span>
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">ملاحظات</label>
+            <textarea
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              className={inputClass}
+              rows={2}
+              placeholder="ملاحظات..."
+            />
+          </div>
+
+          <button
+            type="submit"
+            disabled={saving || cart.length === 0}
+            className="w-full py-3 bg-emerald-600 hover:bg-emerald-700 disabled:bg-gray-300 text-white font-bold rounded-lg transition-colors"
+          >
+            {saving ? "جاري الإنشاء..." : "إنشاء فاتورة شراء"}
+          </button>
+        </form>
+      </div>
+    </div>
+
+    {addSupplierOpen && (
+      <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50" dir="rtl">
+        <div className="bg-white rounded-xl shadow-xl w-full max-w-sm p-6">
+          <h3 className="text-lg font-bold text-gray-900 mb-4">إضافة مورد جديد</h3>
+          <form onSubmit={handleAddSupplier} className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">الاسم *</label>
+              <input
+                type="text"
+                value={newSupplierForm.name}
+                onChange={(e) => setNewSupplierForm((f) => ({ ...f, name: e.target.value }))}
+                required
+                className={inputClass}
+                placeholder="اسم المورد"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">الهاتف</label>
+              <input
+                type="text"
+                value={newSupplierForm.phone}
+                onChange={(e) => setNewSupplierForm((f) => ({ ...f, phone: e.target.value }))}
+                className={inputClass}
+                placeholder="01xxxxxxxxx"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">البريد</label>
+              <input
+                type="email"
+                value={newSupplierForm.email}
+                onChange={(e) => setNewSupplierForm((f) => ({ ...f, email: e.target.value }))}
+                className={inputClass}
+                placeholder="email@example.com"
+              />
+            </div>
+            <div className="flex gap-3 pt-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setAddSupplierOpen(false);
+                  setNewSupplierForm({ name: "", phone: "", email: "" });
+                }}
+                className="flex-1 px-4 py-2.5 text-gray-600 hover:bg-gray-100 rounded-lg transition"
+              >
+                إلغاء
+              </button>
+              <button
+                type="submit"
+                disabled={savingSupplier}
+                className="flex-1 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 disabled:bg-emerald-400 text-white font-medium rounded-lg transition-colors"
+              >
+                {savingSupplier ? "جاري..." : "إضافة"}
+              </button>
+            </div>
+          </form>
               </div>
             </div>
           )}
@@ -684,34 +714,6 @@ export function PurchasesContent() {
               </div>
             </div>
           )}
-
-          <div className="border-t border-gray-100 pt-4">
-            <div className="flex justify-between font-bold text-lg">
-              <span>الإجمالي</span>
-              <span className="text-emerald-600">{subtotal.toFixed(2)} ج.م</span>
-            </div>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">ملاحظات</label>
-            <textarea
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-              className={inputClass}
-              rows={2}
-              placeholder="ملاحظات..."
-            />
-          </div>
-
-          <button
-            type="submit"
-            disabled={saving || cart.length === 0}
-            className="w-full py-3 bg-emerald-600 hover:bg-emerald-700 disabled:bg-gray-300 text-white font-bold rounded-lg transition-colors"
-          >
-            {saving ? "جاري الإنشاء..." : "إنشاء فاتورة شراء"}
-          </button>
-        </form>
-      </div>
-    </div>
+    </>
   );
 }
