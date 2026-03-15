@@ -2,11 +2,10 @@ import { auth } from "@/auth";
 import { redirect, notFound } from "next/navigation";
 import Link from "next/link";
 import { db } from "@/lib/db/client";
+import { getCompanyId } from "@/lib/company";
 import { AddPayment } from "./add-payment";
 import { PrintButton } from "./print-button";
 import { ReturnButton } from "./return-button";
-
-const SYSTEM_COMPANY_ID = "company-system";
 
 export default async function InvoiceDetailPage({
   params,
@@ -14,21 +13,27 @@ export default async function InvoiceDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const session = await auth();
-  if (!session?.user || session.user.role !== "super_admin") {
+  if (!session?.user || !["super_admin", "tenant_owner", "employee"].includes(session.user.role ?? "")) {
     redirect("/login");
   }
+
+  const companyId = getCompanyId(session);
+  if (!companyId) redirect("/login");
 
   const { id } = await params;
 
   try {
     const invResult = await db.execute({
-      sql: `SELECT inv.*, c.name as customer_name, c.phone as customer_phone,
+      sql: `SELECT inv.*,
+            c.name as customer_name, c.phone as customer_phone,
+            s.name as supplier_name, s.phone as supplier_phone,
             ro.order_number, ro.vehicle_plate, ro.vehicle_model
             FROM invoices inv
             LEFT JOIN customers c ON inv.customer_id = c.id
+            LEFT JOIN suppliers s ON inv.supplier_id = s.id
             LEFT JOIN repair_orders ro ON inv.repair_order_id = ro.id
             WHERE inv.id = ? AND inv.company_id = ?`,
-      args: [id, SYSTEM_COMPANY_ID],
+      args: [id, companyId],
     });
 
     if (invResult.rows.length === 0) notFound();
@@ -47,6 +52,8 @@ export default async function InvoiceDetailPage({
       paid_amount: Number(row.paid_amount ?? 0),
       customer_name: row.customer_name ? String(row.customer_name) : null,
       customer_phone: row.customer_phone ? String(row.customer_phone) : null,
+      supplier_name: row.supplier_name ? String(row.supplier_name) : null,
+      supplier_phone: row.supplier_phone ? String(row.supplier_phone) : null,
       order_number: row.order_number ? String(row.order_number) : null,
       vehicle_plate: row.vehicle_plate ? String(row.vehicle_plate) : null,
       vehicle_model: row.vehicle_model ? String(row.vehicle_model) : null,
@@ -150,38 +157,56 @@ export default async function InvoiceDetailPage({
         </div>
 
         <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100">
-          <h2 className="font-bold text-gray-900 mb-4">العميل / السيارة</h2>
-          <dl className="space-y-3 text-sm">
-            <div className="flex justify-between">
-              <dt className="text-gray-500">العميل</dt>
-              <dd className="text-gray-900">{data.customer_name || "—"}</dd>
-            </div>
-            <div className="flex justify-between">
-              <dt className="text-gray-500">الهاتف</dt>
-              <dd className="text-gray-900">{data.customer_phone || "—"}</dd>
-            </div>
-            <div className="flex justify-between">
-              <dt className="text-gray-500">رقم اللوحة</dt>
-              <dd className="text-gray-900">{data.vehicle_plate || "—"}</dd>
-            </div>
-            <div className="flex justify-between">
-              <dt className="text-gray-500">الموديل</dt>
-              <dd className="text-gray-900">{data.vehicle_model || "—"}</dd>
-            </div>
-            {data.repair_order_id && (
-              <div className="flex justify-between">
-                <dt className="text-gray-500">أمر الإصلاح</dt>
-                <dd>
-                  <Link
-                    href={`/admin/workshop/${data.repair_order_id}`}
-                    className="text-emerald-600 hover:text-emerald-700"
-                  >
-                    {data.order_number || "عرض"}
-                  </Link>
-                </dd>
-              </div>
-            )}
-          </dl>
+          {data.type === "purchase" ? (
+            <>
+              <h2 className="font-bold text-gray-900 mb-4">المورد</h2>
+              <dl className="space-y-3 text-sm">
+                <div className="flex justify-between">
+                  <dt className="text-gray-500">اسم المورد</dt>
+                  <dd className="text-gray-900">{data.supplier_name || "—"}</dd>
+                </div>
+                <div className="flex justify-between">
+                  <dt className="text-gray-500">هاتف المورد</dt>
+                  <dd className="text-gray-900">{data.supplier_phone || "—"}</dd>
+                </div>
+              </dl>
+            </>
+          ) : (
+            <>
+              <h2 className="font-bold text-gray-900 mb-4">العميل / السيارة</h2>
+              <dl className="space-y-3 text-sm">
+                <div className="flex justify-between">
+                  <dt className="text-gray-500">العميل</dt>
+                  <dd className="text-gray-900">{data.customer_name || "—"}</dd>
+                </div>
+                <div className="flex justify-between">
+                  <dt className="text-gray-500">الهاتف</dt>
+                  <dd className="text-gray-900">{data.customer_phone || "—"}</dd>
+                </div>
+                <div className="flex justify-between">
+                  <dt className="text-gray-500">رقم اللوحة</dt>
+                  <dd className="text-gray-900">{data.vehicle_plate || "—"}</dd>
+                </div>
+                <div className="flex justify-between">
+                  <dt className="text-gray-500">الموديل</dt>
+                  <dd className="text-gray-900">{data.vehicle_model || "—"}</dd>
+                </div>
+                {data.repair_order_id && (
+                  <div className="flex justify-between">
+                    <dt className="text-gray-500">أمر الإصلاح</dt>
+                    <dd>
+                      <Link
+                        href={`/admin/workshop/${data.repair_order_id}`}
+                        className="text-emerald-600 hover:text-emerald-700"
+                      >
+                        {data.order_number || "عرض"}
+                      </Link>
+                    </dd>
+                  </div>
+                )}
+              </dl>
+            </>
+          )}
         </div>
       </div>
 
@@ -212,9 +237,21 @@ export default async function InvoiceDetailPage({
               </tbody>
               <tfoot>
                 <tr className="bg-gray-50">
-                  <td colSpan={3} className="px-4 py-3 text-sm text-right">المجموع</td>
+                  <td colSpan={3} className="px-4 py-3 text-sm text-right">المجموع الفرعي</td>
                   <td className="px-4 py-3 text-sm font-medium">{data.subtotal?.toFixed(2)} ج.م</td>
                 </tr>
+                {data.discount > 0 && (
+                  <tr className="bg-gray-50">
+                    <td colSpan={3} className="px-4 py-3 text-sm text-right">الخصم</td>
+                    <td className="px-4 py-3 text-sm text-red-600">-{data.discount?.toFixed(2)} ج.م</td>
+                  </tr>
+                )}
+                {data.tax > 0 && (
+                  <tr className="bg-gray-50">
+                    <td colSpan={3} className="px-4 py-3 text-sm text-right">الضريبة</td>
+                    <td className="px-4 py-3 text-sm">+{data.tax?.toFixed(2)} ج.م</td>
+                  </tr>
+                )}
                 {data.digital_service_fee > 0 && (
                   <tr className="bg-gray-50">
                     <td colSpan={3} className="px-4 py-3 text-sm text-right">الخدمة الرقمية</td>
