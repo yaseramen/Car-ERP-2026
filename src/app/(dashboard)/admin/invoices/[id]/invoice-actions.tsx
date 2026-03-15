@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback } from "react";
+import { useCallback, useState } from "react";
 
 type InvoiceActionsProps = {
   invoiceNumber: string;
@@ -15,6 +15,8 @@ const TYPE_LABELS: Record<string, string> = {
 };
 
 export function InvoiceActions({ invoiceNumber, invoiceType, total }: InvoiceActionsProps) {
+  const [pdfLoading, setPdfLoading] = useState(false);
+
   const handlePrint = useCallback(() => {
     window.print();
   }, []);
@@ -23,6 +25,7 @@ export function InvoiceActions({ invoiceNumber, invoiceType, total }: InvoiceAct
     const el = document.getElementById("invoice-print-area");
     if (!el) return;
 
+    setPdfLoading(true);
     const noPrint = el.querySelectorAll(".no-print");
     noPrint.forEach((n) => ((n as HTMLElement).style.visibility = "hidden"));
 
@@ -40,6 +43,7 @@ export function InvoiceActions({ invoiceNumber, invoiceType, total }: InvoiceAct
         .save();
     } finally {
       noPrint.forEach((n) => ((n as HTMLElement).style.visibility = ""));
+      setPdfLoading(false);
     }
   }, [invoiceNumber]);
 
@@ -62,9 +66,10 @@ export function InvoiceActions({ invoiceNumber, invoiceType, total }: InvoiceAct
       <button
         type="button"
         onClick={handleDownloadPdf}
-        className="px-4 py-2 bg-emerald-100 hover:bg-emerald-200 text-emerald-800 font-medium rounded-lg transition-colors"
+        disabled={pdfLoading}
+        className="px-4 py-2 bg-emerald-100 hover:bg-emerald-200 text-emerald-800 font-medium rounded-lg transition-colors disabled:opacity-70 disabled:cursor-not-allowed"
       >
-        تحميل PDF
+        {pdfLoading ? "جاري التحميل..." : "تحميل PDF"}
       </button>
       <button
         type="button"

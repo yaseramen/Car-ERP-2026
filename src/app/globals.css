@@ -25,6 +25,18 @@ body {
   font-family: Arial, Helvetica, sans-serif;
 }
 
+/* ضمان وضوح النص داخل حقول الإدخال في كامل البرنامج */
+input,
+textarea,
+select {
+  color: #171717 !important;
+  background-color: #ffffff !important;
+}
+input::placeholder,
+textarea::placeholder {
+  color: #6b7280 !important;
+}
+
 @media print {
   .no-print,
   aside,
