@@ -14,7 +14,7 @@ export default async function AdminLayout({
 
   return (
     <div className="min-h-screen bg-gray-50 flex" dir="rtl">
-      <Sidebar role={session.user.role} />
+      <Sidebar role={session.user.role} businessType={session.user.companyBusinessType} />
       <main className="flex-1 overflow-auto">{children}</main>
     </div>
   );

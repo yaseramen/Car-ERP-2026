@@ -11,8 +11,8 @@ export default auth((req) => {
     return NextResponse.next();
   }
 
-  // صفحة تسجيل الدخول
-  if (path === "/login") {
+  // صفحة تسجيل الدخول والتسجيل
+  if (path === "/login" || path === "/register") {
     if (isLoggedIn) {
       const role = req.auth?.user?.role;
       if (["super_admin", "tenant_owner", "employee"].includes(role ?? "")) {

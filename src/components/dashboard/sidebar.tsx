@@ -11,13 +11,15 @@ const navItems: {
   module?: string;
   superAdminOnly?: boolean;
   ownerOrAdmin?: boolean;
+  salesOnly?: boolean;
+  serviceOnly?: boolean;
 }[] = [
   { href: "/admin", label: "الرئيسية" },
   { href: "/admin/inventory", label: "المخزن", module: "inventory" },
-  { href: "/admin/workshop", label: "الورشة", module: "workshop" },
-  { href: "/admin/obd", label: "OBD", module: "obd" },
-  { href: "/admin/cashier", label: "الكاشير", module: "cashier" },
-  { href: "/admin/purchases", label: "فواتير الشراء", module: "purchases" },
+  { href: "/admin/workshop", label: "الورشة", module: "workshop", serviceOnly: true },
+  { href: "/admin/obd", label: "OBD", module: "obd", serviceOnly: true },
+  { href: "/admin/cashier", label: "الكاشير", module: "cashier", salesOnly: true },
+  { href: "/admin/purchases", label: "فواتير الشراء", module: "purchases", salesOnly: true },
   { href: "/admin/invoices", label: "الفواتير", module: "invoices" },
   { href: "/admin/customers", label: "العملاء", module: "customers" },
   { href: "/admin/suppliers", label: "الموردون", module: "suppliers" },
@@ -27,7 +29,7 @@ const navItems: {
   { href: "/admin/team", label: "المستخدمون", ownerOrAdmin: true },
 ];
 
-export function Sidebar({ role = "super_admin" }: { role?: string }) {
+export function Sidebar({ role = "super_admin", businessType }: { role?: string; businessType?: string | null }) {
   const [perms, setPerms] = useState<Record<string, { read: boolean }> | null>(null);
 
   useEffect(() => {
@@ -44,6 +46,9 @@ export function Sidebar({ role = "super_admin" }: { role?: string }) {
   const items = navItems.filter((item) => {
     if (item.superAdminOnly && role !== "super_admin") return false;
     if (item.ownerOrAdmin && role === "employee") return false;
+    if (role === "super_admin") return true;
+    if (businessType === "sales_only" && item.serviceOnly) return false;
+    if (businessType === "service_only" && item.salesOnly) return false;
     if (role === "employee" && item.module && perms) {
       return perms[item.module]?.read === true;
     }

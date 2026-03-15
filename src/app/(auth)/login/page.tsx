@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, Suspense } from "react";
+import Link from "next/link";
 import { signIn } from "next-auth/react";
 import { useSearchParams } from "next/navigation";
 
@@ -97,6 +98,13 @@ function LoginForm() {
         >
           {loading ? "جاري التحقق..." : "تسجيل الدخول"}
         </button>
+
+        <p className="text-center text-sm text-gray-500 mt-4">
+          ليس لديك حساب؟{" "}
+          <Link href="/register" className="text-emerald-600 hover:underline">
+            تسجيل شركة جديدة
+          </Link>
+        </p>
       </form>
     </div>
   );
