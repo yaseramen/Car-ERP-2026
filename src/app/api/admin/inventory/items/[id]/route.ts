@@ -39,8 +39,18 @@ export async function PATCH(
       args.push(name?.trim() || "");
     }
     if (code !== undefined) {
+      const codeVal = code?.trim() || null;
+      if (codeVal) {
+        const existingCode = await db.execute({
+          sql: "SELECT id FROM items WHERE company_id = ? AND code = ? AND id != ?",
+          args: [companyId, codeVal, id],
+        });
+        if (existingCode.rows.length > 0) {
+          return NextResponse.json({ error: "كود المنتج مستخدم لصنف آخر" }, { status: 400 });
+        }
+      }
       updates.push("code = ?");
-      args.push(code?.trim() || null);
+      args.push(codeVal);
     }
     if (barcode !== undefined) {
       updates.push("barcode = ?");

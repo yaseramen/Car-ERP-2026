@@ -32,8 +32,18 @@ export async function PATCH(
       args.push(name.trim());
     }
     if (phone !== undefined) {
+      const phoneVal = phone?.trim() || null;
+      if (phoneVal) {
+        const existingPhone = await db.execute({
+          sql: "SELECT id FROM suppliers WHERE company_id = ? AND phone = ? AND id != ?",
+          args: [companyId, phoneVal, id],
+        });
+        if (existingPhone.rows.length > 0) {
+          return NextResponse.json({ error: "رقم الهاتف مستخدم لمورد آخر" }, { status: 400 });
+        }
+      }
       updates.push("phone = ?");
-      args.push(phone?.trim() || null);
+      args.push(phoneVal);
     }
     if (email !== undefined) {
       updates.push("email = ?");

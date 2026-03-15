@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
+import { SearchableSelect } from "@/components/ui/searchable-select";
 
 interface CartItem {
   item_id: string;
@@ -14,12 +15,14 @@ interface CartItem {
 interface InventoryItem {
   id: string;
   name: string;
+  code?: string | null;
   purchase_price: number;
 }
 
 interface Supplier {
   id: string;
   name: string;
+  phone?: string | null;
 }
 
 export function PurchasesContent() {
@@ -322,30 +325,29 @@ export function PurchasesContent() {
           <h2 className="font-bold text-gray-900 mb-4">إضافة صنف</h2>
           <div className="flex flex-wrap gap-2 items-end">
             <div className="flex-1 min-w-[200px]">
-              <label className="block text-xs text-gray-500 mb-1">الصنف</label>
-              <select
+              <label className="block text-xs text-gray-500 mb-1">الصنف (ابحث بالاسم أو الكود)</label>
+              <SearchableSelect
+                options={items.map((i) => ({
+                  id: i.id,
+                  label: i.name,
+                  searchText: i.code ? String(i.code) : undefined,
+                }))}
                 value={addItemId}
-                onChange={(e) => {
-                  const v = e.target.value;
-                  if (v === "__new__") {
-                    setAddProductOpen(true);
-                    setAddItemId("");
-                  } else {
-                    setAddItemId(v);
-                    const item = items.find((i) => i.id === v);
+                onChange={(id, opt) => {
+                  if (opt) {
+                    setAddItemId(id);
+                    const item = items.find((i) => i.id === id);
                     if (item) setAddPrice(String(item.purchase_price));
                   }
                 }}
+                placeholder="ابحث بالاسم أو الكود..."
+                addNewLabel="+ إضافة صنف جديد"
+                onAddNew={() => {
+                  setAddProductOpen(true);
+                  setAddItemId("");
+                }}
                 className={inputClass}
-              >
-                <option value="">اختر الصنف</option>
-                {items.map((i) => (
-                  <option key={i.id} value={i.id}>
-                    {i.name}
-                  </option>
-                ))}
-                <option value="__new__">+ إضافة صنف جديد</option>
-              </select>
+              />
             </div>
             <div className="w-24">
               <label className="block text-xs text-gray-500 mb-1">الكمية</label>
@@ -448,26 +450,26 @@ export function PurchasesContent() {
 
         <form id="purchase-form" onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">المورد</label>
-            <select
+            <label className="block text-sm font-medium text-gray-700 mb-1">المورد (ابحث بالاسم أو رقم الهاتف)</label>
+            <SearchableSelect
+              options={[
+                { id: "", label: "بدون مورد" },
+                ...suppliers.map((s) => ({
+                  id: s.id,
+                  label: s.name,
+                  searchText: s.phone ? String(s.phone) : undefined,
+                })),
+              ]}
               value={supplierId}
-              onChange={(e) => {
-                const v = e.target.value;
-                if (v === "__new__") {
-                  setAddSupplierOpen(true);
-                  setSupplierId("");
-                } else {
-                  setSupplierId(v);
-                }
+              onChange={(id) => {
+                if (id === "__new__") return;
+                setSupplierId(id);
               }}
+              placeholder="ابحث بالاسم أو رقم الهاتف..."
+              addNewLabel="+ إضافة مورد جديد"
+              onAddNew={() => setAddSupplierOpen(true)}
               className={inputClass}
-            >
-              <option value="">بدون مورد</option>
-              {suppliers.map((s) => (
-                <option key={s.id} value={s.id}>{s.name}</option>
-              ))}
-              <option value="__new__">+ إضافة مورد جديد</option>
-            </select>
+            />
           </div>
 
           <div className="border-t border-gray-100 pt-4 space-y-3">

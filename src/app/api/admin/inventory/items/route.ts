@@ -66,12 +66,23 @@ export async function POST(request: Request) {
     const warehouseId = await ensureCompanyWarehouse(companyId);
     const id = randomUUID();
 
-    const countResult = await db.execute({
-      sql: "SELECT COUNT(*) as cnt FROM items WHERE company_id = ?",
-      args: [companyId],
-    });
-    const count = (countResult.rows[0]?.cnt as number) ?? 0;
-    const autoCode = code?.trim() || `PRD-${String(count + 1).padStart(4, "0")}`;
+    let autoCode = code?.trim() || "";
+    if (autoCode) {
+      const existingCode = await db.execute({
+        sql: "SELECT id FROM items WHERE company_id = ? AND code = ?",
+        args: [companyId, autoCode],
+      });
+      if (existingCode.rows.length > 0) {
+        return NextResponse.json({ error: "كود المنتج مستخدم لصنف آخر" }, { status: 400 });
+      }
+    } else {
+      const countResult = await db.execute({
+        sql: "SELECT COUNT(*) as cnt FROM items WHERE company_id = ?",
+        args: [companyId],
+      });
+      const count = (countResult.rows[0]?.cnt as number) ?? 0;
+      autoCode = `PRD-${String(count + 1).padStart(4, "0")}`;
+    }
     const autoBarcode = barcode?.trim() || generateBarcode();
 
     const minQty = min_quantity_enabled ? Number(min_quantity) || 0 : 0;

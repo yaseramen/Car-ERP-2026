@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
+import { SearchableSelect } from "@/components/ui/searchable-select";
 
 interface CartItem {
   item_id: string;
@@ -14,6 +15,7 @@ interface CartItem {
 interface InventoryItem {
   id: string;
   name: string;
+  code?: string | null;
   quantity: number;
   sale_price: number;
 }
@@ -21,6 +23,7 @@ interface InventoryItem {
 interface Customer {
   id: string;
   name: string;
+  phone?: string | null;
 }
 
 interface PaymentMethod {
@@ -215,22 +218,23 @@ export function CashierContent() {
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
       <div className="space-y-6">
         <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-          <h2 className="font-bold text-gray-900 mb-4">إضافة صنف</h2>
+          <h2 className="font-bold text-gray-900 mb-4">إضافة صنف (ابحث بالاسم أو الكود)</h2>
           <div className="flex gap-2">
-            <select
-              value={addItemId}
-              onChange={(e) => setAddItemId(e.target.value)}
-              className={inputClass}
-            >
-              <option value="">اختر الصنف</option>
-              {items
-                .filter((i) => i.quantity > 0)
-                .map((i) => (
-                  <option key={i.id} value={i.id}>
-                    {i.name} (متاح: {i.quantity}) — {i.sale_price.toFixed(2)} ج.م
-                  </option>
-                ))}
-            </select>
+            <div className="flex-1 min-w-[200px]">
+              <SearchableSelect
+                options={items
+                  .filter((i) => i.quantity > 0)
+                  .map((i) => ({
+                    id: i.id,
+                    label: `${i.name} (متاح: ${i.quantity}) — ${i.sale_price.toFixed(2)} ج.م`,
+                    searchText: i.code ? `${i.code} ${i.name}` : i.name,
+                  }))}
+                value={addItemId}
+                onChange={(id) => setAddItemId(id)}
+                placeholder="ابحث بالاسم أو الكود..."
+                className={inputClass}
+              />
+            </div>
             <input
               type="number"
               min="0.01"
@@ -311,27 +315,33 @@ export function CashierContent() {
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">العميل</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">العميل (ابحث بالاسم أو رقم الهاتف)</label>
             <div className="flex gap-2">
-              <select
-                value={customerId}
-                onChange={(e) => {
-                  const v = e.target.value;
-                  if (v === "__new__") {
-                    setAddCustomerOpen(true);
-                    setCustomerId("");
-                  } else {
-                    setCustomerId(v);
-                  }
-                }}
-                className={inputClass}
+              <div className="flex-1">
+                <SearchableSelect
+                  options={[
+                    { id: "", label: "بدون عميل" },
+                    ...customers.map((c) => ({
+                      id: c.id,
+                      label: c.name,
+                      searchText: c.phone ? String(c.phone) : undefined,
+                    })),
+                  ]}
+                  value={customerId}
+                  onChange={(id) => setCustomerId(id)}
+                  placeholder="ابحث بالاسم أو رقم الهاتف..."
+                  addNewLabel="+ إضافة عميل جديد"
+                  onAddNew={() => setAddCustomerOpen(true)}
+                  className={inputClass}
+                />
+              </div>
+              <button
+                type="button"
+                onClick={() => setAddCustomerOpen(true)}
+                className="px-4 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg shrink-0"
               >
-                <option value="">بدون عميل</option>
-                {customers.map((c) => (
-                  <option key={c.id} value={c.id}>{c.name}</option>
-                ))}
-                <option value="__new__">+ إضافة عميل جديد</option>
-              </select>
+                +
+              </button>
             </div>
           </div>
 

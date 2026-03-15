@@ -56,6 +56,17 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "اسم المورد مطلوب" }, { status: 400 });
     }
 
+    const phoneNorm = phone?.trim() || null;
+    if (phoneNorm) {
+      const existingPhone = await db.execute({
+        sql: "SELECT id FROM suppliers WHERE company_id = ? AND phone = ?",
+        args: [companyId, phoneNorm],
+      });
+      if (existingPhone.rows.length > 0) {
+        return NextResponse.json({ error: "رقم الهاتف مستخدم لمورد آخر" }, { status: 400 });
+      }
+    }
+
     const id = randomUUID();
 
     await db.execute({
@@ -65,7 +76,7 @@ export async function POST(request: Request) {
         id,
         companyId,
         name.trim(),
-        phone?.trim() || null,
+        phoneNorm,
         email?.trim() || null,
         address?.trim() || null,
         notes?.trim() || null,
