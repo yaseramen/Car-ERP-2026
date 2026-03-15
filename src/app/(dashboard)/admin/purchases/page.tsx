@@ -4,7 +4,7 @@ import { PurchasesContent } from "./purchases-content";
 
 export default async function PurchasesPage() {
   const session = await auth();
-  if (!session?.user || session.user.role !== "super_admin") {
+  if (!session?.user || !["super_admin", "tenant_owner", "employee"].includes(session.user.role ?? "")) {
     redirect("/login");
   }
 

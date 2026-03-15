@@ -40,7 +40,21 @@ export function PurchasesContent() {
   const [savingSupplier, setSavingSupplier] = useState(false);
 
   const [addProductOpen, setAddProductOpen] = useState(false);
-  const [newProductForm, setNewProductForm] = useState({ name: "", purchase_price: "", sale_price: "", unit: "قطعة" });
+  const [newProductForm, setNewProductForm] = useState({
+    name: "",
+    code: "",
+    barcode: "",
+    category: "",
+    unit: "قطعة",
+    purchase_price: "",
+    sale_price: "",
+    min_quantity_enabled: false,
+    min_quantity: "",
+  });
+  const [categories, setCategories] = useState<string[]>([]);
+  const [units, setUnits] = useState<string[]>([]);
+  const [newCategory, setNewCategory] = useState("");
+  const [newUnit, setNewUnit] = useState("");
   const [savingProduct, setSavingProduct] = useState(false);
 
   async function fetchData() {
@@ -54,9 +68,24 @@ export function PurchasesContent() {
     } catch {}
   }
 
+  async function fetchCategories() {
+    try {
+      const res = await fetch("/api/admin/inventory/categories");
+      if (res.ok) {
+        const data = await res.json();
+        setCategories(data.categories || []);
+        setUnits(data.units || []);
+      }
+    } catch {}
+  }
+
   useEffect(() => {
     fetchData();
   }, []);
+
+  useEffect(() => {
+    if (addProductOpen) fetchCategories();
+  }, [addProductOpen]);
 
   function addToCart() {
     const item = items.find((i) => i.id === addItemId);
@@ -190,6 +219,22 @@ export function PurchasesContent() {
     }
   }
 
+  function resetProductForm() {
+    setNewProductForm({
+      name: "",
+      code: "",
+      barcode: "",
+      category: "",
+      unit: "قطعة",
+      purchase_price: "",
+      sale_price: "",
+      min_quantity_enabled: false,
+      min_quantity: "",
+    });
+    setNewCategory("");
+    setNewUnit("");
+  }
+
   async function handleAddProduct(e: React.FormEvent) {
     e.preventDefault();
     if (!newProductForm.name.trim()) {
@@ -198,15 +243,21 @@ export function PurchasesContent() {
     }
     setSavingProduct(true);
     try {
+      const payload = {
+        name: newProductForm.name.trim(),
+        code: newProductForm.code.trim() || undefined,
+        barcode: newProductForm.barcode.trim() || undefined,
+        category: (newProductForm.category === "__new__" ? newCategory : newProductForm.category)?.trim() || undefined,
+        unit: (newProductForm.unit === "__new__" ? newUnit : newProductForm.unit)?.trim() || "قطعة",
+        purchase_price: Number(newProductForm.purchase_price) || 0,
+        sale_price: Number(newProductForm.sale_price) || Number(newProductForm.purchase_price) || 0,
+        min_quantity_enabled: newProductForm.min_quantity_enabled,
+        min_quantity: newProductForm.min_quantity_enabled ? Number(newProductForm.min_quantity) || 0 : 0,
+      };
       const res = await fetch("/api/admin/inventory/items", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          name: newProductForm.name.trim(),
-          unit: newProductForm.unit.trim() || "قطعة",
-          purchase_price: Number(newProductForm.purchase_price) || 0,
-          sale_price: Number(newProductForm.sale_price) || Number(newProductForm.purchase_price) || 0,
-        }),
+        body: JSON.stringify(payload),
       });
       if (!res.ok) {
         const err = await res.json();
@@ -214,11 +265,11 @@ export function PurchasesContent() {
         return;
       }
       const newItem = await res.json();
-      setItems((prev) => [{ id: newItem.id, name: newItem.name, purchase_price: newItem.purchase_price ?? 0 }, ...prev]);
+      await fetchData();
       setAddItemId(newItem.id);
       setAddPrice(String(newItem.purchase_price ?? 0));
       setAddProductOpen(false);
-      setNewProductForm({ name: "", purchase_price: "", sale_price: "", unit: "قطعة" });
+      resetProductForm();
     } catch {
       alert("حدث خطأ");
     } finally {
@@ -446,37 +497,119 @@ export function PurchasesContent() {
 
           {addProductOpen && (
             <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50" dir="rtl">
-              <div className="bg-white rounded-xl shadow-xl w-full max-w-sm p-6">
+              <div className="bg-white rounded-xl shadow-xl w-full max-w-md max-h-[90vh] overflow-y-auto p-6">
                 <h3 className="text-lg font-bold text-gray-900 mb-4">إضافة صنف جديد</h3>
                 <form onSubmit={handleAddProduct} className="space-y-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">اسم الصنف *</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">اسم القطعة *</label>
                     <input
                       type="text"
                       value={newProductForm.name}
                       onChange={(e) => setNewProductForm((f) => ({ ...f, name: e.target.value }))}
                       required
                       className={inputClass}
-                      placeholder="اسم الصنف"
+                      placeholder="مثال: زيت محرك 5W30"
                     />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">الكود (تلقائي إن تُرك فارغاً)</label>
+                    <input
+                      type="text"
+                      value={newProductForm.code}
+                      onChange={(e) => setNewProductForm((f) => ({ ...f, code: e.target.value }))}
+                      className={inputClass}
+                      placeholder="مثال: OIL-001 أو اتركه للتوليد التلقائي"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">الباركود (تلقائي إن تُرك فارغاً)</label>
+                    <input
+                      type="text"
+                      value={newProductForm.barcode}
+                      onChange={(e) => setNewProductForm((f) => ({ ...f, barcode: e.target.value }))}
+                      className={inputClass}
+                      placeholder="امسح أو اكتب الباركود"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">القسم</label>
+                    <select
+                      value={newProductForm.category}
+                      onChange={(e) => {
+                        setNewProductForm((f) => ({ ...f, category: e.target.value }));
+                        if (e.target.value === "__new__") setNewCategory("");
+                      }}
+                      className={inputClass}
+                    >
+                      <option value="">اختر القسم</option>
+                      {categories.map((c) => (
+                        <option key={c} value={c}>{c}</option>
+                      ))}
+                      <option value="__new__">+ إضافة قسم جديد</option>
+                    </select>
+                    {newProductForm.category === "__new__" && (
+                      <input
+                        type="text"
+                        value={newCategory}
+                        onChange={(e) => setNewCategory(e.target.value)}
+                        className={`${inputClass} mt-2`}
+                        placeholder="اسم القسم الجديد"
+                      />
+                    )}
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">الوحدة</label>
                     <select
                       value={newProductForm.unit}
-                      onChange={(e) => setNewProductForm((f) => ({ ...f, unit: e.target.value }))}
+                      onChange={(e) => {
+                        setNewProductForm((f) => ({ ...f, unit: e.target.value }));
+                        if (e.target.value === "__new__") setNewUnit("");
+                      }}
                       className={inputClass}
                     >
-                      <option value="قطعة">قطعة</option>
-                      <option value="لتر">لتر</option>
-                      <option value="كيلو">كيلو</option>
-                      <option value="علبة">علبة</option>
-                      <option value="زجاجة">زجاجة</option>
+                      {units.map((u) => (
+                        <option key={u} value={u}>{u}</option>
+                      ))}
+                      <option value="__new__">+ إضافة وحدة جديدة</option>
                     </select>
+                    {newProductForm.unit === "__new__" && (
+                      <input
+                        type="text"
+                        value={newUnit}
+                        onChange={(e) => setNewUnit(e.target.value)}
+                        className={`${inputClass} mt-2`}
+                        placeholder="اسم الوحدة الجديدة"
+                      />
+                    )}
                   </div>
+                  <div className="flex items-center gap-3">
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={newProductForm.min_quantity_enabled}
+                        onChange={(e) => setNewProductForm((f) => ({ ...f, min_quantity_enabled: e.target.checked }))}
+                        className="rounded border-gray-300 text-emerald-600 focus:ring-emerald-500"
+                      />
+                      <span className="text-sm font-medium text-gray-700">تفعيل تنبيه الحد الأدنى</span>
+                    </label>
+                  </div>
+                  {newProductForm.min_quantity_enabled && (
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">الحد الأدنى للكمية</label>
+                      <input
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        value={newProductForm.min_quantity}
+                        onChange={(e) => setNewProductForm((f) => ({ ...f, min_quantity: e.target.value }))}
+                        className={inputClass}
+                        placeholder="مثال: 5"
+                      />
+                    </div>
+                  )}
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">سعر الشراء (ج.م)</label>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">سعر التكلفة (ج.م)</label>
                       <input
                         type="number"
                         step="0.01"
@@ -500,12 +633,12 @@ export function PurchasesContent() {
                       />
                     </div>
                   </div>
-                  <div className="flex gap-3 pt-2">
+                  <div className="flex gap-3 pt-4">
                     <button
                       type="button"
                       onClick={() => {
                         setAddProductOpen(false);
-                        setNewProductForm({ name: "", purchase_price: "", sale_price: "", unit: "قطعة" });
+                        resetProductForm();
                       }}
                       className="flex-1 px-4 py-2.5 text-gray-600 hover:bg-gray-100 rounded-lg transition"
                     >
@@ -516,7 +649,7 @@ export function PurchasesContent() {
                       disabled={savingProduct}
                       className="flex-1 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 disabled:bg-emerald-400 text-white font-medium rounded-lg transition-colors"
                     >
-                      {savingProduct ? "جاري..." : "إضافة"}
+                      {savingProduct ? "جاري..." : "حفظ"}
                     </button>
                   </div>
                 </form>
