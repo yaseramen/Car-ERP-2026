@@ -48,6 +48,7 @@ export function PurchasesContent() {
     unit: "قطعة",
     purchase_price: "",
     sale_price: "",
+    quantity: "1",
     min_quantity_enabled: false,
     min_quantity: "",
   });
@@ -228,6 +229,7 @@ export function PurchasesContent() {
       unit: "قطعة",
       purchase_price: "",
       sale_price: "",
+      quantity: "1",
       min_quantity_enabled: false,
       min_quantity: "",
     });
@@ -270,6 +272,20 @@ export function PurchasesContent() {
       setAddPrice(String(newItem.purchase_price ?? 0));
       setAddProductOpen(false);
       resetProductForm();
+      setAddQty("1");
+      const price = Number(newProductForm.purchase_price) || Number(newItem.purchase_price) || 0;
+      const qty = Number(newProductForm.quantity) || 1;
+      setCart((prev) => {
+        const existing = prev.find((c) => c.item_id === newItem.id);
+        if (existing) {
+          const newQty = existing.quantity + qty;
+          const newPrice = (existing.quantity * existing.unit_price + qty * price) / newQty;
+          return prev.map((c) =>
+            c.item_id === newItem.id ? { ...c, quantity: newQty, unit_price: newPrice, total: newQty * newPrice } : c
+          );
+        }
+        return [...prev, { item_id: newItem.id, name: newItem.name, quantity: qty, unit_price: price, total: qty * price }];
+      });
     } catch {
       alert("حدث خطأ");
     } finally {
@@ -607,6 +623,18 @@ export function PurchasesContent() {
                       />
                     </div>
                   )}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">الكمية للفاتورة</label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      min="0.01"
+                      value={newProductForm.quantity}
+                      onChange={(e) => setNewProductForm((f) => ({ ...f, quantity: e.target.value }))}
+                      className={inputClass}
+                      placeholder="1"
+                    />
+                  </div>
                   <div className="grid grid-cols-2 gap-4">
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">سعر التكلفة (ج.م)</label>
