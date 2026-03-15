@@ -45,15 +45,19 @@ export async function GET(
       args: [id],
     });
 
-    const permissions = result.rows.map((r) => ({
-      screen_id: String(r.screen_id ?? ""),
-      module: String(r.module ?? ""),
-      name_ar: String(r.name_ar ?? ""),
-      can_read: Number(r.can_read ?? 0) === 1,
-      can_create: Number(r.can_create ?? 0) === 1,
-      can_update: Number(r.can_update ?? 0) === 1,
-      can_delete: Number(r.can_delete ?? 0) === 1,
-    }));
+    const permissions = result.rows.map((r) => {
+      const row = r as Record<string, unknown>;
+      const nameAr = row.name_ar ?? row.NAME_AR ?? row["name_ar"];
+      return {
+        screen_id: String(row.screen_id ?? row.SCREEN_ID ?? ""),
+        module: String(row.module ?? row.MODULE ?? ""),
+        name_ar: String(nameAr ?? "").trim(),
+        can_read: Number(row.can_read ?? 0) === 1,
+        can_create: Number(row.can_create ?? 0) === 1,
+        can_update: Number(row.can_update ?? 0) === 1,
+        can_delete: Number(row.can_delete ?? 0) === 1,
+      };
+    });
 
     return NextResponse.json(permissions);
   } catch (error) {

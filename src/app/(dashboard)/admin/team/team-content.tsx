@@ -291,58 +291,59 @@ export function TeamContent() {
           <div className="bg-white rounded-xl max-w-2xl w-full max-h-[90vh] overflow-auto p-6">
             <h3 className="font-bold text-gray-900 mb-4">صلاحيات: {permUser.name}</h3>
             <p className="text-sm text-gray-500 mb-4">حدد الصلاحيات لكل شاشة (قراءة، إضافة، تعديل، حذف)</p>
-            <div className="overflow-x-auto">
-              <table className="w-full text-right text-sm">
-                <thead>
-                  <tr className="border-b border-gray-200">
-                    <th className="py-2 px-2">الشاشة</th>
-                    <th className="py-2 px-2">قراءة</th>
-                    <th className="py-2 px-2">إضافة</th>
-                    <th className="py-2 px-2">تعديل</th>
-                    <th className="py-2 px-2">حذف</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {perms.map((p, idx) => (
-                    <tr key={p.screen_id} className="border-b border-gray-100">
-                      <td className="py-2 px-2 font-medium">{p.name_ar}</td>
-                      <td className="py-2 px-2">
-                        <input
-                          type="checkbox"
-                          checked={p.can_read}
-                          onChange={() => togglePerm(idx, "can_read")}
-                          className="rounded"
-                        />
-                      </td>
-                      <td className="py-2 px-2">
-                        <input
-                          type="checkbox"
-                          checked={p.can_create}
-                          onChange={() => togglePerm(idx, "can_create")}
-                          className="rounded"
-                        />
-                      </td>
-                      <td className="py-2 px-2">
-                        <input
-                          type="checkbox"
-                          checked={p.can_update}
-                          onChange={() => togglePerm(idx, "can_update")}
-                          className="rounded"
-                        />
-                      </td>
-                      <td className="py-2 px-2">
-                        <input
-                          type="checkbox"
-                          checked={p.can_delete}
-                          onChange={() => togglePerm(idx, "can_delete")}
-                          className="rounded"
-                        />
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+            <div className="space-y-3 max-h-[50vh] overflow-y-auto">
+              {perms.map((p, idx) => (
+                <div
+                  key={p.screen_id}
+                  className="flex items-center justify-between gap-4 p-3 rounded-lg border border-gray-200 bg-gray-50/50"
+                >
+                  <span className="font-medium text-gray-900 min-w-[140px] shrink-0">
+                    {p.name_ar || p.module || "—"}
+                  </span>
+                  <div className="flex items-center gap-6 shrink-0">
+                    <label className="flex items-center gap-1.5 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={p.can_read}
+                        onChange={() => togglePerm(idx, "can_read")}
+                        className="rounded border-gray-300"
+                      />
+                      <span className="text-sm text-gray-600">قراءة</span>
+                    </label>
+                    <label className="flex items-center gap-1.5 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={p.can_create}
+                        onChange={() => togglePerm(idx, "can_create")}
+                        className="rounded border-gray-300"
+                      />
+                      <span className="text-sm text-gray-600">إضافة</span>
+                    </label>
+                    <label className="flex items-center gap-1.5 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={p.can_update}
+                        onChange={() => togglePerm(idx, "can_update")}
+                        className="rounded border-gray-300"
+                      />
+                      <span className="text-sm text-gray-600">تعديل</span>
+                    </label>
+                    <label className="flex items-center gap-1.5 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={p.can_delete}
+                        onChange={() => togglePerm(idx, "can_delete")}
+                        className="rounded border-gray-300"
+                      />
+                      <span className="text-sm text-gray-600">حذف</span>
+                    </label>
+                  </div>
+                </div>
+              ))}
             </div>
+            {perms.length === 0 && (
+              <p className="text-gray-500 text-sm py-4">جاري تحميل القائمة...</p>
+            )}
             <div className="mt-6 flex gap-2">
               <button onClick={handleSavePerms} className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700">
                 حفظ الصلاحيات
