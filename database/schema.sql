@@ -13,6 +13,8 @@ CREATE TABLE IF NOT EXISTS companies (
     phone TEXT,
     address TEXT,
     logo_url TEXT,
+    tax_number TEXT,
+    commercial_registration TEXT,
     is_active INTEGER DEFAULT 1,
     created_at TEXT DEFAULT (datetime('now')),
     updated_at TEXT DEFAULT (datetime('now'))

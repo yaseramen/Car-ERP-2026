@@ -3,8 +3,9 @@ import { redirect, notFound } from "next/navigation";
 import Link from "next/link";
 import { db } from "@/lib/db/client";
 import { getCompanyId } from "@/lib/company";
+import { DEVELOPER_INFO } from "@/lib/invoice-config";
 import { AddPayment } from "./add-payment";
-import { PrintButton } from "./print-button";
+import { InvoiceActions } from "./invoice-actions";
 import { ReturnButton } from "./return-button";
 
 export default async function InvoiceDetailPage({
@@ -25,10 +26,13 @@ export default async function InvoiceDetailPage({
   try {
     const invResult = await db.execute({
       sql: `SELECT inv.*,
+            comp.name as company_name, comp.phone as company_phone, comp.address as company_address,
+            comp.tax_number as company_tax_number, comp.commercial_registration as company_commercial_registration,
             c.name as customer_name, c.phone as customer_phone,
             s.name as supplier_name, s.phone as supplier_phone,
             ro.order_number, ro.vehicle_plate, ro.vehicle_model
             FROM invoices inv
+            LEFT JOIN companies comp ON inv.company_id = comp.id
             LEFT JOIN customers c ON inv.customer_id = c.id
             LEFT JOIN suppliers s ON inv.supplier_id = s.id
             LEFT JOIN repair_orders ro ON inv.repair_order_id = ro.id
@@ -50,6 +54,11 @@ export default async function InvoiceDetailPage({
       digital_service_fee: Number(row.digital_service_fee ?? 0),
       total: Number(row.total ?? 0),
       paid_amount: Number(row.paid_amount ?? 0),
+      company_name: row.company_name ? String(row.company_name) : null,
+      company_phone: row.company_phone ? String(row.company_phone) : null,
+      company_address: row.company_address ? String(row.company_address) : null,
+      company_tax_number: row.company_tax_number ? String(row.company_tax_number) : null,
+      company_commercial_registration: row.company_commercial_registration ? String(row.company_commercial_registration) : null,
       customer_name: row.customer_name ? String(row.customer_name) : null,
       customer_phone: row.customer_phone ? String(row.customer_phone) : null,
       supplier_name: row.supplier_name ? String(row.supplier_name) : null,
@@ -118,11 +127,52 @@ export default async function InvoiceDetailPage({
         >
           ← العودة للفواتير
         </Link>
-        <div className="flex gap-2 no-print">
+        <div className="flex gap-2 no-print items-center">
           <ReturnButton invoiceId={id} type={data.type} status={data.status} />
-          <PrintButton />
+          <InvoiceActions
+            invoiceNumber={data.invoice_number}
+            invoiceType={data.type}
+            total={data.total}
+          />
         </div>
       </div>
+
+      <div id="invoice-print-area">
+      {data.company_name && (
+        <div className="mb-6 p-4 bg-gray-50 rounded-xl border border-gray-100">
+          <h2 className="font-bold text-gray-900 mb-3 text-lg">بيانات الشركة</h2>
+          <dl className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm">
+            <div>
+              <dt className="text-gray-500">اسم الشركة</dt>
+              <dd className="font-medium text-gray-900">{data.company_name}</dd>
+            </div>
+            {data.company_phone && (
+              <div>
+                <dt className="text-gray-500">رقم الهاتف</dt>
+                <dd className="text-gray-900">{data.company_phone}</dd>
+              </div>
+            )}
+            {data.company_address && (
+              <div>
+                <dt className="text-gray-500">العنوان</dt>
+                <dd className="text-gray-900">{data.company_address}</dd>
+              </div>
+            )}
+            {data.company_tax_number && (
+              <div>
+                <dt className="text-gray-500">رقم البطاقة الضريبية</dt>
+                <dd className="text-gray-900">{data.company_tax_number}</dd>
+              </div>
+            )}
+            {data.company_commercial_registration && (
+              <div>
+                <dt className="text-gray-500">رقم السجل التجاري</dt>
+                <dd className="text-gray-900">{data.company_commercial_registration}</dd>
+              </div>
+            )}
+          </dl>
+        </div>
+      )}
 
       <div className="mb-8">
         <h1 className="text-2xl font-bold text-gray-900">فاتورة {data.invoice_number}</h1>
@@ -312,6 +362,14 @@ export default async function InvoiceDetailPage({
           <p className="text-gray-600 text-sm whitespace-pre-wrap">{data.notes}</p>
         </div>
       )}
+
+      <div className="mt-8 pt-4 border-t border-gray-200 text-center text-sm text-gray-500">
+        <p className="font-medium text-gray-600">برمجة وتطوير البرنامج</p>
+        <p className="mt-1">{DEVELOPER_INFO.name}</p>
+        <p>هاتف: {DEVELOPER_INFO.phone}</p>
+        {DEVELOPER_INFO.email && <p>البريد: {DEVELOPER_INFO.email}</p>}
+      </div>
+      </div>
     </div>
     );
   } catch {
