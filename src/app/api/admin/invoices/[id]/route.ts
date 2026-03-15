@@ -1,15 +1,17 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { db } from "@/lib/db/client";
+import { getCompanyId } from "@/lib/company";
 
-const SYSTEM_COMPANY_ID = "company-system";
+const ALLOWED_ROLES = ["super_admin", "tenant_owner", "employee"] as const;
 
 export async function GET(
   _request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
   const session = await auth();
-  if (!session?.user || session.user.role !== "super_admin") {
+  const companyId = getCompanyId(session);
+  if (!session?.user || !companyId || !ALLOWED_ROLES.includes(session.user.role as (typeof ALLOWED_ROLES)[number])) {
     return NextResponse.json({ error: "غير مصرح" }, { status: 401 });
   }
 
@@ -23,7 +25,7 @@ export async function GET(
             LEFT JOIN customers c ON inv.customer_id = c.id
             LEFT JOIN repair_orders ro ON inv.repair_order_id = ro.id
             WHERE inv.id = ? AND inv.company_id = ?`,
-      args: [id, SYSTEM_COMPANY_ID],
+      args: [id, companyId],
     });
 
     if (invResult.rows.length === 0) {

@@ -1,13 +1,15 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { db } from "@/lib/db/client";
+import { getCompanyId } from "@/lib/company";
 import { randomUUID } from "crypto";
 
-const SYSTEM_COMPANY_ID = "company-system";
+const ALLOWED_ROLES = ["super_admin", "tenant_owner", "employee"] as const;
 
 export async function POST(request: Request) {
   const session = await auth();
-  if (!session?.user || session.user.role !== "super_admin") {
+  const companyId = getCompanyId(session);
+  if (!session?.user || !companyId || !ALLOWED_ROLES.includes(session.user.role as (typeof ALLOWED_ROLES)[number])) {
     return NextResponse.json({ error: "غير مصرح" }, { status: 401 });
   }
 
@@ -27,7 +29,7 @@ export async function POST(request: Request) {
 
     const treasuries = await db.execute({
       sql: "SELECT id, balance FROM treasuries WHERE id IN (?, ?) AND company_id = ?",
-      args: [from_id, to_id, SYSTEM_COMPANY_ID],
+      args: [from_id, to_id, companyId],
     });
 
     if (treasuries.rows.length !== 2) {

@@ -1,16 +1,18 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { db } from "@/lib/db/client";
+import { getCompanyId } from "@/lib/company";
 import { randomUUID } from "crypto";
 
-const SYSTEM_COMPANY_ID = "company-system";
+const ALLOWED_ROLES = ["super_admin", "tenant_owner", "employee"] as const;
 
 export async function PATCH(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
   const session = await auth();
-  if (!session?.user || session.user.role !== "super_admin") {
+  const companyId = getCompanyId(session);
+  if (!session?.user || !companyId || !ALLOWED_ROLES.includes(session.user.role as (typeof ALLOWED_ROLES)[number])) {
     return NextResponse.json({ error: "غير مصرح" }, { status: 401 });
   }
 
@@ -28,7 +30,7 @@ export async function PATCH(
     if (stage === "completed") {
       const orderResult = await db.execute({
         sql: "SELECT order_number, warehouse_id, customer_id FROM repair_orders WHERE id = ? AND company_id = ?",
-        args: [id, SYSTEM_COMPANY_ID],
+        args: [id, companyId],
       });
       if (orderResult.rows.length === 0) {
         return NextResponse.json({ error: "أمر غير موجود" }, { status: 404 });
@@ -46,7 +48,7 @@ export async function PATCH(
 
       const invCountResult = await db.execute({
         sql: "SELECT COUNT(*) as cnt FROM invoices WHERE company_id = ?",
-        args: [SYSTEM_COMPANY_ID],
+        args: [companyId],
       });
       const invCount = (invCountResult.rows[0]?.cnt as number) ?? 0;
       const invNum = `INV-${String(invCount + 1).padStart(4, "0")}`;
@@ -60,7 +62,7 @@ export async function PATCH(
       await db.execute({
         sql: `INSERT INTO invoices (id, company_id, invoice_number, type, status, customer_id, repair_order_id, warehouse_id, subtotal, total, paid_amount, created_by)
               VALUES (?, ?, ?, 'maintenance', 'pending', ?, ?, ?, 0, 0, 0, ?)`,
-        args: [invoiceId, SYSTEM_COMPANY_ID, invNum, customerId, id, order.warehouse_id, session.user.id],
+        args: [invoiceId, companyId, invNum, customerId, id, order.warehouse_id, session.user.id],
       });
 
       let sortOrder = 0;
@@ -93,17 +95,17 @@ export async function PATCH(
 
       await db.execute({
         sql: "UPDATE repair_orders SET stage = 'completed', completed_at = datetime('now'), invoice_id = ?, updated_at = datetime('now') WHERE id = ? AND company_id = ?",
-        args: [invoiceId, id, SYSTEM_COMPANY_ID],
+        args: [invoiceId, id, companyId],
       });
 
       const walletResult = await db.execute({
         sql: "SELECT id, balance FROM company_wallets WHERE company_id = ?",
-        args: [SYSTEM_COMPANY_ID],
+        args: [companyId],
       });
       if (walletResult.rows.length > 0 && Number(walletResult.rows[0].balance ?? 0) >= digitalFee) {
         await db.execute({
           sql: "UPDATE company_wallets SET balance = balance - ? WHERE company_id = ?",
-          args: [digitalFee, SYSTEM_COMPANY_ID],
+          args: [digitalFee, companyId],
         });
         await db.execute({
           sql: "INSERT INTO wallet_transactions (id, wallet_id, amount, type, description, reference_type, reference_id, performed_by) VALUES (?, ?, ?, 'digital_service', ?, 'invoice', ?, ?)",
@@ -126,7 +128,7 @@ export async function PATCH(
       args.push(estimated_completion);
     }
 
-    args.push(id, SYSTEM_COMPANY_ID);
+    args.push(id, companyId);
 
     await db.execute({
       sql: `UPDATE repair_orders SET ${updates.join(", ")} WHERE id = ? AND company_id = ?`,

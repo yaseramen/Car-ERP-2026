@@ -1,13 +1,15 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { db } from "@/lib/db/client";
+import { getCompanyId } from "@/lib/company";
 import { randomUUID } from "crypto";
 
-const SYSTEM_COMPANY_ID = "company-system";
+const ALLOWED_ROLES = ["super_admin", "tenant_owner", "employee"] as const;
 
 export async function GET(request: Request) {
   const session = await auth();
-  if (!session?.user || session.user.role !== "super_admin") {
+  const companyId = getCompanyId(session);
+  if (!session?.user || !companyId || !ALLOWED_ROLES.includes(session.user.role as (typeof ALLOWED_ROLES)[number])) {
     return NextResponse.json({ error: "غير مصرح" }, { status: 401 });
   }
   const { searchParams } = new URL(request.url);
@@ -42,7 +44,8 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   const session = await auth();
-  if (!session?.user || session.user.role !== "super_admin") {
+  const companyId = getCompanyId(session);
+  if (!session?.user || !companyId || !ALLOWED_ROLES.includes(session.user.role as (typeof ALLOWED_ROLES)[number])) {
     return NextResponse.json({ error: "غير مصرح" }, { status: 401 });
   }
   const body = await request.json();
@@ -54,7 +57,7 @@ export async function POST(request: Request) {
           VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'local', ?, ?, ?, ?)`,
     args: [
       id,
-      SYSTEM_COMPANY_ID,
+      companyId,
       code,
       body.description_ar?.trim() || null,
       body.description_en?.trim() || null,

@@ -1,17 +1,19 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { db } from "@/lib/db/client";
-import { randomUUID } from "crypto";
+import { getCompanyId } from "@/lib/company";
 import { ensureTreasuries, getTreasuryIdByType } from "@/lib/treasuries";
+import { randomUUID } from "crypto";
 
-const SYSTEM_COMPANY_ID = "company-system";
+const ALLOWED_ROLES = ["super_admin", "tenant_owner", "employee"] as const;
 
 export async function POST(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
   const session = await auth();
-  if (!session?.user || session.user.role !== "super_admin") {
+  const companyId = getCompanyId(session);
+  if (!session?.user || !companyId || !ALLOWED_ROLES.includes(session.user.role as (typeof ALLOWED_ROLES)[number])) {
     return NextResponse.json({ error: "غير مصرح" }, { status: 401 });
   }
 
@@ -32,7 +34,7 @@ export async function POST(
 
     const invResult = await db.execute({
       sql: "SELECT total, paid_amount, status, type, invoice_number FROM invoices WHERE id = ? AND company_id = ?",
-      args: [invoiceId, SYSTEM_COMPANY_ID],
+      args: [invoiceId, companyId],
     });
 
     if (invResult.rows.length === 0) {
@@ -54,8 +56,8 @@ export async function POST(
 
     let treasuryId: string | null = null;
     if (invType === "sale" || invType === "maintenance") {
-      await ensureTreasuries();
-      treasuryId = invType === "sale" ? getTreasuryIdByType("sales") : getTreasuryIdByType("workshop");
+      await ensureTreasuries(companyId);
+      treasuryId = invType === "sale" ? await getTreasuryIdByType(companyId, "sales") : await getTreasuryIdByType(companyId, "workshop");
     }
 
     if (treasuryId) {
@@ -86,7 +88,7 @@ export async function POST(
 
     await db.execute({
       sql: "UPDATE invoices SET paid_amount = ?, status = ?, updated_at = datetime('now') WHERE id = ? AND company_id = ?",
-      args: [newPaid, status, invoiceId, SYSTEM_COMPANY_ID],
+      args: [newPaid, status, invoiceId, companyId],
     });
 
     return NextResponse.json({ success: true, paid_amount: newPaid, status });

@@ -1,40 +1,11 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { db } from "@/lib/db/client";
+import { getCompanyId } from "@/lib/company";
+import { ensureCompanyWarehouse } from "@/lib/warehouse";
 import { randomUUID } from "crypto";
 
-const SYSTEM_COMPANY_ID = "company-system";
-const SYSTEM_WAREHOUSE_ID = "warehouse-system";
-
-async function ensureSystemCompany() {
-  const existing = await db.execute({
-    sql: "SELECT id FROM companies WHERE id = ?",
-    args: [SYSTEM_COMPANY_ID],
-  });
-  if (existing.rows.length > 0) return SYSTEM_COMPANY_ID;
-
-  await db.execute({
-    sql: "INSERT INTO companies (id, name, is_active) VALUES (?, ?, 1)",
-    args: [SYSTEM_COMPANY_ID, "نظام الأمين"],
-  });
-
-  await db.execute({
-    sql: "INSERT INTO warehouses (id, company_id, name, type, is_active) VALUES (?, ?, ?, 'main', 1)",
-    args: [SYSTEM_WAREHOUSE_ID, SYSTEM_COMPANY_ID, "المخزن الرئيسي"],
-  });
-
-  return SYSTEM_COMPANY_ID;
-}
-
-async function ensureWarehouse() {
-  const existing = await db.execute({
-    sql: "SELECT id FROM warehouses WHERE id = ?",
-    args: [SYSTEM_WAREHOUSE_ID],
-  });
-  if (existing.rows.length > 0) return SYSTEM_WAREHOUSE_ID;
-  await ensureSystemCompany();
-  return SYSTEM_WAREHOUSE_ID;
-}
+const ALLOWED_ROLES = ["super_admin", "tenant_owner", "employee"] as const;
 
 function generateBarcode() {
   return "BC" + Date.now().toString(36).toUpperCase() + Math.random().toString(36).slice(2, 8).toUpperCase();
@@ -42,7 +13,8 @@ function generateBarcode() {
 
 export async function GET() {
   const session = await auth();
-  if (!session?.user || session.user.role !== "super_admin") {
+  const companyId = getCompanyId(session);
+  if (!session?.user || !companyId || !ALLOWED_ROLES.includes(session.user.role as (typeof ALLOWED_ROLES)[number])) {
     return NextResponse.json({ error: "غير مصرح" }, { status: 401 });
   }
 
@@ -53,7 +25,7 @@ export async function GET() {
             FROM items 
             WHERE company_id = ? AND is_active = 1 
             ORDER BY created_at DESC`,
-      args: [SYSTEM_COMPANY_ID],
+      args: [companyId],
     });
 
     const items = result.rows.map((row) => ({
@@ -78,7 +50,8 @@ export async function GET() {
 
 export async function POST(request: Request) {
   const session = await auth();
-  if (!session?.user || session.user.role !== "super_admin") {
+  const companyId = getCompanyId(session);
+  if (!session?.user || !companyId || !ALLOWED_ROLES.includes(session.user.role as (typeof ALLOWED_ROLES)[number])) {
     return NextResponse.json({ error: "غير مصرح" }, { status: 401 });
   }
 
@@ -90,13 +63,12 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "اسم القطعة مطلوب" }, { status: 400 });
     }
 
-    const companyId = await ensureSystemCompany();
-    const warehouseId = await ensureWarehouse();
+    const warehouseId = await ensureCompanyWarehouse(companyId);
     const id = randomUUID();
 
     const countResult = await db.execute({
       sql: "SELECT COUNT(*) as cnt FROM items WHERE company_id = ?",
-      args: [SYSTEM_COMPANY_ID],
+      args: [companyId],
     });
     const count = (countResult.rows[0]?.cnt as number) ?? 0;
     const autoCode = code?.trim() || `PRD-${String(count + 1).padStart(4, "0")}`;

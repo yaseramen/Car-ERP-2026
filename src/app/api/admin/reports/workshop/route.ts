@@ -1,12 +1,14 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { db } from "@/lib/db/client";
+import { getCompanyId } from "@/lib/company";
 
-const SYSTEM_COMPANY_ID = "company-system";
+const ALLOWED_ROLES = ["super_admin", "tenant_owner", "employee"] as const;
 
 export async function GET(request: Request) {
   const session = await auth();
-  if (!session?.user || session.user.role !== "super_admin") {
+  const companyId = getCompanyId(session);
+  if (!session?.user || !companyId || !ALLOWED_ROLES.includes(session.user.role as (typeof ALLOWED_ROLES)[number])) {
     return NextResponse.json({ error: "غير مصرح" }, { status: 401 });
   }
 
@@ -22,7 +24,7 @@ export async function GET(request: Request) {
 
     const byStageResult = await db.execute({
       sql: `SELECT stage, COUNT(*) as cnt FROM repair_orders WHERE company_id = ? GROUP BY stage`,
-      args: [SYSTEM_COMPANY_ID],
+      args: [companyId],
     });
 
     const completedResult = await db.execute({
@@ -33,7 +35,7 @@ export async function GET(request: Request) {
             AND ro.completed_at >= ? AND ro.completed_at <= ?
             ORDER BY ro.completed_at DESC
             LIMIT 100`,
-      args: [SYSTEM_COMPANY_ID, fromStr, toStr],
+      args: [companyId, fromStr, toStr],
     });
 
     const byStage: Record<string, number> = {};

@@ -1,25 +1,16 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { db } from "@/lib/db/client";
+import { getCompanyId } from "@/lib/company";
+import { ensureCompanyWarehouse } from "@/lib/warehouse";
 import { randomUUID } from "crypto";
 
-const SYSTEM_COMPANY_ID = "company-system";
-
-async function ensureSystemCompany() {
-  const existing = await db.execute({
-    sql: "SELECT id FROM companies WHERE id = ?",
-    args: [SYSTEM_COMPANY_ID],
-  });
-  if (existing.rows.length > 0) return;
-  await db.execute({
-    sql: "INSERT INTO companies (id, name, is_active) VALUES (?, 'نظام الأمين', 1)",
-    args: [SYSTEM_COMPANY_ID],
-  });
-}
+const ALLOWED_ROLES = ["super_admin", "tenant_owner", "employee"] as const;
 
 export async function GET() {
   const session = await auth();
-  if (!session?.user || session.user.role !== "super_admin") {
+  const companyId = getCompanyId(session);
+  if (!session?.user || !companyId || !ALLOWED_ROLES.includes(session.user.role as (typeof ALLOWED_ROLES)[number])) {
     return NextResponse.json({ error: "غير مصرح" }, { status: 401 });
   }
 
@@ -29,7 +20,7 @@ export async function GET() {
             FROM suppliers
             WHERE company_id = ? AND is_active = 1
             ORDER BY name`,
-      args: [SYSTEM_COMPANY_ID],
+      args: [companyId],
     });
 
     const suppliers = result.rows.map((row) => ({
@@ -51,11 +42,13 @@ export async function GET() {
 
 export async function POST(request: Request) {
   const session = await auth();
-  if (!session?.user || session.user.role !== "super_admin") {
+  const companyId = getCompanyId(session);
+  if (!session?.user || !companyId || !ALLOWED_ROLES.includes(session.user.role as (typeof ALLOWED_ROLES)[number])) {
     return NextResponse.json({ error: "غير مصرح" }, { status: 401 });
   }
 
   try {
+    await ensureCompanyWarehouse(companyId);
     const body = await request.json();
     const { name, phone, email, address, notes } = body;
 
@@ -63,7 +56,6 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "اسم المورد مطلوب" }, { status: 400 });
     }
 
-    await ensureSystemCompany();
     const id = randomUUID();
 
     await db.execute({
@@ -71,7 +63,7 @@ export async function POST(request: Request) {
             VALUES (?, ?, ?, ?, ?, ?, ?)`,
       args: [
         id,
-        SYSTEM_COMPANY_ID,
+        companyId,
         name.trim(),
         phone?.trim() || null,
         email?.trim() || null,

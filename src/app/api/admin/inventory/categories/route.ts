@@ -1,25 +1,27 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { db } from "@/lib/db/client";
+import { getCompanyId } from "@/lib/company";
 
-const SYSTEM_COMPANY_ID = "company-system";
 const DEFAULT_CATEGORIES = ["زيوت", "فلاتر", "ميكانيكا", "كهرباء", "إطارات", "أخرى"];
 const DEFAULT_UNITS = ["قطعة", "لتر", "كيلو", "علبة", "متر", "رول"];
+const ALLOWED_ROLES = ["super_admin", "tenant_owner", "employee"] as const;
 
 export async function GET() {
   const session = await auth();
-  if (!session?.user || session.user.role !== "super_admin") {
+  const companyId = getCompanyId(session);
+  if (!session?.user || !companyId || !ALLOWED_ROLES.includes(session.user.role as (typeof ALLOWED_ROLES)[number])) {
     return NextResponse.json({ error: "غير مصرح" }, { status: 401 });
   }
 
   try {
     const catResult = await db.execute({
       sql: "SELECT DISTINCT category FROM items WHERE company_id = ? AND category IS NOT NULL AND category != ''",
-      args: [SYSTEM_COMPANY_ID],
+      args: [companyId],
     });
     const unitsResult = await db.execute({
       sql: "SELECT DISTINCT unit FROM items WHERE company_id = ? AND unit IS NOT NULL AND unit != ''",
-      args: [SYSTEM_COMPANY_ID],
+      args: [companyId],
     });
 
     const categories = [

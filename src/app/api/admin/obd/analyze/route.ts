@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { db } from "@/lib/db/client";
-import { randomUUID } from "crypto";
+import { getCompanyId } from "@/lib/company";
 import {
   OBD_SEARCH_COST,
   resolveCode,
@@ -9,8 +9,8 @@ import {
   type ObdResult,
 } from "@/lib/obd";
 import { ensureVehicleBrand, ensureVehicleModel } from "@/lib/obd-vehicles";
+import { randomUUID } from "crypto";
 
-const SYSTEM_COMPANY_ID = "company-system";
 const MAX_FILE_SIZE = 4 * 1024 * 1024; // 4MB
 const ALLOWED_TYPES = [
   "image/jpeg",
@@ -18,10 +18,12 @@ const ALLOWED_TYPES = [
   "image/webp",
   "application/pdf",
 ];
+const ALLOWED_ROLES = ["super_admin", "tenant_owner", "employee"] as const;
 
 export async function POST(request: Request) {
   const session = await auth();
-  if (!session?.user || session.user.role !== "super_admin") {
+  const companyId = getCompanyId(session);
+  if (!session?.user || !companyId || !ALLOWED_ROLES.includes(session.user.role as (typeof ALLOWED_ROLES)[number])) {
     return NextResponse.json({ error: "غير مصرح" }, { status: 401 });
   }
 
@@ -52,28 +54,28 @@ export async function POST(request: Request) {
 
     const companyCheck = await db.execute({
       sql: "SELECT id FROM companies WHERE id = ?",
-      args: [SYSTEM_COMPANY_ID],
+      args: [companyId],
     });
     if (companyCheck.rows.length === 0) {
       await db.execute({
         sql: "INSERT INTO companies (id, name, is_active) VALUES (?, 'نظام الأمين', 1)",
-        args: [SYSTEM_COMPANY_ID],
+        args: [companyId],
       });
     }
 
     let walletResult = await db.execute({
       sql: "SELECT id, balance FROM company_wallets WHERE company_id = ?",
-      args: [SYSTEM_COMPANY_ID],
+      args: [companyId],
     });
 
     if (walletResult.rows.length === 0) {
       await db.execute({
         sql: "INSERT INTO company_wallets (id, company_id, balance, currency) VALUES (?, ?, 0, 'EGP')",
-        args: [randomUUID(), SYSTEM_COMPANY_ID],
+        args: [randomUUID(), companyId],
       });
       walletResult = await db.execute({
         sql: "SELECT id, balance FROM company_wallets WHERE company_id = ?",
-        args: [SYSTEM_COMPANY_ID],
+        args: [companyId],
       });
     }
 
@@ -106,13 +108,13 @@ export async function POST(request: Request) {
     const walletId = walletResult.rows[0].id;
 
     for (const code of uniqueCodes) {
-      const { result, obdCodeId } = await resolveCode(code);
+      const { result, obdCodeId } = await resolveCode(code, companyId);
       results.push({ ...result, cost: OBD_SEARCH_COST });
 
       const wtId = randomUUID();
       await db.execute({
         sql: "UPDATE company_wallets SET balance = balance - ? WHERE company_id = ?",
-        args: [OBD_SEARCH_COST, SYSTEM_COMPANY_ID],
+        args: [OBD_SEARCH_COST, companyId],
       });
       await db.execute({
         sql: `INSERT INTO wallet_transactions (id, wallet_id, amount, type, description, reference_type, reference_id, performed_by)
@@ -124,7 +126,7 @@ export async function POST(request: Request) {
               VALUES (?, ?, ?, ?, ?, ?, ?)`,
         args: [
           randomUUID(),
-          SYSTEM_COMPANY_ID,
+          companyId,
           code,
           obdCodeId,
           wtId,
@@ -153,7 +155,7 @@ export async function POST(request: Request) {
               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         args: [
           randomUUID(),
-          SYSTEM_COMPANY_ID,
+          companyId,
           file.name,
           vehicle?.brand || null,
           vehicle?.model || null,
@@ -174,7 +176,7 @@ export async function POST(request: Request) {
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
           args: [
             randomUUID(),
-            SYSTEM_COMPANY_ID,
+            companyId,
             file.name,
             vehicle?.brand || null,
             vehicle?.model || null,

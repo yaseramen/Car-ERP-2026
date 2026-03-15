@@ -1,10 +1,11 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { db } from "@/lib/db/client";
+import { getCompanyId } from "@/lib/company";
 import { randomUUID } from "crypto";
 
-const SYSTEM_COMPANY_ID = "company-system";
 const OBD_SEARCH_COST = 1;
+const ALLOWED_ROLES = ["super_admin", "tenant_owner", "employee"] as const;
 
 const DESCRIPTION_PROMPT = `أنت خبير ميكانيكي. العميل يصف مشكلة في سيارته بدون استخدام جهاز كشف أعطال.
 
@@ -111,7 +112,8 @@ async function analyzeWithAI(description: string, vehicleInfo: string): Promise<
 
 export async function POST(request: Request) {
   const session = await auth();
-  if (!session?.user || session.user.role !== "super_admin") {
+  const companyId = getCompanyId(session);
+  if (!session?.user || !companyId || !ALLOWED_ROLES.includes(session.user.role as (typeof ALLOWED_ROLES)[number])) {
     return NextResponse.json({ error: "غير مصرح" }, { status: 401 });
   }
 
@@ -133,17 +135,17 @@ export async function POST(request: Request) {
 
     let walletResult = await db.execute({
       sql: "SELECT id, balance FROM company_wallets WHERE company_id = ?",
-      args: [SYSTEM_COMPANY_ID],
+      args: [companyId],
     });
 
     if (walletResult.rows.length === 0) {
       await db.execute({
         sql: "INSERT INTO company_wallets (id, company_id, balance, currency) VALUES (?, ?, 0, 'EGP')",
-        args: [randomUUID(), SYSTEM_COMPANY_ID],
+        args: [randomUUID(), companyId],
       });
       walletResult = await db.execute({
         sql: "SELECT id, balance FROM company_wallets WHERE company_id = ?",
-        args: [SYSTEM_COMPANY_ID],
+        args: [companyId],
       });
     }
 
@@ -167,7 +169,7 @@ export async function POST(request: Request) {
     const wtId = randomUUID();
     await db.execute({
       sql: "UPDATE company_wallets SET balance = balance - ? WHERE company_id = ?",
-      args: [OBD_SEARCH_COST, SYSTEM_COMPANY_ID],
+      args: [OBD_SEARCH_COST, companyId],
     });
     await db.execute({
       sql: `INSERT INTO wallet_transactions (id, wallet_id, amount, type, description, reference_type, reference_id, performed_by)

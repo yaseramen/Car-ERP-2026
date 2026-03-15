@@ -1,12 +1,14 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { db } from "@/lib/db/client";
+import { getCompanyId } from "@/lib/company";
 
-const SYSTEM_COMPANY_ID = "company-system";
+const ALLOWED_ROLES = ["super_admin", "tenant_owner", "employee"] as const;
 
 export async function GET(request: Request) {
   const session = await auth();
-  if (!session?.user || session.user.role !== "super_admin") {
+  const companyId = getCompanyId(session);
+  if (!session?.user || !companyId || !ALLOWED_ROLES.includes(session.user.role as (typeof ALLOWED_ROLES)[number])) {
     return NextResponse.json({ error: "غير مصرح" }, { status: 401 });
   }
 
@@ -21,7 +23,7 @@ export async function GET(request: Request) {
             WHERE i.company_id = ? AND i.is_active = 1 AND i.min_quantity > 0
             AND COALESCE((SELECT SUM(quantity) FROM item_warehouse_stock WHERE item_id = i.id), 0) < i.min_quantity
             ORDER BY quantity ASC`,
-      args: [SYSTEM_COMPANY_ID],
+      args: [companyId],
     });
 
     const movementsResult = await db.execute({
@@ -32,7 +34,7 @@ export async function GET(request: Request) {
             WHERE i.company_id = ?
             ORDER BY sm.created_at DESC
             LIMIT ?`,
-      args: [SYSTEM_COMPANY_ID, limit],
+      args: [companyId, limit],
     });
 
     const lowStock = lowStockResult.rows.map((r) => ({

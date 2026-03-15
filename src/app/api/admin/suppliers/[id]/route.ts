@@ -1,15 +1,17 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { db } from "@/lib/db/client";
+import { getCompanyId } from "@/lib/company";
 
-const SYSTEM_COMPANY_ID = "company-system";
+const ALLOWED_ROLES = ["super_admin", "tenant_owner", "employee"] as const;
 
 export async function PATCH(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
   const session = await auth();
-  if (!session?.user || session.user.role !== "super_admin") {
+  const companyId = getCompanyId(session);
+  if (!session?.user || !companyId || !ALLOWED_ROLES.includes(session.user.role as (typeof ALLOWED_ROLES)[number])) {
     return NextResponse.json({ error: "غير مصرح" }, { status: 401 });
   }
 
@@ -50,7 +52,7 @@ export async function PATCH(
       return NextResponse.json({ error: "لا توجد بيانات للتحديث" }, { status: 400 });
     }
 
-    args.push(id, SYSTEM_COMPANY_ID);
+    args.push(id, companyId);
 
     await db.execute({
       sql: `UPDATE suppliers SET ${updates.join(", ")} WHERE id = ? AND company_id = ?`,
@@ -69,7 +71,8 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const session = await auth();
-  if (!session?.user || session.user.role !== "super_admin") {
+  const companyId = getCompanyId(session);
+  if (!session?.user || !companyId || !ALLOWED_ROLES.includes(session.user.role as (typeof ALLOWED_ROLES)[number])) {
     return NextResponse.json({ error: "غير مصرح" }, { status: 401 });
   }
 
@@ -84,14 +87,14 @@ export async function DELETE(
     if (usedInInvoices.rows.length > 0) {
       await db.execute({
         sql: "UPDATE suppliers SET is_active = 0, updated_at = datetime('now') WHERE id = ? AND company_id = ?",
-        args: [id, SYSTEM_COMPANY_ID],
+        args: [id, companyId],
       });
       return NextResponse.json({ success: true, message: "تم تعطيل المورد (مستخدم سابقاً)" });
     }
 
     await db.execute({
       sql: "DELETE FROM suppliers WHERE id = ? AND company_id = ?",
-      args: [id, SYSTEM_COMPANY_ID],
+      args: [id, companyId],
     });
 
     return NextResponse.json({ success: true });

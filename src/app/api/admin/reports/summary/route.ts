@@ -2,8 +2,7 @@ import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { db } from "@/lib/db/client";
 import { ensureTreasuries } from "@/lib/treasuries";
-
-const SYSTEM_COMPANY_ID = "company-system";
+import { getCompanyId } from "@/lib/company";
 
 function startOfDay(d: Date) {
   const x = new Date(d);
@@ -29,12 +28,15 @@ function startOfMonth(d: Date) {
 
 export async function GET(request: Request) {
   const session = await auth();
-  if (!session?.user || session.user.role !== "super_admin") {
+  if (!session?.user || !["super_admin", "tenant_owner", "employee"].includes(session.user.role ?? "")) {
     return NextResponse.json({ error: "غير مصرح" }, { status: 401 });
   }
 
+  const companyId = getCompanyId(session);
+  if (!companyId) return NextResponse.json({ error: "غير مصرح" }, { status: 401 });
+
   try {
-    await ensureTreasuries();
+    await ensureTreasuries(companyId);
 
     const now = new Date();
     const todayStart = startOfDay(now);
@@ -45,46 +47,46 @@ export async function GET(request: Request) {
       sql: `SELECT COALESCE(SUM(total), 0) as total, COUNT(*) as count
             FROM invoices WHERE company_id = ? AND type IN ('sale', 'maintenance')
             AND status NOT IN ('cancelled', 'returned') AND created_at >= ?`,
-      args: [SYSTEM_COMPANY_ID, todayStart],
+      args: [companyId, todayStart],
     });
 
     const salesWeek = await db.execute({
       sql: `SELECT COALESCE(SUM(total), 0) as total, COUNT(*) as count
             FROM invoices WHERE company_id = ? AND type IN ('sale', 'maintenance')
             AND status NOT IN ('cancelled', 'returned') AND created_at >= ?`,
-      args: [SYSTEM_COMPANY_ID, weekStart],
+      args: [companyId, weekStart],
     });
 
     const salesMonth = await db.execute({
       sql: `SELECT COALESCE(SUM(total), 0) as total, COUNT(*) as count
             FROM invoices WHERE company_id = ? AND type IN ('sale', 'maintenance')
             AND status NOT IN ('cancelled', 'returned') AND created_at >= ?`,
-      args: [SYSTEM_COMPANY_ID, monthStart],
+      args: [companyId, monthStart],
     });
 
     const workshopStats = await db.execute({
       sql: `SELECT stage, COUNT(*) as cnt FROM repair_orders WHERE company_id = ?
             GROUP BY stage`,
-      args: [SYSTEM_COMPANY_ID],
+      args: [companyId],
     });
 
     const lowStock = await db.execute({
       sql: `SELECT COUNT(*) as cnt FROM items i
             WHERE i.company_id = ? AND i.is_active = 1 AND i.min_quantity > 0
             AND COALESCE((SELECT SUM(quantity) FROM item_warehouse_stock WHERE item_id = i.id), 0) < i.min_quantity`,
-      args: [SYSTEM_COMPANY_ID],
+      args: [companyId],
     });
 
     const pendingInvoices = await db.execute({
       sql: `SELECT COUNT(*) as cnt, COALESCE(SUM(total - paid_amount), 0) as remaining
             FROM invoices WHERE company_id = ? AND status IN ('pending', 'partial')
             AND type IN ('sale', 'maintenance')`,
-      args: [SYSTEM_COMPANY_ID],
+      args: [companyId],
     });
 
     const treasuries = await db.execute({
       sql: "SELECT type, balance FROM treasuries WHERE company_id = ? AND is_active = 1",
-      args: [SYSTEM_COMPANY_ID],
+      args: [companyId],
     });
 
     const sevenDaysAgo = new Date(now);
@@ -97,7 +99,7 @@ export async function GET(request: Request) {
             AND status NOT IN ('cancelled', 'returned')
             AND created_at >= ?
             GROUP BY DATE(created_at) ORDER BY day`,
-      args: [SYSTEM_COMPANY_ID, sevenDaysStr],
+      args: [companyId, sevenDaysStr],
     });
 
     const workshopByStage: Record<string, number> = {};

@@ -1,16 +1,18 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { db } from "@/lib/db/client";
+import { getCompanyId } from "@/lib/company";
 import { randomUUID } from "crypto";
 
-const SYSTEM_COMPANY_ID = "company-system";
+const ALLOWED_ROLES = ["super_admin", "tenant_owner", "employee"] as const;
 
 export async function POST(
   _request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
   const session = await auth();
-  if (!session?.user || session.user.role !== "super_admin") {
+  const companyId = getCompanyId(session);
+  if (!session?.user || !companyId || !ALLOWED_ROLES.includes(session.user.role as (typeof ALLOWED_ROLES)[number])) {
     return NextResponse.json({ error: "غير مصرح" }, { status: 401 });
   }
 
@@ -19,7 +21,7 @@ export async function POST(
   try {
     const invResult = await db.execute({
       sql: "SELECT id, invoice_number, type, status, warehouse_id, subtotal, digital_service_fee FROM invoices WHERE id = ? AND company_id = ?",
-      args: [invoiceId, SYSTEM_COMPANY_ID],
+      args: [invoiceId, companyId],
     });
 
     if (invResult.rows.length === 0) {
@@ -113,12 +115,12 @@ export async function POST(
     if (digitalFee > 0 && invType !== "purchase") {
       const walletResult = await db.execute({
         sql: "SELECT id FROM company_wallets WHERE company_id = ?",
-        args: [SYSTEM_COMPANY_ID],
+        args: [companyId],
       });
       if (walletResult.rows.length > 0) {
         await db.execute({
           sql: "UPDATE company_wallets SET balance = balance + ? WHERE company_id = ?",
-          args: [digitalFee, SYSTEM_COMPANY_ID],
+          args: [digitalFee, companyId],
         });
         await db.execute({
           sql: `INSERT INTO wallet_transactions (id, wallet_id, amount, type, description, reference_type, reference_id, performed_by)
@@ -130,7 +132,7 @@ export async function POST(
 
     await db.execute({
       sql: "UPDATE invoices SET status = 'returned', updated_at = datetime('now') WHERE id = ? AND company_id = ?",
-      args: [invoiceId, SYSTEM_COMPANY_ID],
+      args: [invoiceId, companyId],
     });
 
     return NextResponse.json({ success: true, message: "تم تحويل الفاتورة إلى مرتجع" });

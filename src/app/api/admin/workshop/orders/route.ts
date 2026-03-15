@@ -1,38 +1,16 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { db } from "@/lib/db/client";
+import { getCompanyId } from "@/lib/company";
+import { ensureCompanyWarehouse } from "@/lib/warehouse";
 import { randomUUID } from "crypto";
 
-const SYSTEM_COMPANY_ID = "company-system";
-const SYSTEM_WAREHOUSE_ID = "warehouse-system";
-
-async function ensureWarehouse() {
-  const existing = await db.execute({
-    sql: "SELECT id FROM warehouses WHERE id = ?",
-    args: [SYSTEM_WAREHOUSE_ID],
-  });
-  if (existing.rows.length > 0) return SYSTEM_WAREHOUSE_ID;
-
-  const companyExisting = await db.execute({
-    sql: "SELECT id FROM companies WHERE id = ?",
-    args: [SYSTEM_COMPANY_ID],
-  });
-  if (companyExisting.rows.length === 0) {
-    await db.execute({
-      sql: "INSERT INTO companies (id, name, is_active) VALUES (?, 'نظام الأمين', 1)",
-      args: [SYSTEM_COMPANY_ID],
-    });
-  }
-  await db.execute({
-    sql: "INSERT INTO warehouses (id, company_id, name, type, is_active) VALUES (?, ?, 'المخزن الرئيسي', 'main', 1)",
-    args: [SYSTEM_WAREHOUSE_ID, SYSTEM_COMPANY_ID],
-  });
-  return SYSTEM_WAREHOUSE_ID;
-}
+const ALLOWED_ROLES = ["super_admin", "tenant_owner", "employee"] as const;
 
 export async function GET() {
   const session = await auth();
-  if (!session?.user || session.user.role !== "super_admin") {
+  const companyId = getCompanyId(session);
+  if (!session?.user || !companyId || !ALLOWED_ROLES.includes(session.user.role as (typeof ALLOWED_ROLES)[number])) {
     return NextResponse.json({ error: "غير مصرح" }, { status: 401 });
   }
 
@@ -57,7 +35,7 @@ export async function GET() {
                 ELSE 6 
               END,
               ro.created_at DESC`,
-      args: [SYSTEM_COMPANY_ID],
+      args: [companyId],
     });
 
     const orders = result.rows.map((row) => ({
@@ -89,7 +67,8 @@ export async function GET() {
 
 export async function POST(request: Request) {
   const session = await auth();
-  if (!session?.user || session.user.role !== "super_admin") {
+  const companyId = getCompanyId(session);
+  if (!session?.user || !companyId || !ALLOWED_ROLES.includes(session.user.role as (typeof ALLOWED_ROLES)[number])) {
     return NextResponse.json({ error: "غير مصرح" }, { status: 401 });
   }
 
@@ -101,11 +80,11 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "رقم اللوحة مطلوب" }, { status: 400 });
     }
 
-    const warehouseId = await ensureWarehouse();
+    const warehouseId = await ensureCompanyWarehouse(companyId);
 
     const countResult = await db.execute({
       sql: "SELECT COUNT(*) as cnt FROM repair_orders WHERE company_id = ?",
-      args: [SYSTEM_COMPANY_ID],
+      args: [companyId],
     });
     const count = (countResult.rows[0]?.cnt as number) ?? 0;
     const orderNumber = `RO-${String(count + 1).padStart(4, "0")}`;
@@ -116,7 +95,7 @@ export async function POST(request: Request) {
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'received', ?, datetime('now'), ?)`,
       args: [
         id,
-        SYSTEM_COMPANY_ID,
+        companyId,
         orderNumber,
         customer_id || null,
         vehicle_plate.trim(),

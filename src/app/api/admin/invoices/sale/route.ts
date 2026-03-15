@@ -1,39 +1,17 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { db } from "@/lib/db/client";
-import { randomUUID } from "crypto";
+import { getCompanyId } from "@/lib/company";
+import { ensureCompanyWarehouse } from "@/lib/warehouse";
 import { ensureTreasuries, getTreasuryIdByType } from "@/lib/treasuries";
+import { randomUUID } from "crypto";
 
-const SYSTEM_COMPANY_ID = "company-system";
-const SYSTEM_WAREHOUSE_ID = "warehouse-system";
-
-async function ensureWarehouse() {
-  const existing = await db.execute({
-    sql: "SELECT id FROM warehouses WHERE id = ?",
-    args: [SYSTEM_WAREHOUSE_ID],
-  });
-  if (existing.rows.length > 0) return SYSTEM_WAREHOUSE_ID;
-
-  const companyExisting = await db.execute({
-    sql: "SELECT id FROM companies WHERE id = ?",
-    args: [SYSTEM_COMPANY_ID],
-  });
-  if (companyExisting.rows.length === 0) {
-    await db.execute({
-      sql: "INSERT INTO companies (id, name, is_active) VALUES (?, 'نظام الأمين', 1)",
-      args: [SYSTEM_COMPANY_ID],
-    });
-  }
-  await db.execute({
-    sql: "INSERT INTO warehouses (id, company_id, name, type, is_active) VALUES (?, ?, 'المخزن الرئيسي', 'main', 1)",
-    args: [SYSTEM_WAREHOUSE_ID, SYSTEM_COMPANY_ID],
-  });
-  return SYSTEM_WAREHOUSE_ID;
-}
+const ALLOWED_ROLES = ["super_admin", "tenant_owner", "employee"] as const;
 
 export async function POST(request: Request) {
   const session = await auth();
-  if (!session?.user || session.user.role !== "super_admin") {
+  const companyId = getCompanyId(session);
+  if (!session?.user || !companyId || !ALLOWED_ROLES.includes(session.user.role as (typeof ALLOWED_ROLES)[number])) {
     return NextResponse.json({ error: "غير مصرح" }, { status: 401 });
   }
 
@@ -51,7 +29,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "يجب إضافة صنف واحد على الأقل" }, { status: 400 });
     }
 
-    const warehouseId = await ensureWarehouse();
+    const warehouseId = await ensureCompanyWarehouse(companyId);
 
     for (const it of items) {
       if (!it.item_id || !it.quantity || Number(it.quantity) <= 0) {
@@ -61,7 +39,7 @@ export async function POST(request: Request) {
 
     const invCountResult = await db.execute({
       sql: "SELECT COUNT(*) as cnt FROM invoices WHERE company_id = ?",
-      args: [SYSTEM_COMPANY_ID],
+      args: [companyId],
     });
     const invCount = (invCountResult.rows[0]?.cnt as number) ?? 0;
     const invNum = `INV-${String(invCount + 1).padStart(4, "0")}`;
@@ -94,7 +72,7 @@ export async function POST(request: Request) {
 
       const itemResult = await db.execute({
         sql: "SELECT sale_price, name FROM items WHERE id = ? AND company_id = ?",
-        args: [itemId, SYSTEM_COMPANY_ID],
+        args: [itemId, companyId],
       });
       if (itemResult.rows.length === 0) {
         return NextResponse.json({ error: "صنف غير موجود" }, { status: 404 });
@@ -122,7 +100,7 @@ export async function POST(request: Request) {
             VALUES (?, ?, ?, 'sale', ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       args: [
         invoiceId,
-        SYSTEM_COMPANY_ID,
+        companyId,
         invNum,
         status,
         customer_id?.trim() || null,
@@ -160,8 +138,8 @@ export async function POST(request: Request) {
 
     if (paid > 0 && payment_method_id) {
       let treasuryId: string | null = null;
-      await ensureTreasuries();
-      treasuryId = getTreasuryIdByType("sales");
+      await ensureTreasuries(companyId);
+      treasuryId = await getTreasuryIdByType(companyId, "sales");
 
       if (treasuryId) {
         await db.execute({
@@ -184,12 +162,12 @@ export async function POST(request: Request) {
 
     const walletResult = await db.execute({
       sql: "SELECT id, balance FROM company_wallets WHERE company_id = ?",
-      args: [SYSTEM_COMPANY_ID],
+      args: [companyId],
     });
     if (walletResult.rows.length > 0 && Number(walletResult.rows[0].balance ?? 0) >= digitalFee) {
       await db.execute({
         sql: "UPDATE company_wallets SET balance = balance - ? WHERE company_id = ?",
-        args: [digitalFee, SYSTEM_COMPANY_ID],
+        args: [digitalFee, companyId],
       });
       await db.execute({
         sql: `INSERT INTO wallet_transactions (id, wallet_id, amount, type, description, reference_type, reference_id, performed_by)

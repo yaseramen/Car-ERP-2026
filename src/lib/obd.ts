@@ -1,8 +1,7 @@
 import { db } from "@/lib/db/client";
+import { SYSTEM_COMPANY_ID } from "@/lib/company";
 import { randomUUID } from "crypto";
 import { extractText, getDocumentProxy } from "unpdf";
-
-const SYSTEM_COMPANY_ID = "company-system";
 
 export const OBD_SEARCH_COST = 1;
 
@@ -154,7 +153,10 @@ export type ObdResult = {
   source: string;
 };
 
-export async function resolveCode(code: string): Promise<{ result: ObdResult; obdCodeId: string | null }> {
+export async function resolveCode(
+  code: string,
+  companyId: string = SYSTEM_COMPANY_ID
+): Promise<{ result: ObdResult; obdCodeId: string | null }> {
   const local = await searchLocal(code);
   let result: ObdResult;
   let obdCodeId: string | null = null;
@@ -183,7 +185,7 @@ export async function resolveCode(code: string): Promise<{ result: ObdResult; ob
               VALUES (?, ?, ?, ?, ?, ?, ?, 'ai')`,
         args: [
           obdCodeId,
-          SYSTEM_COMPANY_ID,
+          companyId,
           code.toUpperCase(),
           aiResult.description_ar || null,
           aiResult.causes || null,
