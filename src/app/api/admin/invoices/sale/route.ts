@@ -22,6 +22,8 @@ export async function POST(request: Request) {
       items,
       payment_method_id,
       paid_amount,
+      discount,
+      tax,
       notes,
     } = body;
 
@@ -90,14 +92,18 @@ export async function POST(request: Request) {
       });
     }
 
-    const digitalFee = Math.max(0.5, subtotal * 0.0001);
-    const total = subtotal + digitalFee;
+    const discountAmount = Number(discount) || 0;
+    const taxAmount = Number(tax) || 0;
+    const afterDiscount = Math.max(0, subtotal - discountAmount);
+    const afterTax = afterDiscount + taxAmount;
+    const digitalFee = Math.max(0.5, afterTax * 0.0001);
+    const total = afterTax + digitalFee;
     const paid = Number(paid_amount ?? 0);
     const status = paid >= total ? "paid" : paid > 0 ? "partial" : "pending";
 
     await db.execute({
-      sql: `INSERT INTO invoices (id, company_id, invoice_number, type, status, customer_id, warehouse_id, subtotal, digital_service_fee, total, paid_amount, notes, created_by)
-            VALUES (?, ?, ?, 'sale', ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      sql: `INSERT INTO invoices (id, company_id, invoice_number, type, status, customer_id, warehouse_id, subtotal, discount, tax, digital_service_fee, total, paid_amount, notes, created_by)
+            VALUES (?, ?, ?, 'sale', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       args: [
         invoiceId,
         companyId,
@@ -106,6 +112,8 @@ export async function POST(request: Request) {
         customer_id?.trim() || null,
         warehouseId,
         subtotal,
+        discountAmount,
+        taxAmount,
         digitalFee,
         total,
         paid,

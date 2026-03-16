@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
+import { SearchableSelect } from "@/components/ui/searchable-select";
 
 const STAGES = [
   { id: "received", label: "استلام", color: "bg-blue-100 text-blue-800" },
@@ -66,7 +67,10 @@ export function WorkshopContent() {
   const [addForm, setAddForm] = useState({ item_id: "", quantity: "1" });
   const [serviceForm, setServiceForm] = useState({ description: "", quantity: "1", unit_price: "" });
   const [saving, setSaving] = useState(false);
-  const [customers, setCustomers] = useState<{ id: string; name: string }[]>([]);
+  const [customers, setCustomers] = useState<{ id: string; name: string; phone?: string | null }[]>([]);
+  const [addCustomerOpen, setAddCustomerOpen] = useState(false);
+  const [newCustomerForm, setNewCustomerForm] = useState({ name: "", phone: "", email: "" });
+  const [savingCustomer, setSavingCustomer] = useState(false);
   const [form, setForm] = useState({
     vehicle_plate: "",
     vehicle_model: "",
@@ -118,9 +122,47 @@ export function WorkshopContent() {
       const res = await fetch("/api/admin/customers");
       if (res.ok) {
         const data = await res.json();
-        setCustomers(data.map((c: { id: string; name: string }) => ({ id: c.id, name: c.name })));
+        setCustomers(data.map((c: { id: string; name: string; phone?: string | null }) => ({ id: c.id, name: c.name, phone: c.phone ?? null })));
       }
     } catch {}
+  }
+
+  async function handleAddCustomer(e: React.FormEvent) {
+    if (e?.preventDefault) e.preventDefault();
+    if (!newCustomerForm.name.trim()) {
+      alert("اسم العميل مطلوب");
+      return;
+    }
+    setSavingCustomer(true);
+    try {
+      const res = await fetch("/api/admin/customers", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: newCustomerForm.name.trim(),
+          phone: newCustomerForm.phone.trim() || undefined,
+          email: newCustomerForm.email.trim() || undefined,
+        }),
+      });
+      if (!res.ok) {
+        const err = await res.json();
+        alert(err.error || "فشل في إضافة العميل");
+        return;
+      }
+      const newCustomer = await res.json();
+      setCustomers((prev) => [
+        { id: newCustomer.id, name: newCustomer.name, phone: newCustomer.phone ?? null },
+        ...prev,
+      ]);
+      setForm((f) => ({ ...f, customer_id: newCustomer.id }));
+      setAddCustomerOpen(false);
+      setNewCustomerForm({ name: "", phone: "", email: "" });
+      fetchCustomers();
+    } catch {
+      alert("حدث خطأ");
+    } finally {
+      setSavingCustomer(false);
+    }
   }
 
   useEffect(() => {
@@ -380,17 +422,24 @@ export function WorkshopContent() {
             </div>
             <form onSubmit={handleCreate} className="p-6 space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">العميل</label>
-                <select
+                <label className="block text-sm font-medium text-gray-700 mb-1">العميل (ابحث بالاسم أو رقم الهاتف)</label>
+                <SearchableSelect
+                  options={[
+                    { id: "", label: "بدون عميل" },
+                    ...customers.map((c) => ({
+                      id: c.id,
+                      label: c.name,
+                      searchText: c.phone ? String(c.phone) : undefined,
+                    })),
+                  ]}
                   value={form.customer_id}
-                  onChange={(e) => setForm((f) => ({ ...f, customer_id: e.target.value }))}
+                  onChange={(id) => setForm((f) => ({ ...f, customer_id: id }))}
+                  placeholder="ابحث بالاسم أو رقم الهاتف..."
+                  addNewLabel="+ إضافة عميل جديد"
+                  addNewFirst
+                  onAddNew={() => setAddCustomerOpen(true)}
                   className={inputClass}
-                >
-                  <option value="">بدون عميل</option>
-                  {customers.map((c) => (
-                    <option key={c.id} value={c.id}>{c.name}</option>
-                  ))}
-                </select>
+                />
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">رقم اللوحة *</label>
@@ -452,6 +501,66 @@ export function WorkshopContent() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {addCustomerOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50" dir="rtl">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-sm p-6">
+            <h3 className="text-lg font-bold text-gray-900 mb-4">إضافة عميل جديد</h3>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">الاسم *</label>
+                <input
+                  type="text"
+                  value={newCustomerForm.name}
+                  onChange={(e) => setNewCustomerForm((f) => ({ ...f, name: e.target.value }))}
+                  className={inputClass}
+                  placeholder="اسم العميل"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">الهاتف</label>
+                <input
+                  type="text"
+                  value={newCustomerForm.phone}
+                  onChange={(e) => setNewCustomerForm((f) => ({ ...f, phone: e.target.value }))}
+                  className={inputClass}
+                  placeholder="01xxxxxxxxx"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">البريد</label>
+                <input
+                  type="email"
+                  value={newCustomerForm.email}
+                  onChange={(e) => setNewCustomerForm((f) => ({ ...f, email: e.target.value }))}
+                  className={inputClass}
+                  placeholder="email@example.com"
+                />
+              </div>
+              <div className="flex gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setAddCustomerOpen(false);
+                    setNewCustomerForm({ name: "", phone: "", email: "" });
+                  }}
+                  className="flex-1 px-4 py-2.5 text-gray-600 hover:bg-gray-100 rounded-lg transition"
+                >
+                  إلغاء
+                </button>
+                <button
+                  type="button"
+                  onClick={(e) => handleAddCustomer(e as unknown as React.FormEvent)}
+                  disabled={savingCustomer}
+                  className="flex-1 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 disabled:bg-emerald-400 text-white font-medium rounded-lg transition-colors"
+                >
+                  {savingCustomer ? "جاري..." : "إضافة"}
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}
