@@ -37,6 +37,13 @@ export function AddPayment({ invoiceId, total, paidAmount, status }: AddPaymentP
       .then((data) => setPaymentMethods(data));
   }, []);
 
+  useEffect(() => {
+    const method = paymentMethods.find((m) => m.id === paymentMethodId);
+    if (method?.type === "cash") {
+      setAmount(remaining.toFixed(2));
+    }
+  }, [paymentMethodId, paymentMethods, remaining]);
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!amount || Number(amount) <= 0 || !paymentMethodId) return;

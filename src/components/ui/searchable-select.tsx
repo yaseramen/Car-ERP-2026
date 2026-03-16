@@ -15,6 +15,7 @@ interface SearchableSelectProps {
   placeholder?: string;
   addNewLabel?: string;
   onAddNew?: () => void;
+  addNewFirst?: boolean;
   className?: string;
   disabled?: boolean;
 }
@@ -26,6 +27,7 @@ export function SearchableSelect({
   placeholder = "بحث أو اختر...",
   addNewLabel,
   onAddNew,
+  addNewFirst = false,
   className = "",
   disabled = false,
 }: SearchableSelectProps) {
@@ -74,6 +76,19 @@ export function SearchableSelect({
             <div className="px-4 py-3 text-gray-500 text-sm">لا توجد نتائج</div>
           ) : (
             <>
+              {addNewFirst && addNewLabel && onAddNew && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    onAddNew();
+                    setOpen(false);
+                    setQuery("");
+                  }}
+                  className="w-full text-right px-4 py-2.5 text-emerald-600 hover:bg-emerald-50 font-medium text-sm border-b border-gray-100"
+                >
+                  {addNewLabel}
+                </button>
+              )}
               {filtered.map((opt) => (
                 <button
                   key={opt.id}
@@ -90,7 +105,7 @@ export function SearchableSelect({
                   {opt.searchText ? `${opt.label} (${opt.searchText})` : opt.label}
                 </button>
               ))}
-              {addNewLabel && onAddNew && (
+              {!addNewFirst && addNewLabel && onAddNew && (
                 <button
                   type="button"
                   onClick={() => {

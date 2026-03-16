@@ -342,6 +342,7 @@ export function PurchasesContent() {
                 }}
                 placeholder="ابحث بالاسم أو الكود..."
                 addNewLabel="+ إضافة صنف جديد"
+                addNewFirst
                 onAddNew={() => {
                   setAddProductOpen(true);
                   setAddItemId("");
@@ -467,6 +468,7 @@ export function PurchasesContent() {
               }}
               placeholder="ابحث بالاسم أو رقم الهاتف..."
               addNewLabel="+ إضافة مورد جديد"
+              addNewFirst
               onAddNew={() => setAddSupplierOpen(true)}
               className={inputClass}
             />
