@@ -46,6 +46,12 @@ interface Invoice {
 export function InvoicesContent() {
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [loading, setLoading] = useState(true);
+  const [typeFilter, setTypeFilter] = useState<string>("all");
+
+  const filteredInvoices =
+    typeFilter === "all"
+      ? invoices
+      : invoices.filter((inv) => inv.type === typeFilter);
 
   async function fetchInvoices() {
     try {
@@ -71,7 +77,30 @@ export function InvoicesContent() {
   }
 
   return (
-    <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+    <div className="space-y-4">
+      <div className="flex flex-wrap gap-2">
+        {[
+          { value: "all", label: "الكل" },
+          { value: "sale", label: "بيع" },
+          { value: "purchase", label: "شراء" },
+          { value: "maintenance", label: "صيانة" },
+        ].map((opt) => (
+          <button
+            key={opt.value}
+            type="button"
+            onClick={() => setTypeFilter(opt.value)}
+            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+              typeFilter === opt.value
+                ? "bg-emerald-600 text-white"
+                : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+            }`}
+          >
+            {opt.label}
+          </button>
+        ))}
+      </div>
+
+      <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
       <div className="overflow-x-auto">
         <table className="w-full">
           <thead>
@@ -85,14 +114,14 @@ export function InvoicesContent() {
             </tr>
           </thead>
           <tbody>
-            {invoices.length === 0 ? (
+            {filteredInvoices.length === 0 ? (
               <tr>
                 <td colSpan={6} className="px-4 py-12 text-center text-gray-500">
-                  لا توجد فواتير حتى الآن
+                  {invoices.length === 0 ? "لا توجد فواتير حتى الآن" : "لا توجد فواتير بهذا النوع"}
                 </td>
               </tr>
             ) : (
-              invoices.map((inv) => (
+              filteredInvoices.map((inv) => (
                 <tr key={inv.id} className="border-b border-gray-50 hover:bg-gray-50/50">
                   <td className="px-4 py-3">
                     <Link
@@ -128,6 +157,7 @@ export function InvoicesContent() {
             )}
           </tbody>
         </table>
+      </div>
       </div>
     </div>
   );
