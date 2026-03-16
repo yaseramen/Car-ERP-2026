@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { SearchableSelect } from "@/components/ui/searchable-select";
+import { BarcodeScanner } from "@/components/inventory/barcode-scanner";
 
 interface CartItem {
   item_id: string;
@@ -16,6 +17,7 @@ interface InventoryItem {
   id: string;
   name: string;
   code?: string | null;
+  barcode?: string | null;
   quantity: number;
   sale_price: number;
 }
@@ -49,6 +51,7 @@ export function CashierContent() {
   const [addCustomerOpen, setAddCustomerOpen] = useState(false);
   const [newCustomerForm, setNewCustomerForm] = useState({ name: "", phone: "", email: "" });
   const [savingCustomer, setSavingCustomer] = useState(false);
+  const [showBarcodeScanner, setShowBarcodeScanner] = useState(false);
 
   async function fetchData() {
     try {
@@ -66,6 +69,17 @@ export function CashierContent() {
   useEffect(() => {
     fetchData();
   }, []);
+
+  function findItemByBarcodeOrCode(value: string): InventoryItem | undefined {
+    const v = String(value || "").trim().toLowerCase();
+    if (!v) return undefined;
+    return items.find(
+      (i) =>
+        i.quantity > 0 &&
+        ((i.barcode && String(i.barcode).trim().toLowerCase() === v) ||
+          (i.code && String(i.code).trim().toLowerCase() === v))
+    );
+  }
 
   function addToCart() {
     const item = items.find((i) => i.id === addItemId);
@@ -104,6 +118,39 @@ export function CashierContent() {
     }
     setAddItemId("");
     setAddQty("1");
+  }
+
+  function addItemToCartByScan(item: InventoryItem, qty: number = 1) {
+    if (item.quantity < qty) {
+      alert(`الكمية المتاحة: ${item.quantity}`);
+      return;
+    }
+    const existing = cart.find((c) => c.item_id === item.id);
+    if (existing) {
+      const newQty = existing.quantity + qty;
+      if (item.quantity < newQty) {
+        alert(`الكمية المتاحة: ${item.quantity}`);
+        return;
+      }
+      setCart((prev) =>
+        prev.map((c) =>
+          c.item_id === item.id
+            ? { ...c, quantity: newQty, total: newQty * c.unit_price }
+            : c
+        )
+      );
+    } else {
+      setCart((prev) => [
+        ...prev,
+        {
+          item_id: item.id,
+          name: item.name,
+          quantity: qty,
+          unit_price: item.sale_price,
+          total: qty * item.sale_price,
+        },
+      ]);
+    }
   }
 
   function removeFromCart(itemId: string) {
@@ -178,7 +225,7 @@ export function CashierContent() {
   }
 
   async function handleAddCustomer(e: React.FormEvent) {
-    e.preventDefault();
+    if (e?.preventDefault) e.preventDefault();
     if (!newCustomerForm.name.trim()) {
       alert("اسم العميل مطلوب");
       return;
@@ -200,10 +247,14 @@ export function CashierContent() {
         return;
       }
       const newCustomer = await res.json();
-      setCustomers((prev) => [{ id: newCustomer.id, name: newCustomer.name }, ...prev]);
+      setCustomers((prev) => [
+        { id: newCustomer.id, name: newCustomer.name, phone: newCustomer.phone ?? null },
+        ...prev,
+      ]);
       setCustomerId(newCustomer.id);
       setAddCustomerOpen(false);
       setNewCustomerForm({ name: "", phone: "", email: "" });
+      fetchData();
     } catch {
       alert("حدث خطأ");
     } finally {
@@ -218,7 +269,7 @@ export function CashierContent() {
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
       <div className="space-y-6">
         <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-          <h2 className="font-bold text-gray-900 mb-4">إضافة صنف (ابحث بالاسم أو الكود)</h2>
+          <h2 className="font-bold text-gray-900 mb-4">إضافة صنف (ابحث بالاسم أو الكود أو امسح الباركود)</h2>
           <div className="flex gap-2">
             <div className="flex-1 min-w-[200px]">
               <SearchableSelect
@@ -227,7 +278,7 @@ export function CashierContent() {
                   .map((i) => ({
                     id: i.id,
                     label: `${i.name} (متاح: ${i.quantity}) — ${i.sale_price.toFixed(2)} ج.م`,
-                    searchText: i.code ? `${i.code} ${i.name}` : i.name,
+                    searchText: [i.code, i.barcode, i.name].filter(Boolean).join(" "),
                   }))}
                 value={addItemId}
                 onChange={(id) => setAddItemId(id)}
@@ -235,6 +286,14 @@ export function CashierContent() {
                 className={inputClass}
               />
             </div>
+            <button
+              type="button"
+              onClick={() => setShowBarcodeScanner(true)}
+              className="px-4 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg shrink-0"
+              title="مسح الباركود"
+            >
+              📷
+            </button>
             <input
               type="number"
               min="0.01"
@@ -298,6 +357,21 @@ export function CashierContent() {
         </div>
       </div>
 
+      {showBarcodeScanner && (
+        <BarcodeScanner
+          onScan={(value) => {
+            const item = findItemByBarcodeOrCode(value);
+            if (item) {
+              addItemToCartByScan(item);
+            } else {
+              alert("لم يتم العثور على صنف بهذا الباركود أو الكود");
+            }
+            setShowBarcodeScanner(false);
+          }}
+          onClose={() => setShowBarcodeScanner(false)}
+        />
+      )}
+
       <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
         <h2 className="font-bold text-gray-900 mb-4">إتمام البيع</h2>
 
@@ -331,6 +405,7 @@ export function CashierContent() {
                   onChange={(id) => setCustomerId(id)}
                   placeholder="ابحث بالاسم أو رقم الهاتف..."
                   addNewLabel="+ إضافة عميل جديد"
+                  addNewFirst
                   onAddNew={() => setAddCustomerOpen(true)}
                   className={inputClass}
                 />
@@ -344,66 +419,6 @@ export function CashierContent() {
               </button>
             </div>
           </div>
-
-          {addCustomerOpen && (
-            <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50" dir="rtl">
-              <div className="bg-white rounded-xl shadow-xl w-full max-w-sm p-6">
-                <h3 className="text-lg font-bold text-gray-900 mb-4">إضافة عميل جديد</h3>
-                <form onSubmit={handleAddCustomer} className="space-y-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">الاسم *</label>
-                    <input
-                      type="text"
-                      value={newCustomerForm.name}
-                      onChange={(e) => setNewCustomerForm((f) => ({ ...f, name: e.target.value }))}
-                      required
-                      className={inputClass}
-                      placeholder="اسم العميل"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">الهاتف</label>
-                    <input
-                      type="text"
-                      value={newCustomerForm.phone}
-                      onChange={(e) => setNewCustomerForm((f) => ({ ...f, phone: e.target.value }))}
-                      className={inputClass}
-                      placeholder="01xxxxxxxxx"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">البريد</label>
-                    <input
-                      type="email"
-                      value={newCustomerForm.email}
-                      onChange={(e) => setNewCustomerForm((f) => ({ ...f, email: e.target.value }))}
-                      className={inputClass}
-                      placeholder="email@example.com"
-                    />
-                  </div>
-                  <div className="flex gap-3 pt-2">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setAddCustomerOpen(false);
-                        setNewCustomerForm({ name: "", phone: "", email: "" });
-                      }}
-                      className="flex-1 px-4 py-2.5 text-gray-600 hover:bg-gray-100 rounded-lg transition"
-                    >
-                      إلغاء
-                    </button>
-                    <button
-                      type="submit"
-                      disabled={savingCustomer}
-                      className="flex-1 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 disabled:bg-emerald-400 text-white font-medium rounded-lg transition-colors"
-                    >
-                      {savingCustomer ? "جاري..." : "إضافة"}
-                    </button>
-                  </div>
-                </form>
-              </div>
-            </div>
-          )}
 
           <div className="border-t border-gray-100 pt-4">
             <div className="flex justify-between text-sm mb-2">
@@ -467,6 +482,66 @@ export function CashierContent() {
           </button>
         </form>
       </div>
+
+      {addCustomerOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50" dir="rtl">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-sm p-6">
+            <h3 className="text-lg font-bold text-gray-900 mb-4">إضافة عميل جديد</h3>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">الاسم *</label>
+                <input
+                  type="text"
+                  value={newCustomerForm.name}
+                  onChange={(e) => setNewCustomerForm((f) => ({ ...f, name: e.target.value }))}
+                  className={inputClass}
+                  placeholder="اسم العميل"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">الهاتف</label>
+                <input
+                  type="text"
+                  value={newCustomerForm.phone}
+                  onChange={(e) => setNewCustomerForm((f) => ({ ...f, phone: e.target.value }))}
+                  className={inputClass}
+                  placeholder="01xxxxxxxxx"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">البريد</label>
+                <input
+                  type="email"
+                  value={newCustomerForm.email}
+                  onChange={(e) => setNewCustomerForm((f) => ({ ...f, email: e.target.value }))}
+                  className={inputClass}
+                  placeholder="email@example.com"
+                />
+              </div>
+              <div className="flex gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setAddCustomerOpen(false);
+                    setNewCustomerForm({ name: "", phone: "", email: "" });
+                  }}
+                  className="flex-1 px-4 py-2.5 text-gray-600 hover:bg-gray-100 rounded-lg transition"
+                >
+                  إلغاء
+                </button>
+                <button
+                  type="button"
+                  onClick={(e) => handleAddCustomer(e as unknown as React.FormEvent)}
+                  disabled={savingCustomer}
+                  className="flex-1 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 disabled:bg-emerald-400 text-white font-medium rounded-lg transition-colors"
+                >
+                  {savingCustomer ? "جاري..." : "إضافة"}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
