@@ -12,16 +12,10 @@
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
-
+/* إلغاء الوضع الداكن لضمان وضوح النصوص في كامل البرنامج */
 body {
-  background: var(--background);
-  color: var(--foreground);
+  background: #f9fafb;
+  color: #171717;
   font-family: Arial, Helvetica, sans-serif;
 }
 
@@ -35,6 +29,11 @@ select {
 input::placeholder,
 textarea::placeholder {
   color: #6b7280 !important;
+}
+
+/* ضمان وضوح العناوين والتسميات والقيم في الجداول والقوائم */
+dt, th, td, label {
+  color: #171717 !important;
 }
 
 @media print {
