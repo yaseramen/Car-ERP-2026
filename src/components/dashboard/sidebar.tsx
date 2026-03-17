@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { signOut } from "next-auth/react";
 import { useState, useEffect } from "react";
+import { useNotifications } from "@/components/notifications/notifications-provider";
 
 const navItems: {
   href: string;
@@ -32,6 +33,12 @@ const navItems: {
 
 export function Sidebar({ role = "super_admin", businessType }: { role?: string; businessType?: string | null }) {
   const [perms, setPerms] = useState<Record<string, { read: boolean }> | null>(null);
+  const [canNotify, setCanNotify] = useState(false);
+  const notifications = useNotifications();
+
+  useEffect(() => {
+    setCanNotify(typeof window !== "undefined" && "Notification" in window);
+  }, []);
 
   useEffect(() => {
     if (role === "employee") {
@@ -81,7 +88,22 @@ export function Sidebar({ role = "super_admin", businessType }: { role?: string;
         })}
       </nav>
 
-      <div className="p-4 border-t border-gray-100">
+      <div className="p-4 border-t border-gray-100 space-y-2">
+        {notifications && canNotify && (
+          <button
+            type="button"
+            onClick={() => notifications.requestPermission()}
+            className={`w-full flex items-center justify-center gap-2 px-4 py-2.5 text-sm rounded-lg transition ${
+              notifications.permission === "granted"
+                ? "text-emerald-600 bg-emerald-50"
+                : "text-gray-600 hover:text-violet-600 hover:bg-violet-50"
+            }`}
+            title={notifications.permission === "granted" ? "الإشعارات مفعّلة" : "تفعيل الإشعارات"}
+          >
+            <span>{notifications.permission === "granted" ? "🔔" : "🔕"}</span>
+            <span>{notifications.permission === "granted" ? "الإشعارات مفعّلة" : "تفعيل الإشعارات"}</span>
+          </button>
+        )}
         <button
           onClick={() => signOut({ callbackUrl: "/login" })}
           className="w-full flex items-center justify-center gap-2 px-4 py-2.5 text-sm text-gray-600 hover:text-red-600 hover:bg-red-50 rounded-lg transition"

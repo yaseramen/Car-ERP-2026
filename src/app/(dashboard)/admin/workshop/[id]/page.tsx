@@ -2,8 +2,8 @@ import { auth } from "@/auth";
 import { redirect, notFound } from "next/navigation";
 import Link from "next/link";
 import { db } from "@/lib/db/client";
-
-const SYSTEM_COMPANY_ID = "company-system";
+import { getCompanyId } from "@/lib/company";
+import { canAccess } from "@/lib/permissions";
 
 const STAGE_LABELS: Record<string, string> = {
   received: "استلام",
@@ -19,8 +19,16 @@ export default async function RepairOrderReportPage({
   params: Promise<{ id: string }>;
 }) {
   const session = await auth();
-  if (!session?.user || session.user.role !== "super_admin") {
+  if (!session?.user || !["super_admin", "tenant_owner", "employee"].includes(session.user.role ?? "")) {
     redirect("/login");
+  }
+
+  const companyId = getCompanyId(session);
+  if (!companyId) redirect("/login");
+
+  if (session.user.role === "employee") {
+    const allowed = await canAccess(session.user.id, "employee", companyId, "workshop", "read");
+    if (!allowed) redirect("/admin");
   }
 
   const { id } = await params;
@@ -32,7 +40,7 @@ export default async function RepairOrderReportPage({
             LEFT JOIN customers c ON ro.customer_id = c.id
             LEFT JOIN invoices inv ON ro.invoice_id = inv.id
             WHERE ro.id = ? AND ro.company_id = ?`,
-      args: [id, SYSTEM_COMPANY_ID],
+      args: [id, companyId],
     });
 
     if (orderResult.rows.length === 0) notFound();

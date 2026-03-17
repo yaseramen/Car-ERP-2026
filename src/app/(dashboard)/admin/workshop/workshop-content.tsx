@@ -15,6 +15,7 @@ const STAGES = [
 interface RepairOrder {
   id: string;
   order_number: string;
+  order_type?: string;
   customer_name: string | null;
   vehicle_plate: string;
   vehicle_model: string | null;
@@ -78,10 +79,20 @@ export function WorkshopContent() {
     mileage: "",
     customer_id: "",
   });
+  const [inspectionNotesDrafts, setInspectionNotesDrafts] = useState<Record<string, string>>({});
+  const [customerVehicles, setCustomerVehicles] = useState<
+    { vehicle_plate: string; vehicle_model: string | null; vehicle_year: number | null; mileage: number | null }[]
+  >([]);
+  const [typeFilter, setTypeFilter] = useState<"" | "maintenance" | "inspection">("");
+  const [modalOrderType, setModalOrderType] = useState<"maintenance" | "inspection">("maintenance");
+  const [inspectionChecklistOpen, setInspectionChecklistOpen] = useState(false);
+  const [checklistItems, setChecklistItems] = useState<{ id: string; name_ar: string }[]>([]);
+  const [checklistResults, setChecklistResults] = useState<Record<string, { status: string; notes: string }>>({});
 
   async function fetchOrders() {
     try {
-      const res = await fetch("/api/admin/workshop/orders");
+      const url = typeFilter ? `/api/admin/workshop/orders?type=${typeFilter}` : "/api/admin/workshop/orders";
+      const res = await fetch(url);
       if (res.ok) setOrders(await res.json());
     } catch {
       setOrders([]);
@@ -166,9 +177,12 @@ export function WorkshopContent() {
   }
 
   useEffect(() => {
-    fetchOrders();
     fetchCustomers();
   }, []);
+
+  useEffect(() => {
+    fetchOrders();
+  }, [typeFilter]);
 
   useEffect(() => {
     if (addPartsOpen && selectedOrder) {
@@ -183,6 +197,34 @@ export function WorkshopContent() {
     }
   }, [addServicesOpen, selectedOrder]);
 
+  useEffect(() => {
+    if (inspectionChecklistOpen && selectedOrder) {
+      Promise.all([
+        fetch("/api/admin/workshop/inspection-checklist").then((r) => (r.ok ? r.json() : [])),
+        fetch(`/api/admin/workshop/orders/${selectedOrder.id}/inspection-results`).then((r) => (r.ok ? r.json() : [])),
+      ]).then(([items, results]) => {
+        setChecklistItems(items);
+        const map: Record<string, { status: string; notes: string }> = {};
+        for (const it of items) {
+          const r = results.find((x: { checklist_item_id: string }) => x.checklist_item_id === it.id);
+          map[it.id] = { status: r?.status ?? "na", notes: r?.notes ?? "" };
+        }
+        setChecklistResults(map);
+      });
+    }
+  }, [inspectionChecklistOpen, selectedOrder]);
+
+  useEffect(() => {
+    if (form.customer_id) {
+      fetch(`/api/admin/customers/${form.customer_id}/vehicles`)
+        .then((r) => (r.ok ? r.json() : []))
+        .then(setCustomerVehicles)
+        .catch(() => setCustomerVehicles([]));
+    } else {
+      setCustomerVehicles([]);
+    }
+  }, [form.customer_id]);
+
   async function handleCreate(e: React.FormEvent) {
     e.preventDefault();
     setSaving(true);
@@ -196,6 +238,7 @@ export function WorkshopContent() {
           vehicle_year: form.vehicle_year ? Number(form.vehicle_year) : undefined,
           mileage: form.mileage ? Number(form.mileage) : undefined,
           customer_id: form.customer_id || undefined,
+          order_type: modalOrderType,
         }),
       });
 
@@ -208,6 +251,7 @@ export function WorkshopContent() {
       await fetchOrders();
       setModalOpen(false);
       setForm({ vehicle_plate: "", vehicle_model: "", vehicle_year: "", mileage: "", customer_id: "" });
+      setModalOrderType("maintenance");
     } catch {
       alert("حدث خطأ");
     } finally {
@@ -274,17 +318,64 @@ export function WorkshopContent() {
     }
   }
 
-  async function updateStage(orderId: string, newStage: string) {
+  async function updateStage(orderId: string, newStage: string, inspectionNotes?: string) {
     try {
+      const body: { stage: string; inspection_notes?: string } = { stage: newStage };
+      if (inspectionNotes !== undefined) body.inspection_notes = inspectionNotes;
+
       const res = await fetch(`/api/admin/workshop/orders/${orderId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ stage: newStage }),
+        body: JSON.stringify(body),
       });
 
       if (!res.ok) {
         const err = await res.json();
         alert(err.error || "فشل في التحديث");
+        return;
+      }
+
+      await fetchOrders();
+    } catch {
+      alert("حدث خطأ");
+    }
+  }
+
+  async function saveInspectionChecklist(orderId: string) {
+    try {
+      const results = checklistItems.map((it) => ({
+        checklist_item_id: it.id,
+        status: checklistResults[it.id]?.status ?? "na",
+        notes: checklistResults[it.id]?.notes ?? "",
+      }));
+      const res = await fetch(`/api/admin/workshop/orders/${orderId}/inspection-results`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ results }),
+      });
+      if (!res.ok) {
+        const err = await res.json();
+        alert(err.error || "فشل في الحفظ");
+        return;
+      }
+      setInspectionChecklistOpen(false);
+      setSelectedOrder(null);
+    } catch {
+      alert("حدث خطأ");
+    }
+  }
+
+  async function saveInspectionNotes(orderId: string, notes: string) {
+    try {
+      const res = await fetch(`/api/admin/workshop/orders/${orderId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ stage: "inspection", inspection_notes: notes }),
+      });
+
+      if (!res.ok) {
+        const err = await res.json();
+        alert(err.error || "فشل في الحفظ");
         return;
       }
 
@@ -302,7 +393,10 @@ export function WorkshopContent() {
   const inputClass =
     "w-full px-4 py-2.5 rounded-lg border border-gray-300 bg-white text-gray-900 placeholder-gray-500 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none";
 
-  const canAddParts = (stage: string) => stage === "maintenance" || stage === "ready";
+  const canAddParts = (stage: string, orderType?: string) =>
+    (stage === "maintenance" || stage === "ready") && orderType !== "inspection";
+  const canAddServices = (stage: string, orderType?: string) =>
+    (stage === "maintenance" || stage === "ready" || (stage === "inspection" && orderType === "inspection")) ?? false;
 
   if (loading) {
     return (
@@ -314,14 +408,53 @@ export function WorkshopContent() {
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <h2 className="font-medium text-gray-900">أوامر الإصلاح</h2>
-        <button
-          onClick={() => setModalOpen(true)}
-          className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-medium rounded-lg transition-colors"
-        >
-          استلام سيارة جديدة
-        </button>
+      <div className="flex flex-wrap justify-between items-center gap-4">
+        <div className="flex items-center gap-2">
+          <h2 className="font-medium text-gray-900">أوامر الإصلاح</h2>
+          <div className="flex rounded-lg border border-gray-200 p-0.5">
+            <button
+              type="button"
+              onClick={() => setTypeFilter("")}
+              className={`px-3 py-1.5 text-sm rounded-md transition ${typeFilter === "" ? "bg-gray-100 text-gray-900 font-medium" : "text-gray-600 hover:bg-gray-50"}`}
+            >
+              الكل
+            </button>
+            <button
+              type="button"
+              onClick={() => setTypeFilter("maintenance")}
+              className={`px-3 py-1.5 text-sm rounded-md transition ${typeFilter === "maintenance" ? "bg-purple-100 text-purple-800 font-medium" : "text-gray-600 hover:bg-gray-50"}`}
+            >
+              صيانة
+            </button>
+            <button
+              type="button"
+              onClick={() => setTypeFilter("inspection")}
+              className={`px-3 py-1.5 text-sm rounded-md transition ${typeFilter === "inspection" ? "bg-amber-100 text-amber-800 font-medium" : "text-gray-600 hover:bg-gray-50"}`}
+            >
+              فحص قبل البيع/الشراء
+            </button>
+          </div>
+        </div>
+        <div className="flex gap-2">
+          <button
+            onClick={() => {
+              setModalOrderType("maintenance");
+              setModalOpen(true);
+            }}
+            className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-medium rounded-lg transition-colors"
+          >
+            استلام صيانة
+          </button>
+          <button
+            onClick={() => {
+              setModalOrderType("inspection");
+              setModalOpen(true);
+            }}
+            className="px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white text-sm font-medium rounded-lg transition-colors"
+          >
+            استلام للفحص
+          </button>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
@@ -359,6 +492,35 @@ export function WorkshopContent() {
                       {order.vehicle_model && (
                         <div className="text-xs text-gray-500">{order.vehicle_model}</div>
                       )}
+                      {order.stage === "inspection" && (
+                        <div className="mt-2 space-y-1">
+                          <label className="text-xs font-medium text-gray-600 block">ملاحظات الفحص</label>
+                          <textarea
+                            value={inspectionNotesDrafts[order.id] ?? order.inspection_notes ?? ""}
+                            onChange={(e) =>
+                              setInspectionNotesDrafts((prev) => ({ ...prev, [order.id]: e.target.value }))
+                            }
+                            placeholder="أدخل نتائج الفحص والأعطال المكتشفة..."
+                            className="w-full px-2 py-1.5 text-xs rounded border border-gray-200 bg-white text-gray-900 placeholder-gray-400 focus:ring-1 focus:ring-amber-500 focus:border-amber-500 outline-none resize-none"
+                            rows={3}
+                          />
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const notes = inspectionNotesDrafts[order.id] ?? order.inspection_notes ?? "";
+                              saveInspectionNotes(order.id, notes);
+                              setInspectionNotesDrafts((prev) => {
+                                const next = { ...prev };
+                                delete next[order.id];
+                                return next;
+                              });
+                            }}
+                            className="w-full py-1 text-xs bg-amber-100 hover:bg-amber-200 text-amber-800 rounded transition"
+                          >
+                            حفظ الملاحظات
+                          </button>
+                        </div>
+                      )}
                       {((order.items_count ?? 0) > 0 || (order.services_count ?? 0) > 0) && (
                         <div className="text-xs text-emerald-600 mt-1">
                           {(order.items_count ?? 0) > 0 && <span>{order.items_count} قطعة </span>}
@@ -369,32 +531,59 @@ export function WorkshopContent() {
                       {order.stage === "completed" && order.invoice_number && (
                         <div className="text-xs text-gray-500 mt-1">فاتورة: {order.invoice_number}</div>
                       )}
+                      {order.order_type === "inspection" && (
+                        <div className="text-xs text-amber-600 mt-1 font-medium">فحص قبل البيع/الشراء</div>
+                      )}
                       <div className="mt-2 flex flex-col gap-1">
-                        {canAddParts(order.stage) && (
-                          <>
-                            <button
-                              onClick={() => {
-                                setSelectedOrder(order);
-                                setAddPartsOpen(true);
-                              }}
-                              className="w-full py-1.5 text-xs bg-purple-600 hover:bg-purple-700 text-white rounded transition"
-                            >
-                              إضافة قطعة
-                            </button>
-                            <button
-                              onClick={() => {
-                                setSelectedOrder(order);
-                                setAddServicesOpen(true);
-                              }}
-                              className="w-full py-1.5 text-xs bg-blue-600 hover:bg-blue-700 text-white rounded transition"
-                            >
-                              إضافة خدمة
-                            </button>
-                          </>
+                        {canAddParts(order.stage, order.order_type) && (
+                          <button
+                            onClick={() => {
+                              setSelectedOrder(order);
+                              setAddPartsOpen(true);
+                            }}
+                            className="w-full py-1.5 text-xs bg-purple-600 hover:bg-purple-700 text-white rounded transition"
+                          >
+                            إضافة قطعة
+                          </button>
+                        )}
+                        {canAddServices(order.stage, order.order_type) && (
+                          <button
+                            onClick={() => {
+                              setSelectedOrder(order);
+                              setAddServicesOpen(true);
+                            }}
+                            className="w-full py-1.5 text-xs bg-blue-600 hover:bg-blue-700 text-white rounded transition"
+                          >
+                            إضافة خدمة
+                          </button>
+                        )}
+                        {order.order_type === "inspection" && (order.stage === "inspection" || order.stage === "ready") && (
+                          <button
+                            onClick={() => {
+                              setSelectedOrder(order);
+                              setInspectionChecklistOpen(true);
+                            }}
+                            className="w-full py-1.5 text-xs bg-amber-600 hover:bg-amber-700 text-white rounded transition"
+                          >
+                            قائمة الفحص
+                          </button>
                         )}
                         {next && (
                           <button
-                            onClick={() => updateStage(order.id, next.id)}
+                            onClick={() => {
+                              const notes =
+                                order.stage === "inspection"
+                                  ? (inspectionNotesDrafts[order.id] ?? order.inspection_notes ?? "")
+                                  : undefined;
+                              updateStage(order.id, next.id, notes);
+                              if (order.stage === "inspection" && inspectionNotesDrafts[order.id] !== undefined) {
+                                setInspectionNotesDrafts((prev) => {
+                                  const n = { ...prev };
+                                  delete n[order.id];
+                                  return n;
+                                });
+                              }
+                            }}
                             className="w-full py-1.5 text-xs bg-emerald-600 hover:bg-emerald-700 text-white rounded transition"
                           >
                             ← {next.label}
@@ -417,8 +606,14 @@ export function WorkshopContent() {
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50" dir="rtl">
           <div className="bg-white rounded-xl shadow-xl w-full max-w-md">
             <div className="p-6 border-b border-gray-100">
-              <h3 className="text-lg font-bold text-gray-900">استلام سيارة جديدة</h3>
-              <p className="text-sm text-gray-500 mt-1">المرحلة الأولى: استلام</p>
+              <h3 className="text-lg font-bold text-gray-900">
+                {modalOrderType === "inspection" ? "استلام سيارة للفحص" : "استلام سيارة للصيانة"}
+              </h3>
+              <p className="text-sm text-gray-500 mt-1">
+                {modalOrderType === "inspection"
+                  ? "فحص قبل البيع/الشراء — المرحلة الأولى: استلام"
+                  : "المرحلة الأولى: استلام"}
+              </p>
             </div>
             <form onSubmit={handleCreate} className="p-6 space-y-4">
               <div>
@@ -433,7 +628,16 @@ export function WorkshopContent() {
                     })),
                   ]}
                   value={form.customer_id}
-                  onChange={(id) => setForm((f) => ({ ...f, customer_id: id }))}
+                  onChange={(id) =>
+                    setForm((f) => ({
+                      ...f,
+                      customer_id: id,
+                      vehicle_plate: "",
+                      vehicle_model: "",
+                      vehicle_year: "",
+                      mileage: "",
+                    }))
+                  }
                   placeholder="ابحث بالاسم أو رقم الهاتف..."
                   addNewLabel="+ إضافة عميل جديد"
                   addNewFirst
@@ -441,6 +645,39 @@ export function WorkshopContent() {
                   className={inputClass}
                 />
               </div>
+              {form.customer_id && customerVehicles.length > 0 && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">اختر سيارة سابقة (يمكن تعديل البيانات)</label>
+                  <select
+                    value=""
+                    onChange={(e) => {
+                      const idx = e.target.value;
+                      if (idx === "") return;
+                      const v = customerVehicles[Number(idx)];
+                      if (v) {
+                        setForm((f) => ({
+                          ...f,
+                          vehicle_plate: v.vehicle_plate,
+                          vehicle_model: v.vehicle_model ?? "",
+                          vehicle_year: v.vehicle_year ? String(v.vehicle_year) : "",
+                          mileage: v.mileage ? String(v.mileage) : "",
+                        }));
+                      }
+                    }}
+                    className={inputClass}
+                  >
+                    <option value="">— إدخال سيارة جديدة —</option>
+                    {customerVehicles.map((v, i) => (
+                      <option key={v.vehicle_plate} value={i}>
+                        {v.vehicle_plate}
+                        {v.vehicle_model ? ` — ${v.vehicle_model}` : ""}
+                        {v.vehicle_year ? ` (${v.vehicle_year})` : ""}
+                      </option>
+                    ))}
+                  </select>
+                  <p className="text-xs text-gray-500 mt-1">يمكنك تعديل اللوحة أو الموديل إذا بيعت السيارة أو اشتراها عميل آخر</p>
+                </div>
+              )}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">رقم اللوحة *</label>
                 <input
@@ -718,6 +955,72 @@ export function WorkshopContent() {
                   </button>
                 </div>
               </form>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {inspectionChecklistOpen && selectedOrder && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50" dir="rtl">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
+            <div className="p-6 border-b border-gray-100">
+              <h3 className="text-lg font-bold text-gray-900">قائمة الفحص - {selectedOrder.order_number}</h3>
+              <p className="text-sm text-gray-500 mt-1">{selectedOrder.vehicle_plate}</p>
+            </div>
+            <div className="p-6 space-y-4">
+              {checklistItems.map((item) => (
+                <div key={item.id} className="flex flex-col gap-1">
+                  <label className="text-sm font-medium text-gray-700">{item.name_ar}</label>
+                  <div className="flex gap-2 items-center">
+                    <select
+                      value={checklistResults[item.id]?.status ?? "na"}
+                      onChange={(e) =>
+                        setChecklistResults((prev) => ({
+                          ...prev,
+                          [item.id]: { ...(prev[item.id] ?? { status: "na", notes: "" }), status: e.target.value },
+                        }))
+                      }
+                      className="w-36 px-3 py-2 rounded-lg border border-gray-300 bg-white text-gray-900 text-sm"
+                    >
+                      <option value="na">غير مفحوص</option>
+                      <option value="ok">سليم</option>
+                      <option value="defect">معيب</option>
+                      <option value="needs_repair">يحتاج إصلاح</option>
+                    </select>
+                    <input
+                      type="text"
+                      value={checklistResults[item.id]?.notes ?? ""}
+                      onChange={(e) =>
+                        setChecklistResults((prev) => ({
+                          ...prev,
+                          [item.id]: { ...(prev[item.id] ?? { status: "na", notes: "" }), notes: e.target.value },
+                        }))
+                      }
+                      placeholder="ملاحظات"
+                      className="flex-1 px-3 py-2 rounded-lg border border-gray-300 bg-white text-gray-900 text-sm placeholder-gray-400"
+                    />
+                  </div>
+                </div>
+              ))}
+              <div className="flex gap-3 pt-4">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setInspectionChecklistOpen(false);
+                    setSelectedOrder(null);
+                  }}
+                  className="flex-1 px-4 py-2.5 text-gray-600 hover:bg-gray-100 rounded-lg transition"
+                >
+                  إغلاق
+                </button>
+                <button
+                  type="button"
+                  onClick={() => selectedOrder && saveInspectionChecklist(selectedOrder.id)}
+                  className="flex-1 px-4 py-2.5 bg-amber-600 hover:bg-amber-700 text-white font-medium rounded-lg transition-colors"
+                >
+                  حفظ
+                </button>
+              </div>
             </div>
           </div>
         </div>

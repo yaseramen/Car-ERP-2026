@@ -7,14 +7,25 @@ import { randomUUID } from "crypto";
 
 const ALLOWED_ROLES = ["super_admin", "tenant_owner", "employee"] as const;
 
-export async function GET() {
+export async function GET(request: Request) {
   const session = await auth();
   const companyId = getCompanyId(session);
   if (!session?.user || !companyId || !ALLOWED_ROLES.includes(session.user.role as (typeof ALLOWED_ROLES)[number])) {
     return NextResponse.json({ error: "غير مصرح" }, { status: 401 });
   }
 
+  const { searchParams } = new URL(request.url);
+  const typeFilter = searchParams.get("type"); // maintenance | inspection | null = all
+
   try {
+    let whereClause = "WHERE ro.company_id = ?";
+    const args: (string | number)[] = [companyId];
+    if (typeFilter === "inspection") {
+      whereClause += " AND ro.order_type = 'inspection'";
+    } else if (typeFilter === "maintenance") {
+      whereClause += " AND (ro.order_type = 'maintenance' OR ro.order_type IS NULL)";
+    }
+
     const result = await db.execute({
       sql: `SELECT ro.*, c.name as customer_name, inv.invoice_number,
             (SELECT COUNT(*) FROM repair_order_items WHERE repair_order_id = ro.id) as items_count,
@@ -24,7 +35,7 @@ export async function GET() {
             FROM repair_orders ro
             LEFT JOIN customers c ON ro.customer_id = c.id
             LEFT JOIN invoices inv ON ro.invoice_id = inv.id
-            WHERE ro.company_id = ?
+            ${whereClause}
             ORDER BY 
               CASE ro.stage 
                 WHEN 'received' THEN 1 
@@ -35,12 +46,13 @@ export async function GET() {
                 ELSE 6 
               END,
               ro.created_at DESC`,
-      args: [companyId],
+      args,
     });
 
     const orders = result.rows.map((row) => ({
       id: row.id,
       order_number: row.order_number,
+      order_type: row.order_type ?? "maintenance",
       customer_id: row.customer_id,
       customer_name: row.customer_name,
       vehicle_plate: row.vehicle_plate,
@@ -74,11 +86,13 @@ export async function POST(request: Request) {
 
   try {
     const body = await request.json();
-    const { vehicle_plate, vehicle_model, vehicle_year, mileage, customer_id } = body;
+    const { vehicle_plate, vehicle_model, vehicle_year, mileage, customer_id, order_type } = body;
 
     if (!vehicle_plate?.trim()) {
       return NextResponse.json({ error: "رقم اللوحة مطلوب" }, { status: 400 });
     }
+
+    const oType = order_type === "inspection" ? "inspection" : "maintenance";
 
     const warehouseId = await ensureCompanyWarehouse(companyId);
 
@@ -87,12 +101,13 @@ export async function POST(request: Request) {
       args: [companyId],
     });
     const count = (countResult.rows[0]?.cnt as number) ?? 0;
-    const orderNumber = `RO-${String(count + 1).padStart(4, "0")}`;
+    const prefix = oType === "inspection" ? "FI" : "RO";
+    const orderNumber = `${prefix}-${String(count + 1).padStart(4, "0")}`;
     const id = randomUUID();
 
     await db.execute({
-      sql: `INSERT INTO repair_orders (id, company_id, order_number, customer_id, vehicle_plate, vehicle_model, vehicle_year, mileage, stage, warehouse_id, received_at, created_by)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'received', ?, datetime('now'), ?)`,
+      sql: `INSERT INTO repair_orders (id, company_id, order_number, customer_id, vehicle_plate, vehicle_model, vehicle_year, mileage, stage, warehouse_id, received_at, created_by, order_type)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'received', ?, datetime('now'), ?, ?)`,
       args: [
         id,
         companyId,
@@ -104,6 +119,7 @@ export async function POST(request: Request) {
         mileage ? Number(mileage) : null,
         warehouseId,
         session.user.id,
+        oType,
       ],
     });
 
