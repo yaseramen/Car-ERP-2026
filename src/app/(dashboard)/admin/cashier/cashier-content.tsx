@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { SearchableSelect } from "@/components/ui/searchable-select";
 import { BarcodeScanner } from "@/components/inventory/barcode-scanner";
@@ -87,7 +87,7 @@ export function CashierContent() {
     );
   }
 
-  function addToCart() {
+  const addToCart = useCallback(() => {
     const item = items.find((i) => i.id === addItemId);
     if (!item || Number(addQty) <= 0) return;
     if (item.quantity < Number(addQty)) {
@@ -124,7 +124,40 @@ export function CashierContent() {
     }
     setAddItemId("");
     setAddQty("1");
-  }
+  }, [items, addItemId, addQty, cart]);
+
+  useEffect(() => {
+    function handleKeyDown(e: KeyboardEvent) {
+      if (addCustomerOpen || showBarcodeScanner) return;
+      const target = e.target as HTMLElement;
+      const isInput = target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.tagName === "SELECT";
+
+      if (e.key === "F2") {
+        e.preventDefault();
+        document.getElementById("cashier-product-search")?.focus();
+        return;
+      }
+
+      if (e.ctrlKey && e.key === "Enter") {
+        e.preventDefault();
+        if (addItemId && document.activeElement?.id !== "cashier-product-search") {
+          addToCart();
+        }
+        return;
+      }
+
+      if (e.altKey && e.key === "Enter") {
+        e.preventDefault();
+        if (cart.length > 0 && !isInput) {
+          const form = document.querySelector("form");
+          if (form) form.requestSubmit();
+        }
+        return;
+      }
+    }
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [addItemId, addCustomerOpen, showBarcodeScanner, cart.length, addToCart]);
 
   function addItemToCartByScan(item: InventoryItem, qty: number = 1) {
     if (item.quantity < qty) {
@@ -296,9 +329,13 @@ export function CashierContent() {
       <div className="space-y-6">
         <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
           <h2 className="font-bold text-gray-900 mb-4">إضافة صنف (ابحث بالاسم أو الكود أو امسح الباركود)</h2>
+          <p className="text-xs text-gray-500 mb-2">
+            اختصارات: F2 بحث | Ctrl+Enter إضافة للسلة | Alt+Enter إتمام البيع
+          </p>
           <div className="flex gap-2">
             <div className="flex-1 min-w-[200px]">
               <SearchableSelect
+                inputId="cashier-product-search"
                 options={items
                   .filter((i) => i.quantity > 0)
                   .map((i) => ({

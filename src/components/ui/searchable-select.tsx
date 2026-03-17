@@ -18,6 +18,7 @@ interface SearchableSelectProps {
   addNewFirst?: boolean;
   className?: string;
   disabled?: boolean;
+  inputId?: string;
 }
 
 export function SearchableSelect({
@@ -30,6 +31,7 @@ export function SearchableSelect({
   addNewFirst = false,
   className = "",
   disabled = false,
+  inputId,
 }: SearchableSelectProps) {
   const [query, setQuery] = useState("");
   const [open, setOpen] = useState(false);
@@ -59,6 +61,7 @@ export function SearchableSelect({
   return (
     <div ref={containerRef} className={`relative ${className}`}>
       <input
+        id={inputId}
         type="text"
         value={open ? query : selected?.label ?? ""}
         onChange={(e) => {
