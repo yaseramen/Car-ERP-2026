@@ -29,7 +29,7 @@ export async function PATCH(
 
     if (stage === "completed") {
       const orderResult = await db.execute({
-        sql: "SELECT order_number, warehouse_id, customer_id FROM repair_orders WHERE id = ? AND company_id = ?",
+        sql: "SELECT order_number, warehouse_id, customer_id, order_type FROM repair_orders WHERE id = ? AND company_id = ?",
         args: [id, companyId],
       });
       if (orderResult.rows.length === 0) {
@@ -66,6 +66,8 @@ export async function PATCH(
       });
 
       let sortOrder = 0;
+      const orderType = order.order_type ?? "maintenance";
+
       for (let i = 0; i < itemsResult.rows.length; i++) {
         const item = itemsResult.rows[i];
         const itemTotal = Number(item.total ?? 0);
@@ -82,6 +84,13 @@ export async function PATCH(
         await db.execute({
           sql: "INSERT INTO invoice_items (id, invoice_id, item_id, description, quantity, unit_price, total, sort_order) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
           args: [randomUUID(), invoiceId, null, svc.description, svc.quantity, svc.unit_price, svcTotal, sortOrder++],
+        });
+      }
+
+      if (orderType === "inspection" && itemsResult.rows.length === 0 && servicesResult.rows.length === 0) {
+        await db.execute({
+          sql: "INSERT INTO invoice_items (id, invoice_id, item_id, description, quantity, unit_price, total, sort_order) VALUES (?, ?, ?, ?, 1, 0, 0, ?)",
+          args: [randomUUID(), invoiceId, null, "فحص قبل البيع/الشراء", sortOrder++],
         });
       }
 
