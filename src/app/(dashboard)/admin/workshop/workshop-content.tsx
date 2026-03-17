@@ -79,6 +79,9 @@ export function WorkshopContent() {
     customer_id: "",
   });
   const [inspectionNotesDrafts, setInspectionNotesDrafts] = useState<Record<string, string>>({});
+  const [customerVehicles, setCustomerVehicles] = useState<
+    { vehicle_plate: string; vehicle_model: string | null; vehicle_year: number | null; mileage: number | null }[]
+  >([]);
 
   async function fetchOrders() {
     try {
@@ -183,6 +186,17 @@ export function WorkshopContent() {
       fetchOrderServices(selectedOrder.id);
     }
   }, [addServicesOpen, selectedOrder]);
+
+  useEffect(() => {
+    if (form.customer_id) {
+      fetch(`/api/admin/customers/${form.customer_id}/vehicles`)
+        .then((r) => (r.ok ? r.json() : []))
+        .then(setCustomerVehicles)
+        .catch(() => setCustomerVehicles([]));
+    } else {
+      setCustomerVehicles([]);
+    }
+  }, [form.customer_id]);
 
   async function handleCreate(e: React.FormEvent) {
     e.preventDefault();
@@ -499,7 +513,16 @@ export function WorkshopContent() {
                     })),
                   ]}
                   value={form.customer_id}
-                  onChange={(id) => setForm((f) => ({ ...f, customer_id: id }))}
+                  onChange={(id) =>
+                    setForm((f) => ({
+                      ...f,
+                      customer_id: id,
+                      vehicle_plate: "",
+                      vehicle_model: "",
+                      vehicle_year: "",
+                      mileage: "",
+                    }))
+                  }
                   placeholder="ابحث بالاسم أو رقم الهاتف..."
                   addNewLabel="+ إضافة عميل جديد"
                   addNewFirst
@@ -507,6 +530,39 @@ export function WorkshopContent() {
                   className={inputClass}
                 />
               </div>
+              {form.customer_id && customerVehicles.length > 0 && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">اختر سيارة سابقة (يمكن تعديل البيانات)</label>
+                  <select
+                    value=""
+                    onChange={(e) => {
+                      const idx = e.target.value;
+                      if (idx === "") return;
+                      const v = customerVehicles[Number(idx)];
+                      if (v) {
+                        setForm((f) => ({
+                          ...f,
+                          vehicle_plate: v.vehicle_plate,
+                          vehicle_model: v.vehicle_model ?? "",
+                          vehicle_year: v.vehicle_year ? String(v.vehicle_year) : "",
+                          mileage: v.mileage ? String(v.mileage) : "",
+                        }));
+                      }
+                    }}
+                    className={inputClass}
+                  >
+                    <option value="">— إدخال سيارة جديدة —</option>
+                    {customerVehicles.map((v, i) => (
+                      <option key={v.vehicle_plate} value={i}>
+                        {v.vehicle_plate}
+                        {v.vehicle_model ? ` — ${v.vehicle_model}` : ""}
+                        {v.vehicle_year ? ` (${v.vehicle_year})` : ""}
+                      </option>
+                    ))}
+                  </select>
+                  <p className="text-xs text-gray-500 mt-1">يمكنك تعديل اللوحة أو الموديل إذا بيعت السيارة أو اشتراها عميل آخر</p>
+                </div>
+              )}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">رقم اللوحة *</label>
                 <input
