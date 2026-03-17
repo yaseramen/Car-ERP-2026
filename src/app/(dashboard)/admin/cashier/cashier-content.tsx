@@ -34,6 +34,56 @@ interface PaymentMethod {
   type?: string;
 }
 
+const CASHIER_DRAFT_KEY = "alameen-cashier-draft";
+
+function loadCashierDraft(): Partial<{
+  cart: CartItem[];
+  customerId: string;
+  paymentMethodId: string;
+  paidAmount: string;
+  notes: string;
+  taxEnabled: boolean;
+  taxRate: string;
+  discountEnabled: boolean;
+  discountType: "percent" | "fixed";
+  discountValue: string;
+}> | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const s = localStorage.getItem(CASHIER_DRAFT_KEY);
+    if (!s) return null;
+    return JSON.parse(s) as ReturnType<typeof loadCashierDraft>;
+  } catch {
+    return null;
+  }
+}
+
+function saveCashierDraft(data: {
+  cart: CartItem[];
+  customerId: string;
+  paymentMethodId: string;
+  paidAmount: string;
+  notes: string;
+  taxEnabled: boolean;
+  taxRate: string;
+  discountEnabled: boolean;
+  discountType: "percent" | "fixed";
+  discountValue: string;
+}) {
+  if (typeof window === "undefined") return;
+  try {
+    if (data.cart.length === 0) return;
+    localStorage.setItem(CASHIER_DRAFT_KEY, JSON.stringify(data));
+  } catch {}
+}
+
+function clearCashierDraft() {
+  if (typeof window === "undefined") return;
+  try {
+    localStorage.removeItem(CASHIER_DRAFT_KEY);
+  } catch {}
+}
+
 export function CashierContent() {
   const [items, setItems] = useState<InventoryItem[]>([]);
   const [customers, setCustomers] = useState<Customer[]>([]);
@@ -75,6 +125,59 @@ export function CashierContent() {
   useEffect(() => {
     fetchData();
   }, []);
+
+  const [draftLoaded, setDraftLoaded] = useState(false);
+  const [restoredFromDraft, setRestoredFromDraft] = useState(false);
+  useEffect(() => {
+    if (items.length === 0 || draftLoaded) return;
+    const draft = loadCashierDraft();
+    if (!draft?.cart?.length) {
+      setDraftLoaded(true);
+      return;
+    }
+    const merged: CartItem[] = [];
+    for (const c of draft.cart) {
+      const item = items.find((i) => i.id === c.item_id);
+      if (!item || item.quantity <= 0) continue;
+      const qty = Math.min(c.quantity, item.quantity);
+      merged.push({
+        item_id: item.id,
+        name: item.name,
+        quantity: qty,
+        unit_price: item.sale_price,
+        total: qty * item.sale_price,
+      });
+    }
+    if (merged.length > 0) {
+      setCart(merged);
+      if (draft.customerId) setCustomerId(draft.customerId);
+      if (draft.paymentMethodId) setPaymentMethodId(draft.paymentMethodId);
+      if (draft.paidAmount) setPaidAmount(draft.paidAmount);
+      if (draft.notes) setNotes(draft.notes);
+      if (draft.taxEnabled) setTaxEnabled(true);
+      if (draft.taxRate) setTaxRate(draft.taxRate);
+      if (draft.discountEnabled) setDiscountEnabled(true);
+      if (draft.discountType) setDiscountType(draft.discountType);
+      if (draft.discountValue) setDiscountValue(draft.discountValue);
+      setRestoredFromDraft(true);
+    }
+    setDraftLoaded(true);
+  }, [items.length, draftLoaded]);
+
+  useEffect(() => {
+    saveCashierDraft({
+      cart,
+      customerId,
+      paymentMethodId,
+      paidAmount,
+      notes,
+      taxEnabled,
+      taxRate,
+      discountEnabled,
+      discountType,
+      discountValue,
+    });
+  }, [cart, customerId, paymentMethodId, paidAmount, notes, taxEnabled, taxRate, discountEnabled, discountType, discountValue]);
 
   function findItemByBarcodeOrCode(value: string): InventoryItem | undefined {
     const v = String(value || "").trim().toLowerCase();
@@ -275,6 +378,7 @@ export function CashierContent() {
       setTaxEnabled(false);
       setDiscountEnabled(false);
       setDiscountValue("");
+      clearCashierDraft();
       fetchData();
     } catch {
       alert("حدث خطأ. حاول مرة أخرى.");
@@ -378,8 +482,29 @@ export function CashierContent() {
         </div>
 
         <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-          <div className="p-4 border-b border-gray-100">
+          <div className="p-4 border-b border-gray-100 flex justify-between items-center">
             <h2 className="font-bold text-gray-900">السلة ({cart.length})</h2>
+            {cart.length > 0 && (
+              <button
+                type="button"
+                onClick={() => {
+                  if (confirm("مسح السلة والبدء من جديد؟")) {
+                    setCart([]);
+                    setCustomerId("");
+                    setPaymentMethodId("");
+                    setPaidAmount("");
+                    setNotes("");
+                    setTaxEnabled(false);
+                    setDiscountEnabled(false);
+                    setDiscountValue("");
+                    clearCashierDraft();
+                  }
+                }}
+                className="text-sm text-red-600 hover:text-red-700"
+              >
+                مسح المسودة
+              </button>
+            )}
           </div>
           <div className="max-h-64 overflow-y-auto">
             {cart.length === 0 ? (
@@ -438,6 +563,11 @@ export function CashierContent() {
       <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
         <h2 className="font-bold text-gray-900 mb-4">إتمام البيع</h2>
 
+        {restoredFromDraft && (
+          <div className="mb-4 p-3 bg-amber-50 border border-amber-200 rounded-lg text-sm text-amber-800">
+            تم استعادة المسودة السابقة. يمكنك استكمال البيع أو مسح المسودة.
+          </div>
+        )}
         {lastInvoice && (
           <div className="mb-6 p-4 bg-emerald-50 border border-emerald-200 rounded-lg">
             <p className="text-emerald-800 font-medium">تم إنشاء الفاتورة بنجاح</p>
