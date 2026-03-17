@@ -88,6 +88,9 @@ export function WorkshopContent() {
   const [inspectionChecklistOpen, setInspectionChecklistOpen] = useState(false);
   const [checklistItems, setChecklistItems] = useState<{ id: string; name_ar: string }[]>([]);
   const [checklistResults, setChecklistResults] = useState<Record<string, { status: string; notes: string }>>({});
+  const [generalNotes, setGeneralNotes] = useState("");
+  const [newItemName, setNewItemName] = useState("");
+  const [addingItem, setAddingItem] = useState(false);
 
   async function fetchOrders() {
     try {
@@ -199,6 +202,7 @@ export function WorkshopContent() {
 
   useEffect(() => {
     if (inspectionChecklistOpen && selectedOrder) {
+      setGeneralNotes(selectedOrder.inspection_notes ?? "");
       Promise.all([
         fetch("/api/admin/workshop/inspection-checklist").then((r) => (r.ok ? r.json() : [])),
         fetch(`/api/admin/workshop/orders/${selectedOrder.id}/inspection-results`).then((r) => (r.ok ? r.json() : [])),
@@ -341,6 +345,32 @@ export function WorkshopContent() {
     }
   }
 
+  async function addChecklistItem() {
+    const name = newItemName.trim();
+    if (!name) return;
+    setAddingItem(true);
+    try {
+      const res = await fetch("/api/admin/workshop/inspection-checklist", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name_ar: name }),
+      });
+      if (!res.ok) {
+        const err = await res.json();
+        alert(err.error || "فشل في الإضافة");
+        return;
+      }
+      const item = await res.json();
+      setChecklistItems((prev) => [...prev, item]);
+      setChecklistResults((prev) => ({ ...prev, [item.id]: { status: "na", notes: "" } }));
+      setNewItemName("");
+    } catch {
+      alert("حدث خطأ");
+    } finally {
+      setAddingItem(false);
+    }
+  }
+
   async function saveInspectionChecklist(orderId: string) {
     try {
       const results = checklistItems.map((it) => ({
@@ -351,7 +381,7 @@ export function WorkshopContent() {
       const res = await fetch(`/api/admin/workshop/orders/${orderId}/inspection-results`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ results }),
+        body: JSON.stringify({ results, general_notes: generalNotes }),
       });
       if (!res.ok) {
         const err = await res.json();
@@ -360,6 +390,7 @@ export function WorkshopContent() {
       }
       setInspectionChecklistOpen(false);
       setSelectedOrder(null);
+      fetchOrders();
     } catch {
       alert("حدث خطأ");
     }
@@ -1002,6 +1033,34 @@ export function WorkshopContent() {
                   </div>
                 </div>
               ))}
+              <div className="flex gap-2 items-center pt-2 border-t border-gray-200">
+                <input
+                  type="text"
+                  value={newItemName}
+                  onChange={(e) => setNewItemName(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && addChecklistItem()}
+                  placeholder="إضافة بند جديد..."
+                  className="flex-1 px-3 py-2 rounded-lg border border-gray-300 bg-white text-gray-900 text-sm placeholder-gray-400"
+                />
+                <button
+                  type="button"
+                  onClick={addChecklistItem}
+                  disabled={addingItem || !newItemName.trim()}
+                  className="px-4 py-2 bg-amber-600 hover:bg-amber-700 disabled:bg-gray-300 text-white text-sm font-medium rounded-lg transition-colors"
+                >
+                  {addingItem ? "..." : "إضافة"}
+                </button>
+              </div>
+              <div className="pt-4">
+                <label className="block text-sm font-medium text-gray-700 mb-2">ملاحظات عامة</label>
+                <textarea
+                  value={generalNotes}
+                  onChange={(e) => setGeneralNotes(e.target.value)}
+                  placeholder="ملاحظات إضافية أو خلاصة التقرير..."
+                  rows={4}
+                  className="w-full px-3 py-2 rounded-lg border border-gray-300 bg-white text-gray-900 text-sm placeholder-gray-400 resize-none"
+                />
+              </div>
               <div className="flex gap-3 pt-4">
                 <button
                   type="button"
