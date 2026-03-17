@@ -57,7 +57,10 @@ export async function PUT(
 
   try {
     const body = await request.json();
-    const { results } = body as { results: { checklist_item_id: string; status: string; notes?: string }[] };
+    const { results, general_notes } = body as {
+      results: { checklist_item_id: string; status: string; notes?: string }[];
+      general_notes?: string;
+    };
 
     if (!Array.isArray(results)) {
       return NextResponse.json({ error: "صيغة غير صالحة" }, { status: 400 });
@@ -91,6 +94,13 @@ export async function PUT(
           args: [randomUUID(), orderId, r.checklist_item_id, status, notes],
         });
       }
+    }
+
+    if (general_notes !== undefined) {
+      await db.execute({
+        sql: "UPDATE repair_orders SET inspection_notes = ?, updated_at = datetime('now') WHERE id = ? AND company_id = ?",
+        args: [general_notes?.trim() || null, orderId, companyId],
+      });
     }
 
     return NextResponse.json({ success: true });
