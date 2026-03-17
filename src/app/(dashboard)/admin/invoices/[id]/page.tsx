@@ -6,6 +6,7 @@ import { getCompanyId } from "@/lib/company";
 import { DEVELOPER_INFO } from "@/lib/invoice-config";
 import { AddPayment } from "./add-payment";
 import { InvoiceActions } from "./invoice-actions";
+import { PartialReturnButton } from "./partial-return-button";
 import { ReturnButton } from "./return-button";
 
 export default async function InvoiceDetailPage({
@@ -48,6 +49,8 @@ export default async function InvoiceDetailPage({
       invoice_number: String(row.invoice_number ?? ""),
       type: String(row.type ?? ""),
       status: String(row.status ?? ""),
+      is_return: Number(row.is_return ?? 0) === 1,
+      original_invoice_id: row.original_invoice_id ? String(row.original_invoice_id) : null,
       subtotal: Number(row.subtotal ?? 0),
       discount: Number(row.discount ?? 0),
       tax: Number(row.tax ?? 0),
@@ -82,6 +85,7 @@ export default async function InvoiceDetailPage({
 
     const items = itemsResult.rows.map((r) => ({
       id: String(r.id ?? ""),
+      item_id: r.item_id ? String(r.item_id) : null,
       item_name: r.item_name ? String(r.item_name) : (r.description ? String(r.description) : "صنف"),
       quantity: Number(r.quantity ?? 0),
       unit_price: Number(r.unit_price ?? 0),
@@ -128,6 +132,7 @@ export default async function InvoiceDetailPage({
           ← العودة للفواتير
         </Link>
         <div className="flex gap-2 no-print items-center">
+          <PartialReturnButton invoiceId={id} type={data.type} status={data.status} items={items} />
           <ReturnButton invoiceId={id} type={data.type} status={data.status} />
           <InvoiceActions
             invoiceNumber={data.invoice_number}
@@ -177,8 +182,21 @@ export default async function InvoiceDetailPage({
       <div className="mb-8">
         <h1 className="text-2xl font-bold text-gray-900">فاتورة {data.invoice_number}</h1>
         <p className="text-gray-500 mt-1">
+          {data.is_return && (
+            <span className="inline-block px-2 py-0.5 bg-amber-100 text-amber-800 rounded text-sm font-medium mb-2">
+              مرتجع
+            </span>
+          )}{" "}
           {TYPE_LABELS[data.type] || data.type} — {STATUS_LABELS[data.status] || data.status}
         </p>
+        {data.is_return && data.original_invoice_id && (
+          <Link
+            href={`/admin/invoices/${data.original_invoice_id}`}
+            className="text-sm text-emerald-600 hover:text-emerald-700 no-print"
+          >
+            ← عرض الفاتورة الأصلية
+          </Link>
+        )}
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
