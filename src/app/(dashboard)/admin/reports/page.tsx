@@ -1,12 +1,15 @@
 import { auth } from "@/auth";
 import { redirect } from "next/navigation";
+import { getCompanyId } from "@/lib/company";
 import { ReportsContent } from "./reports-content";
 
 export default async function ReportsPage() {
   const session = await auth();
-  if (!session?.user || session.user.role !== "super_admin") {
+  if (!session?.user || !["super_admin", "tenant_owner", "employee"].includes(session.user.role ?? "")) {
     redirect("/login");
   }
+  const companyId = getCompanyId(session);
+  if (!companyId) redirect("/login");
 
   return (
     <div className="p-8">

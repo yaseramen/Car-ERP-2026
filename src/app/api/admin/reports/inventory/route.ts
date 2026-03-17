@@ -13,7 +13,9 @@ export async function GET(request: Request) {
   }
 
   const { searchParams } = new URL(request.url);
-  const limit = Math.min(Number(searchParams.get("limit")) || 50, 100);
+  const limit = Math.min(Number(searchParams.get("limit")) || 50, 200);
+  const from = searchParams.get("from");
+  const to = searchParams.get("to");
 
   try {
     const lowStockResult = await db.execute({
@@ -26,15 +28,22 @@ export async function GET(request: Request) {
       args: [companyId],
     });
 
-    const movementsResult = await db.execute({
-      sql: `SELECT sm.id, sm.quantity, sm.movement_type, sm.reference_type, sm.created_at,
+    let movementsSql = `SELECT sm.id, sm.quantity, sm.movement_type, sm.reference_type, sm.created_at,
             i.name as item_name
             FROM stock_movements sm
             JOIN items i ON sm.item_id = i.id
-            WHERE i.company_id = ?
-            ORDER BY sm.created_at DESC
-            LIMIT ?`,
-      args: [companyId, limit],
+            WHERE i.company_id = ?`;
+    const movementsArgs: (string | number)[] = [companyId];
+    if (from && to) {
+      movementsSql += ` AND sm.created_at >= ? AND sm.created_at <= ?`;
+      movementsArgs.push(`${from}T00:00:00`, `${to}T23:59:59`);
+    }
+    movementsSql += ` ORDER BY sm.created_at DESC LIMIT ?`;
+    movementsArgs.push(limit);
+
+    const movementsResult = await db.execute({
+      sql: movementsSql,
+      args: movementsArgs,
     });
 
     const lowStock = lowStockResult.rows.map((r) => ({
