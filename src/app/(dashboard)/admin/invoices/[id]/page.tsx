@@ -8,6 +8,7 @@ import { AddPayment } from "./add-payment";
 import { InvoiceActions } from "./invoice-actions";
 import { PartialReturnButton } from "./partial-return-button";
 import { ReturnButton } from "./return-button";
+import { CancelButton } from "./cancel-button";
 
 export default async function InvoiceDetailPage({
   params,
@@ -131,9 +132,10 @@ export default async function InvoiceDetailPage({
         >
           ← العودة للفواتير
         </Link>
-        <div className="flex gap-2 no-print items-center">
+        <div className="flex gap-2 no-print items-center flex-wrap">
           <PartialReturnButton invoiceId={id} type={data.type} status={data.status} items={items} />
           <ReturnButton invoiceId={id} type={data.type} status={data.status} />
+          <CancelButton invoiceId={id} type={data.type} status={data.status} />
           <InvoiceActions
             invoiceNumber={data.invoice_number}
             invoiceType={data.type}
