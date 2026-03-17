@@ -78,6 +78,7 @@ export function WorkshopContent() {
     mileage: "",
     customer_id: "",
   });
+  const [inspectionNotesDrafts, setInspectionNotesDrafts] = useState<Record<string, string>>({});
 
   async function fetchOrders() {
     try {
@@ -274,17 +275,40 @@ export function WorkshopContent() {
     }
   }
 
-  async function updateStage(orderId: string, newStage: string) {
+  async function updateStage(orderId: string, newStage: string, inspectionNotes?: string) {
     try {
+      const body: { stage: string; inspection_notes?: string } = { stage: newStage };
+      if (inspectionNotes !== undefined) body.inspection_notes = inspectionNotes;
+
       const res = await fetch(`/api/admin/workshop/orders/${orderId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ stage: newStage }),
+        body: JSON.stringify(body),
       });
 
       if (!res.ok) {
         const err = await res.json();
         alert(err.error || "فشل في التحديث");
+        return;
+      }
+
+      await fetchOrders();
+    } catch {
+      alert("حدث خطأ");
+    }
+  }
+
+  async function saveInspectionNotes(orderId: string, notes: string) {
+    try {
+      const res = await fetch(`/api/admin/workshop/orders/${orderId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ stage: "inspection", inspection_notes: notes }),
+      });
+
+      if (!res.ok) {
+        const err = await res.json();
+        alert(err.error || "فشل في الحفظ");
         return;
       }
 
@@ -359,6 +383,35 @@ export function WorkshopContent() {
                       {order.vehicle_model && (
                         <div className="text-xs text-gray-500">{order.vehicle_model}</div>
                       )}
+                      {order.stage === "inspection" && (
+                        <div className="mt-2 space-y-1">
+                          <label className="text-xs font-medium text-gray-600 block">ملاحظات الفحص</label>
+                          <textarea
+                            value={inspectionNotesDrafts[order.id] ?? order.inspection_notes ?? ""}
+                            onChange={(e) =>
+                              setInspectionNotesDrafts((prev) => ({ ...prev, [order.id]: e.target.value }))
+                            }
+                            placeholder="أدخل نتائج الفحص والأعطال المكتشفة..."
+                            className="w-full px-2 py-1.5 text-xs rounded border border-gray-200 bg-white text-gray-900 placeholder-gray-400 focus:ring-1 focus:ring-amber-500 focus:border-amber-500 outline-none resize-none"
+                            rows={3}
+                          />
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const notes = inspectionNotesDrafts[order.id] ?? order.inspection_notes ?? "";
+                              saveInspectionNotes(order.id, notes);
+                              setInspectionNotesDrafts((prev) => {
+                                const next = { ...prev };
+                                delete next[order.id];
+                                return next;
+                              });
+                            }}
+                            className="w-full py-1 text-xs bg-amber-100 hover:bg-amber-200 text-amber-800 rounded transition"
+                          >
+                            حفظ الملاحظات
+                          </button>
+                        </div>
+                      )}
                       {((order.items_count ?? 0) > 0 || (order.services_count ?? 0) > 0) && (
                         <div className="text-xs text-emerald-600 mt-1">
                           {(order.items_count ?? 0) > 0 && <span>{order.items_count} قطعة </span>}
@@ -394,7 +447,20 @@ export function WorkshopContent() {
                         )}
                         {next && (
                           <button
-                            onClick={() => updateStage(order.id, next.id)}
+                            onClick={() => {
+                              const notes =
+                                order.stage === "inspection"
+                                  ? (inspectionNotesDrafts[order.id] ?? order.inspection_notes ?? "")
+                                  : undefined;
+                              updateStage(order.id, next.id, notes);
+                              if (order.stage === "inspection" && inspectionNotesDrafts[order.id] !== undefined) {
+                                setInspectionNotesDrafts((prev) => {
+                                  const n = { ...prev };
+                                  delete n[order.id];
+                                  return n;
+                                });
+                              }
+                            }}
                             className="w-full py-1.5 text-xs bg-emerald-600 hover:bg-emerald-700 text-white rounded transition"
                           >
                             ← {next.label}
