@@ -140,6 +140,13 @@ export default async function InvoiceDetailPage({
             invoiceNumber={data.invoice_number}
             invoiceType={data.type}
             total={data.total}
+            subtotal={data.subtotal}
+            discount={data.discount}
+            tax={data.tax}
+            companyName={data.company_name}
+            customerName={data.customer_name}
+            supplierName={data.supplier_name}
+            items={items}
           />
         </div>
       </div>
