@@ -17,6 +17,10 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "الأمين لخدمات السيارات",
   description: "منصة SaaS متكاملة لإدارة مراكز خدمة السيارات",
+  icons: {
+    icon: "/icon.svg",
+    apple: "/icon.svg",
+  },
 };
 
 export default function RootLayout({
