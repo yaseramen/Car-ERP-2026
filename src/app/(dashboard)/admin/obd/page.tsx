@@ -1,11 +1,21 @@
 import { auth } from "@/auth";
 import { redirect } from "next/navigation";
 import { ObdContent } from "./obd-content";
+import { canAccess } from "@/lib/permissions";
+import { getCompanyId } from "@/lib/company";
 
 export default async function ObdPage() {
   const session = await auth();
-  if (!session?.user || session.user.role !== "super_admin") {
+  if (!session?.user || !["super_admin", "tenant_owner", "employee"].includes(session.user.role ?? "")) {
     redirect("/login");
+  }
+
+  const companyId = getCompanyId(session);
+  if (!companyId) redirect("/login");
+
+  if (session.user.role === "employee") {
+    const allowed = await canAccess(session.user.id, "employee", companyId, "obd", "read");
+    if (!allowed) redirect("/admin");
   }
 
   return (

@@ -11,8 +11,8 @@ export default auth((req) => {
     return NextResponse.next();
   }
 
-  // صفحات عامة (SEO، لا تتطلب تسجيل دخول)
-  const publicPaths = ["/login", "/register", "/how-it-works", "/faq"];
+  // صفحات عامة (SEO، PWA، لا تتطلب تسجيل دخول)
+  const publicPaths = ["/login", "/register", "/how-it-works", "/faq", "/manifest.webmanifest"];
   if (publicPaths.includes(path)) {
     if (path === "/login" || path === "/register") {
       if (isLoggedIn && ["super_admin", "tenant_owner", "employee"].includes(req.auth?.user?.role ?? "")) {
