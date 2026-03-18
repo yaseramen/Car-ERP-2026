@@ -4,6 +4,7 @@ import { db } from "@/lib/db/client";
 import { getCompanyId } from "@/lib/company";
 import { ensureCompanyWarehouse } from "@/lib/warehouse";
 import { ensureTreasuries, getTreasuryIdByType } from "@/lib/treasuries";
+import { getDigitalFeeConfig, calcDigitalFee } from "@/lib/digital-fee";
 import { randomUUID } from "crypto";
 
 const ALLOWED_ROLES = ["super_admin", "tenant_owner", "employee"] as const;
@@ -96,7 +97,8 @@ export async function POST(request: Request) {
     const taxAmount = Number(tax) || 0;
     const afterDiscount = Math.max(0, subtotal - discountAmount);
     const afterTax = afterDiscount + taxAmount;
-    const digitalFee = Math.max(0.5, afterTax * 0.0001);
+    const feeConfig = await getDigitalFeeConfig(companyId);
+    const digitalFee = calcDigitalFee(afterTax, feeConfig);
     const total = afterTax + digitalFee;
     const paid = Number(paid_amount ?? 0);
     const status = paid >= total ? "paid" : paid > 0 ? "partial" : "pending";

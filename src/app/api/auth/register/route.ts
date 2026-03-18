@@ -50,6 +50,19 @@ export async function POST(request: Request) {
       args: [userId, companyId, emailNorm, passwordHash, String(name).trim(), phone ? String(phone) : null],
     });
 
+    const WELCOME_GIFT = 50;
+    const walletId = randomUUID();
+    await db.execute({
+      sql: `INSERT INTO company_wallets (id, company_id, balance, currency)
+            VALUES (?, ?, ?, 'EGP')`,
+      args: [walletId, companyId, WELCOME_GIFT],
+    });
+    await db.execute({
+      sql: `INSERT INTO wallet_transactions (id, wallet_id, amount, type, description, performed_by)
+            VALUES (?, ?, ?, 'credit', ?, ?)`,
+      args: [randomUUID(), walletId, WELCOME_GIFT, `هدية اشتراك - ${WELCOME_GIFT} ج.م`, userId],
+    });
+
     return NextResponse.json({
       ok: true,
       message: "تم إنشاء الحساب بنجاح. يمكنك تسجيل الدخول الآن.",

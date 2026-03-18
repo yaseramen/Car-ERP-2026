@@ -96,6 +96,7 @@ export function CashierContent() {
   const [saving, setSaving] = useState(false);
   const [lastInvoice, setLastInvoice] = useState<{ id: string; invoice_number: string } | null>(null);
 
+  const [feeConfig, setFeeConfig] = useState<{ rate: number; minFee: number }>({ rate: 0.0001, minFee: 0.5 });
   const [addItemId, setAddItemId] = useState("");
   const [addQty, setAddQty] = useState("1");
 
@@ -111,14 +112,19 @@ export function CashierContent() {
 
   async function fetchData() {
     try {
-      const [itemsRes, customersRes, methodsRes] = await Promise.all([
+      const [itemsRes, customersRes, methodsRes, feeRes] = await Promise.all([
         fetch("/api/admin/inventory/items"),
         fetch("/api/admin/customers"),
         fetch("/api/admin/payment-methods"),
+        fetch("/api/admin/digital-fee"),
       ]);
       if (itemsRes.ok) setItems(await itemsRes.json());
       if (customersRes.ok) setCustomers(await customersRes.json());
       if (methodsRes.ok) setPaymentMethods(await methodsRes.json());
+      if (feeRes.ok) {
+        const d = await feeRes.json();
+        setFeeConfig({ rate: Number(d.rate ?? 0.0001), minFee: Number(d.minFee ?? 0.5) });
+      }
     } catch {}
   }
 
@@ -328,7 +334,7 @@ export function CashierContent() {
   const afterDiscount = Math.max(0, subtotal - discountAmount);
   const taxAmount = taxEnabled ? (afterDiscount * (Number(taxRate) || 0)) / 100 : 0;
   const beforeDigitalFee = afterDiscount + taxAmount;
-  const digitalFee = Math.max(0.5, beforeDigitalFee * 0.0001);
+  const digitalFee = Math.max(feeConfig.minFee, beforeDigitalFee * feeConfig.rate);
   const total = beforeDigitalFee + digitalFee;
   const paid = Number(paidAmount) || 0;
 

@@ -94,7 +94,9 @@ export async function PATCH(
         });
       }
 
-      const digitalFee = Math.max(0.5, subtotal * 0.0001);
+      const { getDigitalFeeConfig, calcDigitalFee } = await import("@/lib/digital-fee");
+      const feeConfig = await getDigitalFeeConfig(companyId);
+      const digitalFee = calcDigitalFee(subtotal, feeConfig);
       const total = subtotal + digitalFee;
 
       await db.execute({
