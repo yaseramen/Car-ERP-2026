@@ -1,8 +1,15 @@
 @import "tailwindcss";
 
+@custom-variant dark (&:where(.dark, .dark *));
+
 :root {
   --background: #ffffff;
   --foreground: #171717;
+}
+
+.dark {
+  --background: #0f172a;
+  --foreground: #f1f5f9;
 }
 
 @theme inline {
@@ -12,14 +19,17 @@
   --font-mono: var(--font-geist-mono);
 }
 
-/* إلغاء الوضع الداكن لضمان وضوح النصوص في كامل البرنامج */
 body {
   background: #f9fafb;
   color: #171717;
   font-family: Arial, Helvetica, sans-serif;
 }
 
-/* ضمان وضوح النص داخل حقول الإدخال في كامل البرنامج */
+.dark body {
+  background: #0f172a;
+  color: #f1f5f9;
+}
+
 input,
 textarea,
 select {
@@ -31,9 +41,26 @@ textarea::placeholder {
   color: #6b7280 !important;
 }
 
-/* ضمان وضوح العناوين والتسميات والقيم في الجداول والقوائم */
+.dark input,
+.dark textarea,
+.dark select {
+  color: #f1f5f9 !important;
+  background-color: #1e293b !important;
+}
+.dark input::placeholder,
+.dark textarea::placeholder {
+  color: #94a3b8 !important;
+}
+
 dt, th, td, label {
   color: #171717 !important;
+}
+
+.dark dt,
+.dark th,
+.dark td,
+.dark label {
+  color: #f1f5f9 !important;
 }
 
 @media print {

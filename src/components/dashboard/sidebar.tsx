@@ -66,10 +66,10 @@ export function Sidebar({ role = "super_admin", businessType }: { role?: string;
   const pathname = usePathname();
 
   return (
-    <aside className="w-64 min-h-screen bg-white border-l border-gray-200 flex flex-col">
-      <div className="p-6 border-b border-gray-100">
-        <h2 className="font-bold text-gray-900">الأمين لخدمات السيارات</h2>
-        <p className="text-xs text-gray-500 mt-1">{role === "super_admin" ? "لوحة Super Admin" : "لوحة المالك"}</p>
+    <aside className="w-64 min-h-screen bg-white dark:bg-gray-900 border-l border-gray-200 dark:border-gray-700 flex flex-col">
+      <div className="p-6 border-b border-gray-100 dark:border-gray-700">
+        <h2 className="font-bold text-gray-900 dark:text-gray-100">الأمين لخدمات السيارات</h2>
+        <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">{role === "super_admin" ? "لوحة Super Admin" : "لوحة المالك"}</p>
       </div>
 
       <nav className="flex-1 p-4 space-y-1">
@@ -80,7 +80,9 @@ export function Sidebar({ role = "super_admin", businessType }: { role?: string;
               key={item.href}
               href={item.href}
               className={`flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-colors ${
-                isActive ? "bg-emerald-50 text-emerald-700" : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
+                isActive
+                  ? "bg-emerald-50 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400"
+                  : "text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-gray-100"
               }`}
             >
               <span>{item.label}</span>
@@ -89,15 +91,15 @@ export function Sidebar({ role = "super_admin", businessType }: { role?: string;
         })}
       </nav>
 
-      <div className="p-4 border-t border-gray-100 space-y-2">
+      <div className="p-4 border-t border-gray-100 dark:border-gray-700 space-y-2">
         {notifications && canNotify && (
           <button
             type="button"
             onClick={() => notifications.requestPermission()}
             className={`w-full flex items-center justify-center gap-2 px-4 py-2.5 text-sm rounded-lg transition ${
               notifications.permission === "granted"
-                ? "text-emerald-600 bg-emerald-50"
-                : "text-gray-600 hover:text-violet-600 hover:bg-violet-50"
+                ? "text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-900/30"
+                : "text-gray-600 dark:text-gray-400 hover:text-violet-600 dark:hover:text-violet-400 hover:bg-violet-50 dark:hover:bg-violet-900/20"
             }`}
             title={notifications.permission === "granted" ? "الإشعارات مفعّلة" : "تفعيل الإشعارات"}
           >
@@ -107,7 +109,7 @@ export function Sidebar({ role = "super_admin", businessType }: { role?: string;
         )}
         <button
           onClick={() => signOut({ callbackUrl: "/login" })}
-          className="w-full flex items-center justify-center gap-2 px-4 py-2.5 text-sm text-gray-600 hover:text-red-600 hover:bg-red-50 rounded-lg transition"
+          className="w-full flex items-center justify-center gap-2 px-4 py-2.5 text-sm text-gray-600 dark:text-gray-400 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition"
         >
           تسجيل الخروج
         </button>
