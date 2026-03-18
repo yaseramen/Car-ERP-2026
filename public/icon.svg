@@ -1,6 +1,17 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" fill="none">
-  <rect width="512" height="512" rx="96" fill="#059669"/>
-  <path d="M256 96c-88.4 0-160 71.6-160 160s71.6 160 160 160 160-71.6 160-160S344.4 96 256 96zm0 288c-70.7 0-128-57.3-128-128s57.3-128 128-128 128 57.3 128 128-57.3 128-128 128z" fill="white" opacity="0.9"/>
-  <path d="M256 160c-53 0-96 43-96 96s43 96 96 96 96-43 96-96-43-96-96-96zm0 160c-35.3 0-64-28.7-64-64s28.7-64 64-64 64 28.7 64 64-28.7 64-64 64z" fill="white"/>
-  <circle cx="256" cy="256" r="24" fill="#059669"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <rect width="512" height="512" fill="#2563eb"/>
+  <ellipse cx="256" cy="256" rx="140" ry="180" fill="#000"/>
+  <g transform="translate(166 136)">
+    <circle cx="90" cy="90" r="55" fill="none" stroke="#93c5fd" stroke-width="8"/>
+    <circle cx="90" cy="90" r="35" fill="none" stroke="#93c5fd" stroke-width="6"/>
+    <circle cx="90" cy="90" r="12" fill="#60a5fa"/>
+    <circle cx="90" cy="35" r="10" fill="#93c5fd"/>
+    <circle cx="90" cy="145" r="10" fill="#93c5fd"/>
+    <circle cx="35" cy="90" r="10" fill="#93c5fd"/>
+    <circle cx="145" cy="90" r="10" fill="#93c5fd"/>
+    <circle cx="62" cy="62" r="6" fill="#60a5fa"/>
+    <circle cx="118" cy="62" r="6" fill="#60a5fa"/>
+    <circle cx="62" cy="118" r="6" fill="#60a5fa"/>
+    <circle cx="118" cy="118" r="6" fill="#60a5fa"/>
+  </g>
 </svg>
