@@ -1,15 +1,15 @@
 /**
- * تحويل icon.svg إلى أيقونات PNG مطلوبة لـ PWA (Windows/Android/iOS)
- * يعمل قبل البناء لضمان ظهور شعار التطبيق الصحيح عند التثبيت
+ * تحويل icon.svg إلى أيقونات PNG و favicon
+ * يعمل قبل البناء لضمان ظهور شعار البرنامج في التبويب والتطبيق
  */
 import { readFileSync, writeFileSync, existsSync } from "fs";
 import { join } from "path";
 
 async function main() {
   try {
-    // استخدام sharp ديناميكياً لتجنب فشل البناء إذا لم يكن مثبتاً
     const sharp = await import("sharp");
     const publicDir = join(process.cwd(), "public");
+    const appDir = join(process.cwd(), "src", "app");
     const svgPath = join(publicDir, "icon.svg");
 
     if (!existsSync(svgPath)) {
@@ -29,8 +29,16 @@ async function main() {
       writeFileSync(outPath, pngBuffer);
       console.log(`تم إنشاء ${outPath}`);
     }
+
+    // نسخ icon-192 إلى app/icon.png لاستخدامه كـ favicon في التبويب
+    const icon192 = join(publicDir, "icon-192.png");
+    const appIcon = join(appDir, "icon.png");
+    if (existsSync(icon192) && existsSync(appDir)) {
+      writeFileSync(appIcon, readFileSync(icon192));
+      console.log("تم تحديث app/icon.png (أيقونة التبويب)");
+    }
   } catch (err) {
-    console.warn("scripts/generate-pwa-icons: فشل التحويل (sharp قد لا يكون مثبتاً):", err);
+    console.warn("scripts/generate-pwa-icons: فشل التحويل:", err);
   }
 }
 
