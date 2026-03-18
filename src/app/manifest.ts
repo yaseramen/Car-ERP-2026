@@ -1,19 +1,8 @@
 import type { MetadataRoute } from "next";
 
-function getBaseUrl(): string {
-  if (typeof process.env.VERCEL_URL === "string" && process.env.VERCEL_URL) {
-    return `https://${process.env.VERCEL_URL}`;
-  }
-  if (typeof process.env.NEXT_PUBLIC_APP_URL === "string" && process.env.NEXT_PUBLIC_APP_URL) {
-    return process.env.NEXT_PUBLIC_APP_URL.replace(/\/$/, "");
-  }
-  return "";
-}
-
 export default function manifest(): MetadataRoute.Manifest {
-  const base = getBaseUrl();
-  const icon = (path: string) => (base ? `${base}${path}` : path);
-
+  // استخدام مسارات نسبية ليبقى المستخدم على النطاق الحالي (car.aiverce.com)
+  // وعدم إجبار إعادة التوجيه إلى vercel.app
   return {
     id: "/",
     name: "الأمين لخدمات السيارات",
@@ -27,24 +16,9 @@ export default function manifest(): MetadataRoute.Manifest {
     lang: "ar",
     dir: "rtl",
     icons: [
-      {
-        src: icon("/icon-192.png"),
-        sizes: "192x192",
-        type: "image/png",
-        purpose: "any",
-      },
-      {
-        src: icon("/icon-512.png"),
-        sizes: "512x512",
-        type: "image/png",
-        purpose: "any",
-      },
-      {
-        src: icon("/icon.svg"),
-        sizes: "any",
-        type: "image/svg+xml",
-        purpose: "any",
-      },
+      { src: "/icon-192.png", sizes: "192x192", type: "image/png", purpose: "any" },
+      { src: "/icon-512.png", sizes: "512x512", type: "image/png", purpose: "any" },
+      { src: "/icon.svg", sizes: "any", type: "image/svg+xml", purpose: "any" },
     ],
   };
 }

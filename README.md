@@ -63,6 +63,8 @@
 
 **متغيرات Vercel المطلوبة:** `TURSO_DATABASE_URL`, `TURSO_AUTH_TOKEN`, `AUTH_SECRET`, `NEXTAUTH_URL`
 
+**لنطاق مخصص (مثل car.aiverce.com):** أضف `NEXT_PUBLIC_APP_URL=https://car.aiverce.com` في Vercel → Settings → Environment Variables → Production. هذا يمنع إعادة التوجيه إلى vercel.app ويُبقي تسجيل الدخول على نطاقك.
+
 **للتحقق من الإعداد:** افتح `/api/health` - إذا ظهر `auth: "missing_secret"` أضف AUTH_SECRET في Vercel → Settings → Environment Variables → Production
 
 ## الميزات الرئيسية
