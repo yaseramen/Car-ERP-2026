@@ -175,6 +175,18 @@ export default function HomePage() {
         </div>
       </section>
 
+      {/* روابط إضافية */}
+      <section className="py-8 px-6 border-t border-gray-100">
+        <div className="max-w-2xl mx-auto flex flex-wrap justify-center gap-6 text-emerald-600">
+          <Link href="/how-it-works" className="hover:text-emerald-700 font-medium">
+            كيف يعمل البرنامج
+          </Link>
+          <Link href="/faq" className="hover:text-emerald-700 font-medium">
+            الأسئلة الشائعة
+          </Link>
+        </div>
+      </section>
+
       {/* CTA */}
       <section className="py-16 px-6">
         <div className="max-w-2xl mx-auto text-center">
@@ -196,7 +208,16 @@ export default function HomePage() {
 
       {/* Footer */}
       <footer className="py-8 px-6 border-t border-gray-200 text-center text-sm text-gray-500">
-        <p>برنامج الأمين لخدمات السيارات — إدارة مراكز الصيانة ومحلات قطع الغيار</p>
+        <p className="mb-2">برنامج الأمين لخدمات السيارات — إدارة مراكز الصيانة ومحلات قطع الغيار</p>
+        <p>
+          <Link href="/how-it-works" className="text-emerald-600 hover:text-emerald-700">
+            كيف يعمل
+          </Link>
+          {" · "}
+          <Link href="/faq" className="text-emerald-600 hover:text-emerald-700">
+            الأسئلة الشائعة
+          </Link>
+        </p>
       </footer>
     </div>
   );

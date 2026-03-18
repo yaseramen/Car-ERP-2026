@@ -11,14 +11,13 @@ export default auth((req) => {
     return NextResponse.next();
   }
 
-  // صفحة تسجيل الدخول والتسجيل
-  if (path === "/login" || path === "/register") {
-    if (isLoggedIn) {
-      const role = req.auth?.user?.role;
-      if (["super_admin", "tenant_owner", "employee"].includes(role ?? "")) {
+  // صفحات عامة (SEO، لا تتطلب تسجيل دخول)
+  const publicPaths = ["/login", "/register", "/how-it-works", "/faq"];
+  if (publicPaths.includes(path)) {
+    if (path === "/login" || path === "/register") {
+      if (isLoggedIn && ["super_admin", "tenant_owner", "employee"].includes(req.auth?.user?.role ?? "")) {
         return NextResponse.redirect(new URL("/admin", nextUrl));
       }
-      return NextResponse.redirect(new URL("/", nextUrl));
     }
     return NextResponse.next();
   }
