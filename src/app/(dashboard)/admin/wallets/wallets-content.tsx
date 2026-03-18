@@ -181,26 +181,26 @@ export function WalletsContent() {
   }
 
   const inputClass =
-    "w-full px-4 py-2.5 rounded-lg border border-gray-300 bg-white text-gray-900 placeholder-gray-500 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none";
+    "w-full px-4 py-2.5 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none";
 
   if (loading) {
     return (
-      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-12 text-center">
-        <p className="text-gray-500">جاري التحميل...</p>
+      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 p-12 text-center">
+        <p className="text-gray-500 dark:text-gray-400">جاري التحميل...</p>
       </div>
     );
   }
 
   return (
     <div className="space-y-6">
-      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-        <h2 className="font-medium text-gray-900 mb-4">النسبة الافتراضية للخدمة الرقمية</h2>
-        <p className="text-sm text-gray-500 mb-4">
+      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 p-6">
+        <h2 className="font-medium text-gray-900 dark:text-gray-100 mb-4">النسبة الافتراضية للخدمة الرقمية</h2>
+        <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
           تُطبّق على فواتير البيع والصيانة. المعدل كنسبة عشرية (مثلاً 0.0001 = 0.01%). الحد الأدنى بالجنيه.
         </p>
         <form onSubmit={handleSaveFeeSettings} className="flex flex-wrap gap-4 items-end">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">المعدل (نسبة)</label>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">المعدل (نسبة)</label>
             <input
               type="text"
               value={feeSettings.rate}
@@ -210,7 +210,7 @@ export function WalletsContent() {
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">الحد الأدنى (ج.م)</label>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">الحد الأدنى (ج.م)</label>
             <input
               type="number"
               step="0.01"
@@ -227,7 +227,7 @@ export function WalletsContent() {
       </div>
 
       <div className="flex justify-between items-center">
-        <h2 className="font-medium text-gray-900">الشركات والمحافظ</h2>
+        <h2 className="font-medium text-gray-900 dark:text-gray-100">الشركات والمحافظ</h2>
         <button
           onClick={() => setAddCompanyOpen(true)}
           className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-medium rounded-lg transition-colors"
@@ -236,31 +236,31 @@ export function WalletsContent() {
         </button>
       </div>
 
-      <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead>
-              <tr className="bg-gray-50 border-b border-gray-100">
-                <th className="text-right px-4 py-3 text-sm font-medium text-gray-600">الشركة</th>
-                <th className="text-right px-4 py-3 text-sm font-medium text-gray-600">الهاتف</th>
-                <th className="text-right px-4 py-3 text-sm font-medium text-gray-600">الرصيد</th>
-                <th className="text-right px-4 py-3 text-sm font-medium text-gray-600">إجراءات</th>
-                <th className="text-right px-4 py-3 text-sm font-medium text-gray-600">تخصيص</th>
+              <tr className="bg-gray-50 dark:bg-gray-700/50 border-b border-gray-100 dark:border-gray-600">
+                <th className="text-right px-4 py-3 text-sm font-medium text-gray-600 dark:text-gray-300">الشركة</th>
+                <th className="text-right px-4 py-3 text-sm font-medium text-gray-600 dark:text-gray-300">الهاتف</th>
+                <th className="text-right px-4 py-3 text-sm font-medium text-gray-600 dark:text-gray-300">الرصيد</th>
+                <th className="text-right px-4 py-3 text-sm font-medium text-gray-600 dark:text-gray-300">إجراءات</th>
+                <th className="text-right px-4 py-3 text-sm font-medium text-gray-600 dark:text-gray-300">تخصيص</th>
               </tr>
             </thead>
             <tbody>
               {companies.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="px-4 py-12 text-center text-gray-500">
+                  <td colSpan={5} className="px-4 py-12 text-center text-gray-500 dark:text-gray-400">
                     لا توجد شركات. اضغط "إضافة شركة" للبدء.
                   </td>
                 </tr>
               ) : (
                 companies.map((c) => (
-                  <tr key={c.id} className="border-b border-gray-50 hover:bg-gray-50/50">
-                    <td className="px-4 py-3 text-sm font-medium text-gray-900">{c.name}</td>
-                    <td className="px-4 py-3 text-sm text-gray-600">{c.phone || "—"}</td>
-                    <td className="px-4 py-3 text-sm font-bold text-emerald-600">
+                  <tr key={c.id} className="border-b border-gray-50 dark:border-gray-700 hover:bg-gray-50/50 dark:hover:bg-gray-700/30">
+                    <td className="px-4 py-3 text-sm font-medium text-gray-900 dark:text-gray-100">{c.name}</td>
+                    <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-300">{c.phone || "—"}</td>
+                    <td className="px-4 py-3 text-sm font-bold text-emerald-600 dark:text-emerald-400">
                       {c.balance.toFixed(2)} ج.م
                     </td>
                     <td className="px-4 py-3 flex gap-2">
@@ -304,36 +304,36 @@ export function WalletsContent() {
         </div>
       </div>
 
-      <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-        <div className="p-4 border-b border-gray-100">
-          <h2 className="font-medium text-gray-900">آخر المعاملات</h2>
+      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden">
+        <div className="p-4 border-b border-gray-100 dark:border-gray-700">
+          <h2 className="font-medium text-gray-900 dark:text-gray-100">آخر المعاملات</h2>
         </div>
         <div className="overflow-x-auto">
           {transactions.length === 0 ? (
-            <div className="p-8 text-center text-gray-500">لا توجد معاملات</div>
+            <div className="p-8 text-center text-gray-500 dark:text-gray-400">لا توجد معاملات</div>
           ) : (
             <table className="w-full">
               <thead>
-                <tr className="bg-gray-50">
-                  <th className="text-right px-4 py-3 text-sm font-medium text-gray-600">التاريخ</th>
-                  <th className="text-right px-4 py-3 text-sm font-medium text-gray-600">الشركة</th>
-                  <th className="text-right px-4 py-3 text-sm font-medium text-gray-600">المبلغ</th>
-                  <th className="text-right px-4 py-3 text-sm font-medium text-gray-600">الوصف</th>
-                  <th className="text-right px-4 py-3 text-sm font-medium text-gray-600">بواسطة</th>
+                <tr className="bg-gray-50 dark:bg-gray-700/50">
+                  <th className="text-right px-4 py-3 text-sm font-medium text-gray-600 dark:text-gray-300">التاريخ</th>
+                  <th className="text-right px-4 py-3 text-sm font-medium text-gray-600 dark:text-gray-300">الشركة</th>
+                  <th className="text-right px-4 py-3 text-sm font-medium text-gray-600 dark:text-gray-300">المبلغ</th>
+                  <th className="text-right px-4 py-3 text-sm font-medium text-gray-600 dark:text-gray-300">الوصف</th>
+                  <th className="text-right px-4 py-3 text-sm font-medium text-gray-600 dark:text-gray-300">بواسطة</th>
                 </tr>
               </thead>
               <tbody>
                 {transactions.map((tx) => (
-                  <tr key={tx.id} className="border-b border-gray-50">
-                    <td className="px-4 py-3 text-sm text-gray-600">
+                  <tr key={tx.id} className="border-b border-gray-50 dark:border-gray-700">
+                    <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-300">
                       {new Date(tx.created_at).toLocaleString("ar-EG")}
                     </td>
-                    <td className="px-4 py-3 text-sm">{tx.company_name}</td>
-                    <td className={`px-4 py-3 text-sm font-medium ${tx.type === "credit" ? "text-emerald-600" : "text-amber-600"}`}>
+                    <td className="px-4 py-3 text-sm text-gray-900 dark:text-gray-100">{tx.company_name}</td>
+                    <td className={`px-4 py-3 text-sm font-medium ${tx.type === "credit" ? "text-emerald-600 dark:text-emerald-400" : "text-amber-600 dark:text-amber-400"}`}>
                       {tx.type === "credit" ? "+" : "-"}{tx.amount.toFixed(2)} ج.م
                     </td>
-                    <td className="px-4 py-3 text-sm text-gray-600">{tx.description || "—"}</td>
-                    <td className="px-4 py-3 text-sm text-gray-500">{tx.performed_by_name || "—"}</td>
+                    <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-400">{tx.description || "—"}</td>
+                    <td className="px-4 py-3 text-sm text-gray-500 dark:text-gray-400">{tx.performed_by_name || "—"}</td>
                   </tr>
                 ))}
               </tbody>
@@ -344,19 +344,19 @@ export function WalletsContent() {
 
       {modalOpen && selectedCompany && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50" dir="rtl">
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-md">
-            <div className="p-6 border-b border-gray-100">
-              <h3 className="text-lg font-bold text-gray-900">
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl w-full max-w-md">
+            <div className="p-6 border-b border-gray-100 dark:border-gray-700">
+              <h3 className="text-lg font-bold text-gray-900 dark:text-gray-100">
                 {modalType === "charge" ? "شحن" : "خصم"} محفظة: {selectedCompany.name}
               </h3>
-              <p className="text-sm text-gray-500 mt-1">الرصيد الحالي: {selectedCompany.balance.toFixed(2)} ج.م</p>
+              <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">الرصيد الحالي: {selectedCompany.balance.toFixed(2)} ج.م</p>
               {modalType === "debit" && (
                 <p className="text-xs text-amber-600 mt-1">لتصحيح إضافة رصيد بالخطأ</p>
               )}
             </div>
             <form onSubmit={handleWalletAction} className="p-6 space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">المبلغ (ج.م) *</label>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">المبلغ (ج.م) *</label>
                 <input
                   type="number"
                   step="0.01"
@@ -373,7 +373,7 @@ export function WalletsContent() {
                 )}
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">الوصف (اختياري)</label>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">الوصف (اختياري)</label>
                 <input
                   type="text"
                   value={chargeDesc}
@@ -389,7 +389,7 @@ export function WalletsContent() {
                     setModalOpen(false);
                     setSelectedCompany(null);
                   }}
-                  className="flex-1 px-4 py-2.5 text-gray-600 hover:bg-gray-100 rounded-lg transition"
+                  className="flex-1 px-4 py-2.5 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition"
                 >
                   إلغاء
                 </button>
@@ -412,14 +412,14 @@ export function WalletsContent() {
 
       {customFeeOpen && customFeeCompany && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50" dir="rtl">
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-md">
-            <div className="p-6 border-b border-gray-100">
-              <h3 className="text-lg font-bold text-gray-900">تخصيص نسبة الخدمة الرقمية: {customFeeCompany.name}</h3>
-              <p className="text-sm text-gray-500 mt-1">اترك الحقل فارغاً لاستخدام القيمة الافتراضية</p>
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl w-full max-w-md">
+            <div className="p-6 border-b border-gray-100 dark:border-gray-700">
+              <h3 className="text-lg font-bold text-gray-900 dark:text-gray-100">تخصيص نسبة الخدمة الرقمية: {customFeeCompany.name}</h3>
+              <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">اترك الحقل فارغاً لاستخدام القيمة الافتراضية</p>
             </div>
             <form onSubmit={handleSaveCustomFee} className="p-6 space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">المعدل (نسبة عشرية)</label>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">المعدل (نسبة عشرية)</label>
                 <input
                   type="text"
                   value={customFeeForm.rate}
@@ -429,7 +429,7 @@ export function WalletsContent() {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">الحد الأدنى (ج.م)</label>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">الحد الأدنى (ج.م)</label>
                 <input
                   type="number"
                   step="0.01"
@@ -448,7 +448,7 @@ export function WalletsContent() {
                     setCustomFeeCompany(null);
                     setCustomFeeForm({ rate: "", minFee: "" });
                   }}
-                  className="px-4 py-2.5 text-gray-600 hover:bg-gray-100 rounded-lg transition"
+                  className="px-4 py-2.5 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition"
                 >
                   إلغاء
                 </button>
@@ -491,13 +491,13 @@ export function WalletsContent() {
 
       {addCompanyOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50" dir="rtl">
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-md">
-            <div className="p-6 border-b border-gray-100">
-              <h3 className="text-lg font-bold text-gray-900">إضافة شركة جديدة</h3>
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl w-full max-w-md">
+            <div className="p-6 border-b border-gray-100 dark:border-gray-700">
+              <h3 className="text-lg font-bold text-gray-900 dark:text-gray-100">إضافة شركة جديدة</h3>
             </div>
             <form onSubmit={handleAddCompany} className="p-6 space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">اسم الشركة *</label>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">اسم الشركة *</label>
                 <input
                   type="text"
                   value={newCompany.name}
@@ -508,7 +508,7 @@ export function WalletsContent() {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">الهاتف</label>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">الهاتف</label>
                 <input
                   type="text"
                   value={newCompany.phone}
@@ -518,7 +518,7 @@ export function WalletsContent() {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">العنوان</label>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">العنوان</label>
                 <input
                   type="text"
                   value={newCompany.address}
@@ -531,7 +531,7 @@ export function WalletsContent() {
                 <button
                   type="button"
                   onClick={() => setAddCompanyOpen(false)}
-                  className="flex-1 px-4 py-2.5 text-gray-600 hover:bg-gray-100 rounded-lg transition"
+                  className="flex-1 px-4 py-2.5 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition"
                 >
                   إلغاء
                 </button>

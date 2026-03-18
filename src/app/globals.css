@@ -56,11 +56,27 @@ dt, th, td, label {
   color: #171717 !important;
 }
 
+/* في الوضع الليلي: النصوص الفاتحة فقط داخل العناصر ذات الخلفية الداكنة */
 .dark dt,
 .dark th,
 .dark td,
 .dark label {
   color: #f1f5f9 !important;
+}
+
+/* بطاقات وجداول شائعة: خلفية داكنة في الوضع الليلي لضمان وضوح النص */
+.dark .bg-white.rounded-xl {
+  background-color: #1e293b !important;
+  border-color: #374151 !important;
+}
+.dark table thead tr {
+  background-color: rgba(55, 65, 81, 0.5) !important;
+}
+.dark table tbody tr {
+  border-color: #374151 !important;
+}
+.dark table tbody tr:hover {
+  background-color: rgba(55, 65, 81, 0.3) !important;
 }
 
 @media print {
