@@ -45,7 +45,7 @@ CREATE TABLE IF NOT EXISTS screens (
     id TEXT PRIMARY KEY,
     name_ar TEXT NOT NULL,
     name_en TEXT NOT NULL,
-    module TEXT NOT NULL CHECK(module IN ('warehouse', 'workshop', 'cashier', 'reports', 'settings', 'wallet'))
+    module TEXT NOT NULL
 );
 
 -- مصفوفة الصلاحيات (لكل موظف لكل شاشة)

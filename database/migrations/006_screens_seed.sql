@@ -9,6 +9,7 @@ CREATE TABLE IF NOT EXISTS screens_new (
 );
 
 INSERT OR IGNORE INTO screens_new (id, name_ar, name_en, module) VALUES
+('screen-dashboard', 'الرئيسية', 'Dashboard', 'dashboard'),
 ('screen-inventory', 'المخزن', 'Inventory', 'inventory'),
 ('screen-workshop', 'الورشة', 'Workshop', 'workshop'),
 ('screen-obd', 'OBD', 'OBD', 'obd'),
