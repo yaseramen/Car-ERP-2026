@@ -23,8 +23,9 @@ const metadataBase =
 
 export const metadata: Metadata = {
   metadataBase: metadataBase ?? new URL("http://localhost:3000"),
-  title: "الأمين لخدمات السيارات",
-  description: "منصة SaaS متكاملة لإدارة مراكز خدمة السيارات",
+  title: "برنامج الأمين | إدارة مراكز الصيانة ومحلات قطع غيار السيارات",
+  description:
+    "برنامج متكامل لإدارة مراكز خدمة السيارات ومحلات بيع قطع الغيار. المخزون، الفواتير، الورشة، الكاشير، العملاء، الموردين، التقارير.",
   icons: {
     icon: [
       { url: "/icon-192.png", sizes: "192x192", type: "image/png" },
