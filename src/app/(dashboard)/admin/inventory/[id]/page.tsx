@@ -108,7 +108,7 @@ export default async function ItemReportPage({
     }));
 
     return (
-      <div className="p-8">
+      <div className="p-4 md:p-8">
         <div className="mb-6">
           <Link
             href="/admin/inventory"

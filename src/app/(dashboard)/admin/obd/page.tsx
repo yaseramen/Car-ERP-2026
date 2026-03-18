@@ -19,7 +19,7 @@ export default async function ObdPage() {
   }
 
   return (
-    <div className="p-8">
+    <div className="p-4 md:p-8">
       <div className="mb-8">
         <h1 className="text-2xl font-bold text-gray-900">التشخيص الذكي OBD</h1>
         <p className="text-gray-500 mt-1">

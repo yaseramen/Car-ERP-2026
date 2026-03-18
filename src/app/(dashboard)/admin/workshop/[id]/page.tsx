@@ -88,7 +88,7 @@ export default async function RepairOrderReportPage({
     const itemsTotal = items.reduce((sum, i) => sum + i.total, 0);
 
     return (
-      <div className="p-8">
+      <div className="p-4 md:p-8">
         <div className="mb-6">
           <Link
             href="/admin/workshop"

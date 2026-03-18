@@ -124,7 +124,7 @@ export default async function InvoiceDetailPage({
     };
 
     return (
-    <div className="p-8">
+    <div className="p-4 md:p-8">
       <div className="mb-6 flex justify-between items-center flex-wrap gap-2">
         <Link
           href="/admin/invoices"

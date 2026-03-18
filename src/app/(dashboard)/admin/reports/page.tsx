@@ -12,7 +12,7 @@ export default async function ReportsPage() {
   if (!companyId) redirect("/login");
 
   return (
-    <div className="p-8">
+    <div className="p-4 md:p-8">
       <div className="mb-8">
         <h1 className="text-2xl font-bold text-gray-900">التقارير</h1>
         <p className="text-gray-500 mt-1">نظرة على أداء النظام واتخاذ القرارات</p>

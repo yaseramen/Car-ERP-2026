@@ -9,7 +9,7 @@ export default async function InventoryPage() {
   }
 
   return (
-    <div className="p-8">
+    <div className="p-4 md:p-8">
       <div className="mb-8 flex justify-between items-start">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">المخزن</h1>

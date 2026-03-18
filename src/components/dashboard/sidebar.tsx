@@ -32,7 +32,17 @@ const navItems: {
   { href: "/admin/feedback", label: "الملاحظات والإبلاغات" },
 ];
 
-export function Sidebar({ role = "super_admin", businessType }: { role?: string; businessType?: string | null }) {
+export function Sidebar({
+  role = "super_admin",
+  businessType,
+  onNavigate,
+  onClose,
+}: {
+  role?: string;
+  businessType?: string | null;
+  onNavigate?: () => void;
+  onClose?: () => void;
+}) {
   const [perms, setPerms] = useState<Record<string, { read: boolean }> | null>(null);
   const [canNotify, setCanNotify] = useState(false);
   const notifications = useNotifications();
@@ -65,11 +75,30 @@ export function Sidebar({ role = "super_admin", businessType }: { role?: string;
   });
   const pathname = usePathname();
 
+  const handleNav = () => {
+    onNavigate?.();
+    onClose?.();
+  };
+
   return (
-    <aside className="w-64 min-h-screen bg-white dark:bg-gray-900 border-l border-gray-200 dark:border-gray-700 flex flex-col">
-      <div className="p-6 border-b border-gray-100 dark:border-gray-700">
-        <h2 className="font-bold text-gray-900 dark:text-gray-100">الأمين لخدمات السيارات</h2>
-        <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">{role === "super_admin" ? "لوحة Super Admin" : "لوحة المالك"}</p>
+    <aside className="w-full md:w-64 min-h-screen bg-white dark:bg-gray-900 border-l border-gray-200 dark:border-gray-700 flex flex-col">
+      <div className="p-4 md:p-6 border-b border-gray-100 dark:border-gray-700 flex items-center justify-between gap-2">
+        <div>
+          <h2 className="font-bold text-gray-900 dark:text-gray-100">الأمين لخدمات السيارات</h2>
+          <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">{role === "super_admin" ? "لوحة Super Admin" : "لوحة المالك"}</p>
+        </div>
+        {onClose && (
+          <button
+            type="button"
+            onClick={onClose}
+            className="md:hidden p-2 rounded-lg text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800"
+            aria-label="إغلاق القائمة"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        )}
       </div>
 
       <nav className="flex-1 p-4 space-y-1">
@@ -79,6 +108,7 @@ export function Sidebar({ role = "super_admin", businessType }: { role?: string;
             <Link
               key={item.href}
               href={item.href}
+              onClick={handleNav}
               className={`flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-colors ${
                 isActive
                   ? "bg-emerald-50 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400"
