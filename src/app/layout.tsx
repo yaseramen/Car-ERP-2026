@@ -14,12 +14,24 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+const metadataBase =
+  typeof process.env.VERCEL_URL === "string" && process.env.VERCEL_URL
+    ? new URL(`https://${process.env.VERCEL_URL}`)
+    : typeof process.env.NEXT_PUBLIC_APP_URL === "string" && process.env.NEXT_PUBLIC_APP_URL
+      ? new URL(process.env.NEXT_PUBLIC_APP_URL.replace(/\/$/, ""))
+      : undefined;
+
 export const metadata: Metadata = {
+  metadataBase: metadataBase ?? new URL("http://localhost:3000"),
   title: "الأمين لخدمات السيارات",
   description: "منصة SaaS متكاملة لإدارة مراكز خدمة السيارات",
   icons: {
-    icon: "/icon.svg",
-    apple: "/icon.svg",
+    icon: [
+      { url: "/icon-192.png", sizes: "192x192", type: "image/png" },
+      { url: "/icon-512.png", sizes: "512x512", type: "image/png" },
+      { url: "/icon.svg", type: "image/svg+xml" },
+    ],
+    apple: "/icon-192.png",
   },
 };
 
