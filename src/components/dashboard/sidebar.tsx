@@ -29,6 +29,7 @@ const navItems: {
   { href: "/admin/wallets", label: "المحافظ", module: "wallets", superAdminOnly: true },
   { href: "/admin/team", label: "المستخدمون", ownerOrAdmin: true },
   { href: "/admin/settings", label: "إعدادات الشركة", ownerOrAdmin: true },
+  { href: "/admin/feedback", label: "الملاحظات والإبلاغات" },
 ];
 
 export function Sidebar({ role = "super_admin", businessType }: { role?: string; businessType?: string | null }) {
