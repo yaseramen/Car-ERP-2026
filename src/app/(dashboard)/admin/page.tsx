@@ -1,8 +1,25 @@
 import { auth } from "@/auth";
+import { redirect } from "next/navigation";
 import { DashboardContent } from "./dashboard-content";
+import { canAccess, getFirstAllowedRoute } from "@/lib/permissions";
+import { getCompanyId } from "@/lib/company";
 
 export default async function AdminDashboardPage() {
   const session = await auth();
+  if (!session?.user || !["super_admin", "tenant_owner", "employee"].includes(session.user.role ?? "")) {
+    redirect("/login");
+  }
+
+  const companyId = getCompanyId(session);
+  if (!companyId) redirect("/login");
+
+  if (session.user.role === "employee") {
+    const allowed = await canAccess(session.user.id, "employee", companyId, "dashboard", "read");
+    if (!allowed) {
+      const firstRoute = await getFirstAllowedRoute(session.user.id);
+      if (firstRoute) redirect(firstRoute);
+    }
+  }
 
   return (
     <div className="p-8">

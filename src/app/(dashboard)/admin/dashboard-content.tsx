@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 
 type Summary = {
+  canSee?: { sales: boolean; treasuries: boolean; workshop: boolean; inventory: boolean };
   sales: { today: { total: number; count: number }; week: { total: number; count: number }; month: { total: number; count: number } };
   workshop: Record<string, number>;
   lowStockCount: number;
@@ -55,41 +56,55 @@ export function DashboardContent() {
   }
 
   const maxDaily = data.dailySales.length > 0 ? Math.max(...data.dailySales.map((d) => d.total), 1) : 1;
+  const c = data.canSee ?? { sales: true, treasuries: true, workshop: true, inventory: true };
+  const hasAny = c.sales || c.treasuries || c.workshop || c.inventory;
+
+  if (!hasAny) {
+    return (
+      <div className="py-20 text-center text-gray-500">
+        <p>لا توجد صلاحيات لعرض لوحة التحكم.</p>
+        <p className="text-sm mt-2">تواصل مع مديرك لإعطائك الصلاحيات المناسبة.</p>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-8">
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="bg-emerald-50 rounded-xl p-5 border border-emerald-100">
-          <p className="text-sm text-emerald-700">مبيعات اليوم</p>
-          <p className="text-2xl font-bold text-emerald-900 mt-1">
-            {data.sales.today.total.toLocaleString("ar-EG")} ج.م
-          </p>
-          <p className="text-xs text-emerald-600 mt-1">{data.sales.today.count} فاتورة</p>
+      {c.sales && (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="bg-emerald-50 rounded-xl p-5 border border-emerald-100">
+            <p className="text-sm text-emerald-700">مبيعات اليوم</p>
+            <p className="text-2xl font-bold text-emerald-900 mt-1">
+              {data.sales.today.total.toLocaleString("ar-EG")} ج.م
+            </p>
+            <p className="text-xs text-emerald-600 mt-1">{data.sales.today.count} فاتورة</p>
+          </div>
+          <div className="bg-blue-50 rounded-xl p-5 border border-blue-100">
+            <p className="text-sm text-blue-700">مبيعات الأسبوع</p>
+            <p className="text-2xl font-bold text-blue-900 mt-1">
+              {data.sales.week.total.toLocaleString("ar-EG")} ج.م
+            </p>
+            <p className="text-xs text-blue-600 mt-1">{data.sales.week.count} فاتورة</p>
+          </div>
+          <div className="bg-amber-50 rounded-xl p-5 border border-amber-100">
+            <p className="text-sm text-amber-700">مبيعات الشهر</p>
+            <p className="text-2xl font-bold text-amber-900 mt-1">
+              {data.sales.month.total.toLocaleString("ar-EG")} ج.م
+            </p>
+            <p className="text-xs text-amber-600 mt-1">{data.sales.month.count} فاتورة</p>
+          </div>
+          <div className="bg-violet-50 rounded-xl p-5 border border-violet-100">
+            <p className="text-sm text-violet-700">فواتير معلقة</p>
+            <p className="text-2xl font-bold text-violet-900 mt-1">
+              {data.pendingInvoices.remaining.toLocaleString("ar-EG")} ج.م
+            </p>
+            <p className="text-xs text-violet-600 mt-1">{data.pendingInvoices.count} فاتورة</p>
+          </div>
         </div>
-        <div className="bg-blue-50 rounded-xl p-5 border border-blue-100">
-          <p className="text-sm text-blue-700">مبيعات الأسبوع</p>
-          <p className="text-2xl font-bold text-blue-900 mt-1">
-            {data.sales.week.total.toLocaleString("ar-EG")} ج.م
-          </p>
-          <p className="text-xs text-blue-600 mt-1">{data.sales.week.count} فاتورة</p>
-        </div>
-        <div className="bg-amber-50 rounded-xl p-5 border border-amber-100">
-          <p className="text-sm text-amber-700">مبيعات الشهر</p>
-          <p className="text-2xl font-bold text-amber-900 mt-1">
-            {data.sales.month.total.toLocaleString("ar-EG")} ج.م
-          </p>
-          <p className="text-xs text-amber-600 mt-1">{data.sales.month.count} فاتورة</p>
-        </div>
-        <div className="bg-violet-50 rounded-xl p-5 border border-violet-100">
-          <p className="text-sm text-violet-700">فواتير معلقة</p>
-          <p className="text-2xl font-bold text-violet-900 mt-1">
-            {data.pendingInvoices.remaining.toLocaleString("ar-EG")} ج.م
-          </p>
-          <p className="text-xs text-violet-600 mt-1">{data.pendingInvoices.count} فاتورة</p>
-        </div>
-      </div>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {c.treasuries && (
         <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
           <h3 className="font-bold text-gray-900 mb-4">الخزائن</h3>
           <div className="space-y-3">
@@ -107,7 +122,9 @@ export function DashboardContent() {
             عرض الخزائن →
           </Link>
         </div>
+        )}
 
+        {c.workshop && (
         <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
           <h3 className="font-bold text-gray-900 mb-4">الورشة</h3>
           <div className="space-y-2">
@@ -125,9 +142,11 @@ export function DashboardContent() {
             عرض الورشة →
           </Link>
         </div>
+        )}
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {c.sales && (
         <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
           <h3 className="font-bold text-gray-900 mb-4">مبيعات آخر 7 أيام</h3>
           <div className="flex gap-2 h-36">
@@ -148,11 +167,12 @@ export function DashboardContent() {
             )}
           </div>
         </div>
+        )}
 
         <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
           <h3 className="font-bold text-gray-900 mb-4">تنبيهات</h3>
           <div className="space-y-2">
-            {data.lowStockCount > 0 && (
+            {c.inventory && data.lowStockCount > 0 && (
               <Link
                 href="/admin/inventory"
                 className="flex items-center gap-3 p-3 rounded-lg bg-amber-50 border border-amber-100 hover:bg-amber-100 transition"
@@ -161,7 +181,7 @@ export function DashboardContent() {
                 <span className="text-amber-800 font-bold">{data.lowStockCount}</span>
               </Link>
             )}
-            {data.pendingInvoices.count > 0 && (
+            {c.sales && data.pendingInvoices.count > 0 && (
               <Link
                 href="/admin/invoices"
                 className="flex items-center gap-3 p-3 rounded-lg bg-violet-50 border border-violet-100 hover:bg-violet-100 transition"
@@ -170,7 +190,7 @@ export function DashboardContent() {
                 <span className="text-violet-800 font-bold">{data.pendingInvoices.count}</span>
               </Link>
             )}
-            {data.lowStockCount === 0 && data.pendingInvoices.count === 0 && (
+            {(!c.inventory || data.lowStockCount === 0) && (!c.sales || data.pendingInvoices.count === 0) && (
               <p className="text-gray-500 text-sm">لا توجد تنبيهات</p>
             )}
           </div>

@@ -59,3 +59,25 @@ export async function getUserPermissions(userId: string): Promise<Record<string,
   }
   return perms;
 }
+
+/** أول مسار مسموح للموظف (للتوجيه عند عدم وجود صلاحية الرئيسية) */
+const MODULE_ROUTES: Record<string, string> = {
+  inventory: "/admin/inventory",
+  workshop: "/admin/workshop",
+  obd: "/admin/obd",
+  cashier: "/admin/cashier",
+  purchases: "/admin/purchases",
+  invoices: "/admin/invoices",
+  customers: "/admin/customers",
+  suppliers: "/admin/suppliers",
+  reports: "/admin/reports",
+  treasuries: "/admin/treasuries",
+};
+
+export async function getFirstAllowedRoute(userId: string): Promise<string | null> {
+  const perms = await getUserPermissions(userId);
+  for (const [module, p] of Object.entries(perms)) {
+    if (p.read && MODULE_ROUTES[module]) return MODULE_ROUTES[module];
+  }
+  return null;
+}

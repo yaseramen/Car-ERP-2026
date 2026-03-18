@@ -3,6 +3,7 @@ import { auth } from "@/auth";
 import { db } from "@/lib/db/client";
 import { ensureTreasuries } from "@/lib/treasuries";
 import { getCompanyId } from "@/lib/company";
+import { getUserPermissions } from "@/lib/permissions";
 
 function startOfDay(d: Date) {
   const x = new Date(d);
@@ -26,7 +27,7 @@ function startOfMonth(d: Date) {
   return x.toISOString().slice(0, 19).replace("T", " ");
 }
 
-export async function GET(request: Request) {
+export async function GET() {
   const session = await auth();
   if (!session?.user || !["super_admin", "tenant_owner", "employee"].includes(session.user.role ?? "")) {
     return NextResponse.json({ error: "غير مصرح" }, { status: 401 });
@@ -34,6 +35,13 @@ export async function GET(request: Request) {
 
   const companyId = getCompanyId(session);
   if (!companyId) return NextResponse.json({ error: "غير مصرح" }, { status: 401 });
+
+  const isFullAccess = session.user.role === "super_admin" || session.user.role === "tenant_owner";
+  const perms = !isFullAccess ? await getUserPermissions(session.user.id) : null;
+  const canSeeSales = isFullAccess || perms?.invoices?.read || perms?.cashier?.read || perms?.reports?.read;
+  const canSeeTreasuries = isFullAccess || perms?.treasuries?.read;
+  const canSeeWorkshop = isFullAccess || perms?.workshop?.read;
+  const canSeeInventory = isFullAccess || perms?.inventory?.read;
 
   try {
     await ensureTreasuries(companyId);
@@ -118,19 +126,21 @@ export async function GET(request: Request) {
     }));
 
     return NextResponse.json({
-      sales: {
-        today: { total: Number(salesToday.rows[0]?.total ?? 0), count: Number(salesToday.rows[0]?.count ?? 0) },
-        week: { total: Number(salesWeek.rows[0]?.total ?? 0), count: Number(salesWeek.rows[0]?.count ?? 0) },
-        month: { total: Number(salesMonth.rows[0]?.total ?? 0), count: Number(salesMonth.rows[0]?.count ?? 0) },
-      },
-      workshop: workshopByStage,
-      lowStockCount: Number(lowStock.rows[0]?.cnt ?? 0),
-      pendingInvoices: {
-        count: Number(pendingInvoices.rows[0]?.cnt ?? 0),
-        remaining: Number(pendingInvoices.rows[0]?.remaining ?? 0),
-      },
-      treasuries: treasuryBalances,
-      dailySales: dailyData,
+      canSee: { sales: canSeeSales, treasuries: canSeeTreasuries, workshop: canSeeWorkshop, inventory: canSeeInventory },
+      sales: canSeeSales
+        ? {
+            today: { total: Number(salesToday.rows[0]?.total ?? 0), count: Number(salesToday.rows[0]?.count ?? 0) },
+            week: { total: Number(salesWeek.rows[0]?.total ?? 0), count: Number(salesWeek.rows[0]?.count ?? 0) },
+            month: { total: Number(salesMonth.rows[0]?.total ?? 0), count: Number(salesMonth.rows[0]?.count ?? 0) },
+          }
+        : { today: { total: 0, count: 0 }, week: { total: 0, count: 0 }, month: { total: 0, count: 0 } },
+      workshop: canSeeWorkshop ? workshopByStage : {},
+      lowStockCount: canSeeInventory ? Number(lowStock.rows[0]?.cnt ?? 0) : 0,
+      pendingInvoices: canSeeSales
+        ? { count: Number(pendingInvoices.rows[0]?.cnt ?? 0), remaining: Number(pendingInvoices.rows[0]?.remaining ?? 0) }
+        : { count: 0, remaining: 0 },
+      treasuries: canSeeTreasuries ? treasuryBalances : {},
+      dailySales: canSeeSales ? dailyData : [],
     });
   } catch (error) {
     console.error("Reports summary error:", error);
