@@ -99,18 +99,18 @@ export default async function RepairOrderReportPage({
         </div>
 
         <div className="mb-8">
-          <h1 className="text-2xl font-bold text-gray-900">
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">
             أمر إصلاح {order.order_number}
           </h1>
-          <p className="text-gray-500 mt-1">
+          <p className="text-gray-500 dark:text-gray-400 mt-1">
             تقرير كامل لأمر الإصلاح — {order.vehicle_plate}
             {order.vehicle_model && ` • ${order.vehicle_model}`}
           </p>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-          <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100">
-            <h2 className="font-bold text-gray-900 mb-4">بيانات السيارة</h2>
+          <div className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-sm border border-gray-100 dark:border-gray-700">
+            <h2 className="font-bold text-gray-900 dark:text-gray-100 mb-4">بيانات السيارة</h2>
             <dl className="space-y-3 text-sm">
               <div className="flex justify-between">
                 <dt className="text-gray-500">رقم اللوحة</dt>
@@ -175,15 +175,15 @@ export default async function RepairOrderReportPage({
         </div>
 
         {order.inspection_notes && (
-          <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100 mb-8">
-            <h2 className="font-bold text-gray-900 mb-2">ملاحظات الفحص</h2>
-            <p className="text-gray-600 text-sm whitespace-pre-wrap">{order.inspection_notes}</p>
+          <div className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-sm border border-gray-100 dark:border-gray-700 mb-8">
+            <h2 className="font-bold text-gray-900 dark:text-gray-100 mb-2">ملاحظات الفحص</h2>
+            <p className="text-gray-600 dark:text-gray-300 text-sm whitespace-pre-wrap">{order.inspection_notes}</p>
           </div>
         )}
 
-        <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden mb-8">
-          <div className="p-4 border-b border-gray-100">
-            <h2 className="font-bold text-gray-900">القطع المثبتة</h2>
+        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden mb-8">
+          <div className="p-4 border-b border-gray-100 dark:border-gray-700">
+            <h2 className="font-bold text-gray-900 dark:text-gray-100">القطع المثبتة</h2>
           </div>
           <div className="overflow-x-auto">
             {items.length > 0 ? (

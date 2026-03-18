@@ -1,8 +1,15 @@
 @import "tailwindcss";
 
+@custom-variant dark (&:where(.dark, .dark *));
+
 :root {
   --background: #ffffff;
   --foreground: #171717;
+}
+
+.dark {
+  --background: #0f172a;
+  --foreground: #f1f5f9;
 }
 
 @theme inline {
@@ -12,14 +19,22 @@
   --font-mono: var(--font-geist-mono);
 }
 
-/* إلغاء الوضع الداكن لضمان وضوح النصوص في كامل البرنامج */
 body {
   background: #f9fafb;
   color: #171717;
   font-family: Arial, Helvetica, sans-serif;
 }
 
-/* ضمان وضوح النص داخل حقول الإدخال في كامل البرنامج */
+.dark body {
+  background: #0f172a;
+  color: #f1f5f9;
+}
+
+/* خلفية منطقة المحتوى الرئيسية في الوضع الليلي */
+.dark main {
+  background-color: #0f172a;
+}
+
 input,
 textarea,
 select {
@@ -31,9 +46,74 @@ textarea::placeholder {
   color: #6b7280 !important;
 }
 
-/* ضمان وضوح العناوين والتسميات والقيم في الجداول والقوائم */
+.dark input,
+.dark textarea,
+.dark select {
+  color: #f1f5f9 !important;
+  background-color: #1e293b !important;
+}
+.dark input::placeholder,
+.dark textarea::placeholder {
+  color: #94a3b8 !important;
+}
+
 dt, th, td, label {
   color: #171717 !important;
+}
+
+/* في الوضع الليلي: النصوص الفاتحة لضمان الوضوح */
+.dark dt,
+.dark th,
+.dark td,
+.dark label {
+  color: #f1f5f9 !important;
+}
+
+/* عناوين الصفحات والعناصر النصية الشائعة */
+.dark h1,
+.dark h2,
+.dark h3,
+.dark h4 {
+  color: #f1f5f9 !important;
+}
+.dark .text-gray-900,
+.dark .text-gray-950 {
+  color: #f1f5f9 !important;
+}
+.dark .text-gray-800 {
+  color: #e2e8f0 !important;
+}
+.dark .text-gray-700 {
+  color: #cbd5e1 !important;
+}
+.dark .text-gray-600 {
+  color: #94a3b8 !important;
+}
+.dark .text-gray-500 {
+  color: #94a3b8 !important;
+}
+
+/* بطاقات وجداول: خلفية داكنة في الوضع الليلي */
+.dark .bg-white.rounded-xl,
+.dark .bg-white.rounded-lg {
+  background-color: #1e293b !important;
+  border-color: #374151 !important;
+}
+.dark .bg-gray-50 {
+  background-color: #1e293b !important;
+}
+.dark .border-gray-100,
+.dark .border-gray-200 {
+  border-color: #374151 !important;
+}
+.dark table thead tr {
+  background-color: rgba(55, 65, 81, 0.5) !important;
+}
+.dark table tbody tr {
+  border-color: #374151 !important;
+}
+.dark table tbody tr:hover {
+  background-color: rgba(55, 65, 81, 0.3) !important;
 }
 
 @media print {

@@ -19,12 +19,12 @@ const STATUS_LABELS: Record<string, string> = {
 };
 
 const STATUS_COLORS: Record<string, string> = {
-  draft: "bg-gray-100 text-gray-800",
-  pending: "bg-amber-100 text-amber-800",
-  paid: "bg-emerald-100 text-emerald-800",
-  partial: "bg-blue-100 text-blue-800",
-  returned: "bg-red-100 text-red-800",
-  cancelled: "bg-gray-100 text-gray-500",
+  draft: "bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200",
+  pending: "bg-amber-100 dark:bg-amber-900/40 text-amber-800 dark:text-amber-200",
+  paid: "bg-emerald-100 dark:bg-emerald-900/40 text-emerald-800 dark:text-emerald-200",
+  partial: "bg-blue-100 dark:bg-blue-900/40 text-blue-800 dark:text-blue-200",
+  returned: "bg-red-100 dark:bg-red-900/40 text-red-800 dark:text-red-200",
+  cancelled: "bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400",
 };
 
 interface Invoice {
@@ -70,8 +70,8 @@ export function InvoicesContent() {
 
   if (loading) {
     return (
-      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-12 text-center">
-        <p className="text-gray-500">جاري التحميل...</p>
+      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 p-12 text-center">
+        <p className="text-gray-500 dark:text-gray-400">جاري التحميل...</p>
       </div>
     );
   }
@@ -92,7 +92,7 @@ export function InvoicesContent() {
             className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
               typeFilter === opt.value
                 ? "bg-emerald-600 text-white"
-                : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                : "bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600"
             }`}
           >
             {opt.label}
@@ -100,56 +100,56 @@ export function InvoicesContent() {
         ))}
       </div>
 
-      <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden">
       <div className="overflow-x-auto">
         <table className="w-full">
           <thead>
-            <tr className="bg-gray-50 border-b border-gray-100">
-              <th className="text-right px-4 py-3 text-sm font-medium text-gray-600">رقم الفاتورة</th>
-              <th className="text-right px-4 py-3 text-sm font-medium text-gray-600">النوع</th>
-              <th className="text-right px-4 py-3 text-sm font-medium text-gray-600">الحالة</th>
-              <th className="text-right px-4 py-3 text-sm font-medium text-gray-600">العميل / السيارة</th>
-              <th className="text-right px-4 py-3 text-sm font-medium text-gray-600">الإجمالي</th>
-              <th className="text-right px-4 py-3 text-sm font-medium text-gray-600">التاريخ</th>
+            <tr className="bg-gray-50 dark:bg-gray-700/50 border-b border-gray-100 dark:border-gray-600">
+              <th className="text-right px-4 py-3 text-sm font-medium text-gray-600 dark:text-gray-300">رقم الفاتورة</th>
+              <th className="text-right px-4 py-3 text-sm font-medium text-gray-600 dark:text-gray-300">النوع</th>
+              <th className="text-right px-4 py-3 text-sm font-medium text-gray-600 dark:text-gray-300">الحالة</th>
+              <th className="text-right px-4 py-3 text-sm font-medium text-gray-600 dark:text-gray-300">العميل / السيارة</th>
+              <th className="text-right px-4 py-3 text-sm font-medium text-gray-600 dark:text-gray-300">الإجمالي</th>
+              <th className="text-right px-4 py-3 text-sm font-medium text-gray-600 dark:text-gray-300">التاريخ</th>
             </tr>
           </thead>
           <tbody>
             {filteredInvoices.length === 0 ? (
               <tr>
-                <td colSpan={6} className="px-4 py-12 text-center text-gray-500">
+                <td colSpan={6} className="px-4 py-12 text-center text-gray-500 dark:text-gray-400">
                   {invoices.length === 0 ? "لا توجد فواتير حتى الآن" : "لا توجد فواتير بهذا النوع"}
                 </td>
               </tr>
             ) : (
               filteredInvoices.map((inv) => (
-                <tr key={inv.id} className="border-b border-gray-50 hover:bg-gray-50/50">
+                <tr key={inv.id} className="border-b border-gray-50 dark:border-gray-700 hover:bg-gray-50/50 dark:hover:bg-gray-700/30">
                   <td className="px-4 py-3">
                     <Link
                       href={`/admin/invoices/${inv.id}`}
-                      className="text-sm font-medium text-emerald-600 hover:text-emerald-700 hover:underline"
+                      className="text-sm font-medium text-emerald-600 dark:text-emerald-400 hover:text-emerald-700 dark:hover:text-emerald-300 hover:underline"
                     >
                       {inv.invoice_number}
                     </Link>
                   </td>
-                  <td className="px-4 py-3 text-sm text-gray-600">
+                  <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-300">
                     {TYPE_LABELS[inv.type] || inv.type}
                   </td>
                   <td className="px-4 py-3">
                     <span
                       className={`px-2 py-1 rounded text-xs font-medium ${
-                        STATUS_COLORS[inv.status] || "bg-gray-100 text-gray-800"
+                        STATUS_COLORS[inv.status] || "bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200"
                       }`}
                     >
                       {STATUS_LABELS[inv.status] || inv.status}
                     </span>
                   </td>
-                  <td className="px-4 py-3 text-sm text-gray-600">
+                  <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-300">
                     {inv.customer_name || (inv.vehicle_plate ? `لوحة: ${inv.vehicle_plate}` : "—")}
                   </td>
-                  <td className="px-4 py-3 text-sm font-medium text-gray-900">
+                  <td className="px-4 py-3 text-sm font-medium text-gray-900 dark:text-gray-100">
                     {inv.total.toFixed(2)} ج.م
                   </td>
-                  <td className="px-4 py-3 text-sm text-gray-600">
+                  <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-300">
                     {new Date(inv.created_at).toLocaleDateString("ar-EG")}
                   </td>
                 </tr>

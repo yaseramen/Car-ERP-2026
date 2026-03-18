@@ -189,8 +189,8 @@ export default async function InvoiceDetailPage({
       )}
 
       <div className="mb-8">
-        <h1 className="text-2xl font-bold text-gray-900">فاتورة {data.invoice_number}</h1>
-        <p className="text-gray-500 mt-1">
+        <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">فاتورة {data.invoice_number}</h1>
+        <p className="text-gray-500 dark:text-gray-400 mt-1">
           {data.is_return && (
             <span className="inline-block px-2 py-0.5 bg-amber-100 text-amber-800 rounded text-sm font-medium mb-2">
               مرتجع
@@ -209,8 +209,8 @@ export default async function InvoiceDetailPage({
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-        <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100">
-          <h2 className="font-bold text-gray-900 mb-4">بيانات الفاتورة</h2>
+        <div className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-sm border border-gray-100 dark:border-gray-700">
+          <h2 className="font-bold text-gray-900 dark:text-gray-100 mb-4">بيانات الفاتورة</h2>
           <dl className="space-y-3 text-sm">
             <div className="flex justify-between">
               <dt className="text-gray-500">رقم الفاتورة</dt>
@@ -287,9 +287,9 @@ export default async function InvoiceDetailPage({
         </div>
       </div>
 
-      <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden mb-8">
-        <div className="p-4 border-b border-gray-100">
-          <h2 className="font-bold text-gray-900">بنود الفاتورة</h2>
+      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden mb-8">
+        <div className="p-4 border-b border-gray-100 dark:border-gray-700">
+          <h2 className="font-bold text-gray-900 dark:text-gray-100">بنود الفاتورة</h2>
         </div>
         <div className="overflow-x-auto">
           {items.length > 0 ? (
