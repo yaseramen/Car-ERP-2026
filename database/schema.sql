@@ -439,15 +439,7 @@ CREATE INDEX IF NOT EXISTS idx_obd_codes_code ON obd_codes(code);
 CREATE INDEX IF NOT EXISTS idx_obd_searches_company ON obd_searches(company_id);
 
 -- ==================== البيانات الأولية ====================
-
--- الشاشات الافتراضية
-INSERT OR IGNORE INTO screens (id, name_ar, name_en, module) VALUES
-    ('screen_warehouse', 'المخزن', 'Warehouse', 'warehouse'),
-    ('screen_workshop', 'الورشة', 'Workshop', 'workshop'),
-    ('screen_cashier', 'الكاشير', 'Cashier', 'cashier'),
-    ('screen_reports', 'التقارير', 'Reports', 'reports'),
-    ('screen_settings', 'الإعدادات', 'Settings', 'settings'),
-    ('screen_wallet', 'المحفظة', 'Wallet', 'wallet');
+-- ملاحظة: الشاشات تُدرج من migration 006_screens_seed.sql لتجنب التكرار
 
 -- طرق الدفع الافتراضية (عامة)
 INSERT OR IGNORE INTO payment_methods (id, company_id, name, type) VALUES
