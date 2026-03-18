@@ -95,7 +95,8 @@ dt, th, td, label {
 
 /* بطاقات وجداول: خلفية داكنة في الوضع الليلي */
 .dark .bg-white.rounded-xl,
-.dark .bg-white.rounded-lg {
+.dark .bg-white.rounded-lg,
+.dark .bg-white.rounded-md {
   background-color: #1e293b !important;
   border-color: #374151 !important;
 }
