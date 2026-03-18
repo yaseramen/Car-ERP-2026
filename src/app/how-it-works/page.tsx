@@ -99,6 +99,10 @@ export default function HowItWorksPage() {
         <Link href="/faq" className="text-emerald-600 hover:text-emerald-700">
           الأسئلة الشائعة
         </Link>
+        {" · "}
+        <Link href="/terms" className="text-emerald-600 hover:text-emerald-700">
+          سياسة الاستخدام
+        </Link>
       </footer>
     </div>
   );

@@ -11,6 +11,7 @@ export default function RegisterPage() {
     phone: "",
     company_name: "",
     business_type: "both" as "sales_only" | "service_only" | "both",
+    accept_terms: false,
   });
   const [error, setError] = useState("");
   const [success, setSuccess] = useState(false);
@@ -18,6 +19,10 @@ export default function RegisterPage() {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    if (!form.accept_terms) {
+      setError("يجب الموافقة على سياسة الاستخدام وشروط الخدمة للمتابعة");
+      return;
+    }
     setError("");
     setLoading(true);
 
@@ -143,6 +148,21 @@ export default function RegisterPage() {
             placeholder="01xxxxxxxxx"
           />
         </div>
+
+        <label className="flex items-start gap-3 cursor-pointer">
+          <input
+            type="checkbox"
+            checked={form.accept_terms}
+            onChange={(e) => setForm((f) => ({ ...f, accept_terms: e.target.checked }))}
+            className="mt-1 rounded border-gray-300"
+          />
+          <span className="text-sm text-gray-600">
+            أوافق على{" "}
+            <Link href="/terms" target="_blank" className="text-emerald-600 hover:underline">
+              سياسة الاستخدام وشروط الخدمة
+            </Link>
+          </span>
+        </label>
 
         <button
           type="submit"

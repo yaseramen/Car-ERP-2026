@@ -184,6 +184,9 @@ export default function HomePage() {
           <Link href="/faq" className="hover:text-emerald-700 font-medium">
             الأسئلة الشائعة
           </Link>
+          <Link href="/terms" className="hover:text-emerald-700 font-medium">
+            سياسة الاستخدام
+          </Link>
         </div>
       </section>
 
@@ -216,6 +219,10 @@ export default function HomePage() {
           {" · "}
           <Link href="/faq" className="text-emerald-600 hover:text-emerald-700">
             الأسئلة الشائعة
+          </Link>
+          {" · "}
+          <Link href="/terms" className="text-emerald-600 hover:text-emerald-700">
+            سياسة الاستخدام
           </Link>
         </p>
       </footer>
