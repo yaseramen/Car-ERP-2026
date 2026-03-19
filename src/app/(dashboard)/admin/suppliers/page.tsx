@@ -1,12 +1,20 @@
 import { auth } from "@/auth";
 import { redirect } from "next/navigation";
+import { getCompanyId } from "@/lib/company";
+import { canAccess } from "@/lib/permissions";
 import { SuppliersContent } from "./suppliers-content";
 
 export default async function SuppliersPage() {
   const session = await auth();
-  if (!session?.user || session.user.role !== "super_admin") {
-    redirect("/login");
-  }
+  if (!session?.user) redirect("/login");
+  const companyId = getCompanyId(session);
+  const allowed =
+    session.user.role === "super_admin" ||
+    session.user.role === "tenant_owner" ||
+    (session.user.role === "employee" &&
+      session.user.id &&
+      (await canAccess(session.user.id, session.user.role ?? "", companyId, "suppliers", "read")));
+  if (!allowed) redirect("/login");
 
   return (
     <div className="p-4 md:p-8">
