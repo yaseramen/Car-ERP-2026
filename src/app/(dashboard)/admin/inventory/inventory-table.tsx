@@ -232,7 +232,8 @@ export function InventoryTable() {
     );
   }
 
-  const lowStockItems = items.filter((i) => i.min_quantity > 0 && i.quantity < i.min_quantity);
+  const lowStockItems = items.filter((i) => i.min_quantity > 0 && i.quantity < i.min_quantity * 0.8);
+  const approachingLimitItems = items.filter((i) => i.min_quantity > 0 && i.quantity >= i.min_quantity * 0.8 && i.quantity < i.min_quantity);
 
   return (
     <>
@@ -240,7 +241,7 @@ export function InventoryTable() {
         <div className="mb-6 bg-amber-50 dark:bg-amber-900/40 border border-amber-200 dark:border-amber-700 rounded-xl p-4">
           <h3 className="font-medium mb-2 flex items-center gap-2">
             <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
-            <span className="text-amber-800 dark:text-amber-200">تنبيه: أصناف أقل من الحد الأدنى ({lowStockItems.length})</span>
+            <span className="text-amber-800 dark:text-amber-200">تنبيه: أصناف أقل من 80% من الحد الأدنى ({lowStockItems.length})</span>
           </h3>
           <div className="flex flex-wrap gap-2">
             {lowStockItems.map((item) => (
@@ -254,6 +255,27 @@ export function InventoryTable() {
                   ({item.quantity} / {item.min_quantity})
                 </span>
                 <span className="text-xs opacity-75">→ طلب شراء</span>
+              </Link>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {approachingLimitItems.length > 0 && (
+        <div className="mb-6 bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-700 rounded-xl p-4">
+          <h3 className="font-medium mb-2 flex items-center gap-2">
+            <span className="w-2 h-2 rounded-full bg-blue-500" />
+            <span className="text-blue-800 dark:text-blue-200">تنبيه: أصناف قريبة من الحد الأدنى ({approachingLimitItems.length})</span>
+          </h3>
+          <div className="flex flex-wrap gap-2">
+            {approachingLimitItems.map((item) => (
+              <Link
+                key={item.id}
+                href={`/admin/purchases?item=${item.id}&qty=${Math.max(1, item.min_quantity - item.quantity)}`}
+                className="inline-flex items-center gap-2 px-3 py-1.5 bg-white dark:bg-gray-800 rounded-lg border border-blue-200 dark:border-blue-800 text-sm text-blue-800 dark:text-blue-200 hover:bg-blue-100 dark:hover:bg-blue-900/50 transition"
+              >
+                <span>{item.name}</span>
+                <span className="text-blue-600 dark:text-blue-300">({item.quantity} / {item.min_quantity})</span>
               </Link>
             ))}
           </div>
@@ -315,11 +337,20 @@ export function InventoryTable() {
                           value={item.category || ""}
                           onChange={(e) => {
                             const v = e.target.value;
-                            saveInlineEdit(item.id, "category", v);
+                            if (v === "__new__") {
+                              const newCat = prompt("اسم القسم الجديد:");
+                              if (newCat?.trim()) {
+                                saveInlineEdit(item.id, "category", newCat.trim());
+                                if (!categories.includes(newCat.trim())) setCategories((prev) => [...prev, newCat.trim()].sort());
+                              }
+                              setEditingCell(null);
+                            } else {
+                              saveInlineEdit(item.id, "category", v);
+                            }
                           }}
                           onBlur={(e) => {
                             const v = e.target.value;
-                            saveInlineEdit(item.id, "category", v);
+                            if (v && v !== "__new__") saveInlineEdit(item.id, "category", v);
                             setEditingCell(null);
                           }}
                           className="w-full min-w-[100px] px-2 py-1 text-sm rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-emerald-500 outline-none"
@@ -328,6 +359,7 @@ export function InventoryTable() {
                           {[...new Set([...(item.category ? [item.category] : []), ...categories])].sort().map((c) => (
                             <option key={c} value={c}>{c}</option>
                           ))}
+                          <option value="__new__">+ إضافة قسم جديد</option>
                         </select>
                       ) : (
                         <button

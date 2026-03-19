@@ -21,7 +21,7 @@ const MOVEMENT_LABELS: Record<string, string> = {
   return: "مرتجع",
 };
 
-type Tab = "summary" | "sales" | "profit" | "inventory" | "workshop";
+type Tab = "summary" | "sales" | "profit" | "inventory" | "workshop" | "expenses" | "suppliers";
 
 export function ReportsContent() {
   const [tab, setTab] = useState<Tab>("summary");
@@ -30,6 +30,8 @@ export function ReportsContent() {
   const [profit, setProfit] = useState<Record<string, unknown> | null>(null);
   const [inventory, setInventory] = useState<Record<string, unknown> | null>(null);
   const [workshop, setWorkshop] = useState<Record<string, unknown> | null>(null);
+  const [expensesIncome, setExpensesIncome] = useState<Record<string, unknown> | null>(null);
+  const [suppliersReport, setSuppliersReport] = useState<Record<string, unknown> | null>(null);
   const [loading, setLoading] = useState(true);
   const [dateFrom, setDateFrom] = useState(() => new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10));
   const [dateTo, setDateTo] = useState(() => new Date().toISOString().slice(0, 10));
@@ -69,6 +71,20 @@ export function ReportsContent() {
     } catch {}
   }
 
+  async function fetchExpensesIncome() {
+    try {
+      const res = await fetch(`/api/admin/reports/expenses-income?from=${dateFrom}&to=${dateTo}`);
+      if (res.ok) setExpensesIncome(await res.json());
+    } catch {}
+  }
+
+  async function fetchSuppliersReport() {
+    try {
+      const res = await fetch(`/api/admin/reports/suppliers?from=${dateFrom}&to=${dateTo}`);
+      if (res.ok) setSuppliersReport(await res.json());
+    } catch {}
+  }
+
   useEffect(() => {
     setLoading(true);
     fetchSummary().finally(() => setLoading(false));
@@ -79,6 +95,8 @@ export function ReportsContent() {
     else if (tab === "profit") fetchProfit();
     else if (tab === "inventory") fetchInventory();
     else if (tab === "workshop") fetchWorkshop();
+    else if (tab === "expenses") fetchExpensesIncome();
+    else if (tab === "suppliers") fetchSuppliersReport();
   }, [tab, dateFrom, dateTo]);
 
   const tabs = [
@@ -87,6 +105,8 @@ export function ReportsContent() {
     { id: "profit" as Tab, label: "الأرباح" },
     { id: "inventory" as Tab, label: "المخزون" },
     { id: "workshop" as Tab, label: "الورشة" },
+    { id: "expenses" as Tab, label: "المصروفات والإيرادات" },
+    { id: "suppliers" as Tab, label: "مقارنة الموردين" },
   ];
 
   function handleExportExcel() {
@@ -128,6 +148,24 @@ export function ReportsContent() {
         الإجمالي: o.total,
       }));
       exportToExcel(data, `ورشة-${dateFrom}-${dateTo}`, "الورشة");
+    } else if (tab === "expenses" && expensesIncome?.rows) {
+      const data = (expensesIncome.rows as Array<{ type: string; amount: number; description: string; treasury_name: string; created_at: string }>).map((r) => ({
+        التاريخ: new Date(r.created_at).toLocaleString("ar-EG"),
+        النوع: r.type === "expense" ? "مصروف" : "إيراد",
+        المبلغ: r.amount,
+        البيان: r.description || "—",
+        الخزينة: r.treasury_name,
+      }));
+      exportToExcel(data, `مصروفات-إيرادات-${dateFrom}-${dateTo}`, "المصروفات والإيرادات");
+    } else if (tab === "suppliers" && suppliersReport?.rows) {
+      const data = (suppliersReport.rows as Array<{ supplier_name: string; invoice_count: number; total_quantity: number; total_amount: number; avg_price: number }>).map((r) => ({
+        المورد: r.supplier_name,
+        "عدد الفواتير": r.invoice_count,
+        "إجمالي الكميات": r.total_quantity,
+        "إجمالي المبالغ": r.total_amount,
+        "متوسط السعر": r.avg_price.toFixed(2),
+      }));
+      exportToExcel(data, `مقارنة-موردين-${dateFrom}-${dateTo}`, "مقارنة الموردين");
     } else {
       alert("لا توجد بيانات للتصدير");
     }
@@ -139,6 +177,8 @@ export function ReportsContent() {
       profit: "report-profit",
       inventory: "report-inventory",
       workshop: "report-workshop",
+      expenses: "report-expenses",
+      suppliers: "report-suppliers",
     };
     const id = ids[tab];
     if (!id) {
@@ -175,7 +215,7 @@ export function ReportsContent() {
         ))}
       </div>
 
-      {(tab === "sales" || tab === "profit" || tab === "inventory" || tab === "workshop") && (
+      {(tab === "sales" || tab === "profit" || tab === "inventory" || tab === "workshop" || tab === "expenses" || tab === "suppliers") && (
         <div className="flex flex-wrap gap-4 items-center">
           <div>
             <label className="text-sm text-gray-600 dark:text-gray-400 ml-2">من</label>
@@ -195,7 +235,7 @@ export function ReportsContent() {
               className="px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100"
             />
           </div>
-          {(tab === "sales" || tab === "profit" || tab === "inventory" || tab === "workshop") && (
+          {(tab === "sales" || tab === "profit" || tab === "inventory" || tab === "workshop" || tab === "expenses" || tab === "suppliers") && (
             <>
               <button
                 type="button"
@@ -462,6 +502,102 @@ export function ReportsContent() {
                 <div className="p-12 text-center text-gray-500 dark:text-gray-400">لا توجد أوامر مكتملة في الفترة</div>
               )}
             </div>
+          </div>
+        </div>
+      )}
+
+      {tab === "expenses" && (
+        <div id="report-expenses" className="space-y-6">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-sm border border-gray-100 dark:border-gray-700">
+              <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">إجمالي المصروفات</h3>
+              <p className="text-2xl font-bold text-red-600 dark:text-red-400">
+                {Number(expensesIncome?.totalExpenses ?? 0).toFixed(2)} ج.م
+              </p>
+            </div>
+            <div className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-sm border border-gray-100 dark:border-gray-700">
+              <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">إجمالي الإيرادات</h3>
+              <p className="text-2xl font-bold text-emerald-600 dark:text-emerald-400">
+                {Number(expensesIncome?.totalIncome ?? 0).toFixed(2)} ج.م
+              </p>
+            </div>
+            <div className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-sm border border-gray-100 dark:border-gray-700">
+              <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">الصافي</h3>
+              <p className={`text-2xl font-bold ${Number(expensesIncome?.net ?? 0) >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-red-600 dark:text-red-400"}`}>
+                {Number(expensesIncome?.net ?? 0).toFixed(2)} ج.م
+              </p>
+            </div>
+          </div>
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden">
+            <div className="p-4 border-b border-gray-100 dark:border-gray-700">
+              <h2 className="font-bold text-gray-900 dark:text-gray-100">تفاصيل المصروفات والإيرادات</h2>
+            </div>
+            <div className="overflow-x-auto max-h-96">
+              {expensesIncome?.rows && (expensesIncome.rows as unknown[]).length > 0 ? (
+                <table className="w-full">
+                  <thead>
+                    <tr className="bg-gray-50 dark:bg-gray-700/50">
+                      <th className="text-right px-4 py-3 text-sm font-medium text-gray-600 dark:text-gray-300">التاريخ</th>
+                      <th className="text-right px-4 py-3 text-sm font-medium text-gray-600 dark:text-gray-300">النوع</th>
+                      <th className="text-right px-4 py-3 text-sm font-medium text-gray-600 dark:text-gray-300">المبلغ</th>
+                      <th className="text-right px-4 py-3 text-sm font-medium text-gray-600 dark:text-gray-300">البيان</th>
+                      <th className="text-right px-4 py-3 text-sm font-medium text-gray-600 dark:text-gray-300">الخزينة</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {(expensesIncome.rows as Array<{ id: string; type: string; amount: number; description: string; treasury_name: string; created_at: string }>).map((r) => (
+                      <tr key={r.id} className="border-b border-gray-50 dark:border-gray-700">
+                        <td className="px-4 py-3 text-sm text-gray-900 dark:text-gray-100">{new Date(r.created_at).toLocaleString("ar-EG")}</td>
+                        <td className="px-4 py-3 text-sm">{r.type === "expense" ? "مصروف" : "إيراد"}</td>
+                        <td className={`px-4 py-3 text-sm font-medium ${r.amount < 0 ? "text-red-600 dark:text-red-400" : "text-emerald-600 dark:text-emerald-400"}`}>
+                          {r.amount.toFixed(2)} ج.م
+                        </td>
+                        <td className="px-4 py-3 text-sm text-gray-900 dark:text-gray-100">{r.description || "—"}</td>
+                        <td className="px-4 py-3 text-sm text-gray-900 dark:text-gray-100">{r.treasury_name}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              ) : (
+                <div className="p-12 text-center text-gray-500 dark:text-gray-400">لا توجد مصروفات أو إيرادات في الفترة</div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {tab === "suppliers" && (
+        <div id="report-suppliers" className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden">
+          <div className="p-4 border-b border-gray-100 dark:border-gray-700">
+            <h2 className="font-bold text-gray-900 dark:text-gray-100">مقارنة الموردين (فواتير الشراء)</h2>
+          </div>
+          <div className="overflow-x-auto">
+            {suppliersReport?.rows && (suppliersReport.rows as unknown[]).length > 0 ? (
+              <table className="w-full">
+                <thead>
+                  <tr className="bg-gray-50 dark:bg-gray-700/50">
+                    <th className="text-right px-4 py-3 text-sm font-medium text-gray-600 dark:text-gray-300">المورد</th>
+                    <th className="text-right px-4 py-3 text-sm font-medium text-gray-600 dark:text-gray-300">عدد الفواتير</th>
+                    <th className="text-right px-4 py-3 text-sm font-medium text-gray-600 dark:text-gray-300">إجمالي الكميات</th>
+                    <th className="text-right px-4 py-3 text-sm font-medium text-gray-600 dark:text-gray-300">إجمالي المبالغ</th>
+                    <th className="text-right px-4 py-3 text-sm font-medium text-gray-600 dark:text-gray-300">متوسط السعر</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {(suppliersReport.rows as Array<{ supplier_name: string; invoice_count: number; total_quantity: number; total_amount: number; avg_price: number }>).map((r) => (
+                    <tr key={r.supplier_name} className="border-b border-gray-50 dark:border-gray-700">
+                      <td className="px-4 py-3 text-sm font-medium text-gray-900 dark:text-gray-100">{r.supplier_name}</td>
+                      <td className="px-4 py-3 text-sm text-gray-900 dark:text-gray-100">{r.invoice_count}</td>
+                      <td className="px-4 py-3 text-sm text-gray-900 dark:text-gray-100">{r.total_quantity}</td>
+                      <td className="px-4 py-3 text-sm font-medium text-gray-900 dark:text-gray-100">{r.total_amount.toFixed(2)} ج.م</td>
+                      <td className="px-4 py-3 text-sm text-gray-900 dark:text-gray-100">{r.avg_price.toFixed(2)} ج.م</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            ) : (
+              <div className="p-12 text-center text-gray-500 dark:text-gray-400">لا توجد بيانات مشتريات في الفترة</div>
+            )}
           </div>
         </div>
       )}

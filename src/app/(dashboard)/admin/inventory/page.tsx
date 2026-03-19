@@ -1,12 +1,14 @@
 import { auth } from "@/auth";
 import { redirect } from "next/navigation";
+import { canAccess } from "@/lib/permissions";
 import { InventoryTable } from "./inventory-table";
 
 export default async function InventoryPage() {
   const session = await auth();
-  if (!session?.user || session.user.role !== "super_admin") {
-    redirect("/login");
-  }
+  if (!session?.user) redirect("/login");
+  const allowed = session.user.role === "super_admin" || session.user.role === "tenant_owner" ||
+    (session.user.role === "employee" && session.user.id && await canAccess(session.user.id, session.user.role ?? "", session.user.companyId ?? null, "inventory", "read"));
+  if (!allowed) redirect("/login");
 
   return (
     <div className="p-4 md:p-8">
