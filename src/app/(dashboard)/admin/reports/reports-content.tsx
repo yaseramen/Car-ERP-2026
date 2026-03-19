@@ -35,6 +35,21 @@ export function ReportsContent() {
   const [loading, setLoading] = useState(true);
   const [dateFrom, setDateFrom] = useState(() => new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10));
   const [dateTo, setDateTo] = useState(() => new Date().toISOString().slice(0, 10));
+  const [searchQuery, setSearchQuery] = useState("");
+
+  function setDateRange(days: number) {
+    const to = new Date();
+    const from = new Date();
+    from.setDate(from.getDate() - days);
+    setDateFrom(from.toISOString().slice(0, 10));
+    setDateTo(to.toISOString().slice(0, 10));
+  }
+
+  function filterBySearch<T>(items: T[], getSearchText: (item: T) => string): T[] {
+    if (!searchQuery.trim()) return items;
+    const q = searchQuery.trim().toLowerCase();
+    return items.filter((item) => getSearchText(item).toLowerCase().includes(q));
+  }
 
   async function fetchSummary() {
     try {
@@ -227,6 +242,23 @@ export function ReportsContent() {
 
       {(tab === "sales" || tab === "profit" || tab === "inventory" || tab === "workshop" || tab === "expenses" || tab === "suppliers") && (
         <div className="flex flex-wrap gap-4 items-center">
+          <div className="flex gap-2">
+            {[
+              { label: "أسبوع", days: 7 },
+              { label: "شهر", days: 30 },
+              { label: "3 أشهر", days: 90 },
+              { label: "سنة", days: 365 },
+            ].map(({ label, days }) => (
+              <button
+                key={days}
+                type="button"
+                onClick={() => setDateRange(days)}
+                className="px-3 py-1.5 text-sm rounded-lg border border-gray-300 dark:border-gray-600 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700"
+              >
+                {label}
+              </button>
+            ))}
+          </div>
           <div>
             <label className="text-sm text-gray-600 dark:text-gray-400 ml-2">من</label>
             <input
@@ -243,6 +275,15 @@ export function ReportsContent() {
               value={dateTo}
               onChange={(e) => setDateTo(e.target.value)}
               className="px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100"
+            />
+          </div>
+          <div className="flex-1 min-w-[180px]">
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="بحث..."
+              className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100 placeholder-gray-400"
             />
           </div>
           {(tab === "sales" || tab === "profit" || tab === "inventory" || tab === "workshop" || tab === "expenses" || tab === "suppliers") && (
@@ -339,7 +380,10 @@ export function ReportsContent() {
                   </tr>
                 </thead>
                 <tbody>
-                  {(sales.invoices as Array<{ id: string; invoice_number: string; type: string; customer_name: string | null; vehicle_plate: string | null; total: number; created_at: string }>).map((inv) => (
+                  {filterBySearch(
+                    (sales.invoices as Array<{ id: string; invoice_number: string; type: string; customer_name: string | null; vehicle_plate: string | null; total: number; created_at: string }>),
+                    (inv) => `${inv.invoice_number} ${inv.customer_name || ""} ${inv.vehicle_plate || ""} ${inv.type === "maintenance" ? "صيانة" : "بيع"}`
+                  ).map((inv) => (
                     <tr key={inv.invoice_number} className="border-b border-gray-50">
                       <td className="px-4 py-3 text-sm">{new Date(inv.created_at).toLocaleDateString("ar-EG")}</td>
                       <td className="px-4 py-3">
@@ -388,7 +432,10 @@ export function ReportsContent() {
                   </tr>
                 </thead>
                 <tbody>
-                  {(profit.rows as Array<{ invoice_number: string; item_name: string; quantity: number; sale_price: number; cost_total: number; profit: number; created_at: string }>).map((r, i) => (
+                  {filterBySearch(
+                    (profit.rows as Array<{ invoice_number: string; item_name: string; quantity: number; sale_price: number; cost_total: number; profit: number; created_at: string }>),
+                    (r) => `${r.invoice_number} ${r.item_name}`
+                  ).map((r, i) => (
                     <tr key={i} className="border-b border-gray-50">
                       <td className="px-4 py-3 text-sm">{new Date(r.created_at).toLocaleDateString("ar-EG")}</td>
                       <td className="px-4 py-3 text-sm">{r.invoice_number}</td>
@@ -427,7 +474,10 @@ export function ReportsContent() {
             <div className="max-h-64 overflow-y-auto">
               {inventory?.lowStock && (inventory.lowStock as unknown[]).length > 0 ? (
                 <ul className="divide-y divide-gray-100">
-                  {(inventory.lowStock as Array<{ id: string; name: string; quantity: number; min_quantity: number }>).map((item) => (
+                  {filterBySearch(
+                    (inventory.lowStock as Array<{ id: string; name: string; quantity: number; min_quantity: number }>),
+                    (item) => item.name
+                  ).map((item) => (
                     <li key={item.id} className="p-4 flex justify-between">
                       <Link href={`/admin/inventory/${item.id}`} className="text-emerald-600 hover:underline">
                         {item.name}
@@ -448,7 +498,10 @@ export function ReportsContent() {
             <div className="max-h-64 overflow-y-auto">
               {inventory?.movements && (inventory.movements as unknown[]).length > 0 ? (
                 <ul className="divide-y divide-gray-100">
-                  {(inventory.movements as Array<{ id: string; item_name: string; quantity: number; movement_type: string; created_at: string }>).map((m) => (
+                  {filterBySearch(
+                    (inventory.movements as Array<{ id: string; item_name: string; quantity: number; movement_type: string; created_at: string }>),
+                    (m) => `${m.item_name} ${MOVEMENT_LABELS[m.movement_type] || m.movement_type}`
+                  ).map((m) => (
                     <li key={m.id} className="p-4 flex justify-between text-sm">
                       <span>{m.item_name}</span>
                       <span className={m.quantity < 0 ? "text-red-600" : "text-emerald-600"}>
@@ -480,7 +533,10 @@ export function ReportsContent() {
                     </tr>
                   </thead>
                   <tbody>
-                    {(inventory.valuation as Array<{ id: string; name: string; quantity: number; purchase_price: number; value: number }>).map((v) => (
+                    {filterBySearch(
+                      (inventory.valuation as Array<{ id: string; name: string; quantity: number; purchase_price: number; value: number }>),
+                      (v) => v.name
+                    ).map((v) => (
                       <tr key={v.id} className="border-b border-gray-50 dark:border-gray-700">
                         <td className="px-4 py-3 text-sm">
                           <Link href={`/admin/inventory/${v.id}`} className="text-emerald-600 dark:text-emerald-400 hover:underline">{v.name}</Link>
@@ -534,8 +590,11 @@ export function ReportsContent() {
                     </tr>
                   </thead>
                   <tbody>
-                    {(workshop.completed as Array<{ id: string; order_number: string; vehicle_plate: string; completed_at: string; total: number }>).map((o) => (
-                      <tr key={o.id} className="border-b border-gray-50">
+                    {filterBySearch(
+                      (workshop.completed as Array<{ id: string; order_number: string; vehicle_plate: string; completed_at: string; total: number }>),
+                      (o) => `${o.order_number} ${o.vehicle_plate}`
+                    ).map((o) => (
+                      <tr key={o.id} className="border-b border-gray-50 dark:border-gray-700">
                         <td className="px-4 py-3 text-sm">{new Date(o.completed_at).toLocaleDateString("ar-EG")}</td>
                         <td className="px-4 py-3">
                           <Link href={`/admin/workshop/${o.id}`} className="text-emerald-600 hover:underline">
@@ -595,7 +654,10 @@ export function ReportsContent() {
                     </tr>
                   </thead>
                   <tbody>
-                    {(expensesIncome.rows as Array<{ id: string; type: string; amount: number; description: string; treasury_name: string; created_at: string }>).map((r) => (
+                    {filterBySearch(
+                      (expensesIncome.rows as Array<{ id: string; type: string; amount: number; description: string; treasury_name: string; created_at: string }>),
+                      (r) => `${r.description || ""} ${r.treasury_name || ""} ${r.type === "expense" ? "مصروف" : "إيراد"}`
+                    ).map((r) => (
                       <tr key={r.id} className="border-b border-gray-50 dark:border-gray-700">
                         <td className="px-4 py-3 text-sm text-gray-900 dark:text-gray-100">{new Date(r.created_at).toLocaleString("ar-EG")}</td>
                         <td className="px-4 py-3 text-sm">{r.type === "expense" ? "مصروف" : "إيراد"}</td>
@@ -634,7 +696,10 @@ export function ReportsContent() {
                   </tr>
                 </thead>
                 <tbody>
-                  {(suppliersReport.rows as Array<{ supplier_name: string; invoice_count: number; total_quantity: number; total_amount: number; avg_price: number }>).map((r) => (
+                  {filterBySearch(
+                    (suppliersReport.rows as Array<{ supplier_name: string; invoice_count: number; total_quantity: number; total_amount: number; avg_price: number }>),
+                    (r) => r.supplier_name
+                  ).map((r) => (
                     <tr key={r.supplier_name} className="border-b border-gray-50 dark:border-gray-700">
                       <td className="px-4 py-3 text-sm font-medium text-gray-900 dark:text-gray-100">{r.supplier_name}</td>
                       <td className="px-4 py-3 text-sm text-gray-900 dark:text-gray-100">{r.invoice_count}</td>
