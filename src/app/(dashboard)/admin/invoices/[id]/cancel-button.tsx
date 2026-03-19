@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { addToQueue } from "@/lib/offline-queue";
 
 interface CancelButtonProps {
   invoiceId: string;
@@ -15,6 +16,12 @@ export function CancelButton({ invoiceId, type, status }: CancelButtonProps) {
 
   const canCancel = ["sale", "maintenance", "purchase"].includes(type) && status !== "returned" && status !== "cancelled";
 
+  useEffect(() => {
+    const handleOnline = () => router.refresh();
+    window.addEventListener("alameen-online", handleOnline);
+    return () => window.removeEventListener("alameen-online", handleOnline);
+  }, [router]);
+
   if (!canCancel) return null;
 
   async function handleCancel() {
@@ -27,6 +34,11 @@ export function CancelButton({ invoiceId, type, status }: CancelButtonProps) {
 
     setLoading(true);
     try {
+      if (!navigator.onLine) {
+        addToQueue({ type: "invoice_cancel", invoiceId });
+        alert("انقطع الاتصال. تم حفظ الإلغاء محلياً. سيتم تنفيذه تلقائياً عند عودة الإنترنت.");
+        return;
+      }
       const res = await fetch(`/api/admin/invoices/${invoiceId}/cancel`, { method: "POST" });
       if (!res.ok) {
         const err = await res.json();
@@ -35,7 +47,12 @@ export function CancelButton({ invoiceId, type, status }: CancelButtonProps) {
       }
       router.refresh();
     } catch {
-      alert("حدث خطأ");
+      if (!navigator.onLine) {
+        addToQueue({ type: "invoice_cancel", invoiceId });
+        alert("انقطع الاتصال. تم حفظ الإلغاء محلياً. سيتم تنفيذه تلقائياً عند عودة الإنترنت.");
+      } else {
+        alert("حدث خطأ");
+      }
     } finally {
       setLoading(false);
     }

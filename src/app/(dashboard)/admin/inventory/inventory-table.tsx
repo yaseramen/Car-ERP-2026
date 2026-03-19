@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { BarcodeScanner } from "@/components/inventory/barcode-scanner";
+import { addToQueue } from "@/lib/offline-queue";
 
 interface Item {
   id: string;
@@ -68,6 +69,15 @@ export function InventoryTable() {
     fetchCategories();
   }, []);
 
+  useEffect(() => {
+    const handleOnline = () => {
+      fetchItems();
+      fetchCategories();
+    };
+    window.addEventListener("alameen-online", handleOnline);
+    return () => window.removeEventListener("alameen-online", handleOnline);
+  }, []);
+
   function resetForm() {
     setForm({
       name: "",
@@ -85,14 +95,28 @@ export function InventoryTable() {
   }
 
   async function saveInlineEdit(itemId: string, field: "category" | "min_quantity", value: string | number) {
+    const payload: Record<string, unknown> = {};
+    if (field === "category") {
+      payload.category = (value as string)?.trim() || null;
+    } else {
+      const num = Number(value);
+      payload.min_quantity = num > 0 ? num : 0;
+      payload.min_quantity_enabled = num > 0;
+    }
+
     try {
-      const payload: Record<string, unknown> = {};
-      if (field === "category") {
-        payload.category = (value as string)?.trim() || null;
-      } else {
-        const num = Number(value);
-        payload.min_quantity = num > 0 ? num : 0;
-        payload.min_quantity_enabled = num > 0;
+      if (!navigator.onLine) {
+        addToQueue({ type: "inventory_item_patch", itemId, data: payload });
+        setItems((prev) =>
+          prev.map((i) => {
+            if (i.id !== itemId) return i;
+            if (field === "category") return { ...i, category: (value as string)?.trim() || null };
+            return { ...i, min_quantity: value ? Number(value) : 0 };
+          })
+        );
+        setEditingCell(null);
+        alert("انقطع الاتصال. تم حفظ التعديل محلياً. سيتم إرساله تلقائياً عند عودة الإنترنت.");
+        return;
       }
       const res = await fetch(`/api/admin/inventory/items/${itemId}`, {
         method: "PATCH",
@@ -113,7 +137,20 @@ export function InventoryTable() {
       );
       setEditingCell(null);
     } catch {
-      alert("حدث خطأ");
+      if (!navigator.onLine) {
+        addToQueue({ type: "inventory_item_patch", itemId, data: payload });
+        setItems((prev) =>
+          prev.map((i) => {
+            if (i.id !== itemId) return i;
+            if (field === "category") return { ...i, category: (value as string)?.trim() || null };
+            return { ...i, min_quantity: value ? Number(value) : 0 };
+          })
+        );
+        setEditingCell(null);
+        alert("انقطع الاتصال. تم حفظ التعديل محلياً. سيتم إرساله تلقائياً عند عودة الإنترنت.");
+      } else {
+        alert("حدث خطأ");
+      }
     }
   }
 

@@ -65,6 +65,30 @@ export type QueuedOp =
   | {
       type: "treasury_transfer";
       data: { from_id: string; to_id: string; amount: number; description?: string };
+    }
+  | { type: "invoice_cancel"; invoiceId: string }
+  | { type: "invoice_return"; invoiceId: string }
+  | {
+      type: "invoice_return_partial";
+      invoiceId: string;
+      data: { items: { item_id: string; quantity: number }[] };
+    }
+  | {
+      type: "treasury_settle";
+      data: { from_date?: string; to_date?: string; note?: string };
+    }
+  | {
+      type: "save_inspection_checklist";
+      orderId: string;
+      data: {
+        results: { checklist_item_id: string; status: string; notes: string }[];
+        general_notes: string;
+      };
+    }
+  | {
+      type: "inventory_item_patch";
+      itemId: string;
+      data: { category?: string | null; min_quantity?: number; min_quantity_enabled?: boolean };
     };
 
 export interface QueuedItem {
@@ -181,6 +205,32 @@ export async function executeQueuedOpDefault(item: QueuedItem): Promise<boolean>
     case "treasury_transfer":
       url = "/api/admin/treasuries/transfer";
       body = JSON.stringify(op.data);
+      break;
+    case "invoice_cancel":
+      url = `/api/admin/invoices/${op.invoiceId}/cancel`;
+      body = "{}";
+      break;
+    case "invoice_return":
+      url = `/api/admin/invoices/${op.invoiceId}/return`;
+      body = "{}";
+      break;
+    case "invoice_return_partial":
+      url = `/api/admin/invoices/${op.invoiceId}/return-partial`;
+      body = JSON.stringify(op.data);
+      break;
+    case "treasury_settle":
+      url = "/api/admin/treasuries/settle";
+      body = JSON.stringify(op.data);
+      break;
+    case "save_inspection_checklist":
+      url = `/api/admin/workshop/orders/${op.orderId}/inspection-results`;
+      body = JSON.stringify(op.data);
+      method = "PUT";
+      break;
+    case "inventory_item_patch":
+      url = `/api/admin/inventory/items/${op.itemId}`;
+      body = JSON.stringify(op.data);
+      method = "PATCH";
       break;
     default:
       return false;

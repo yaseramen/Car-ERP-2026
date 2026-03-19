@@ -502,16 +502,27 @@ export function WorkshopContent() {
   }
 
   async function saveInspectionChecklist(orderId: string) {
-    try {
-      const results = checklistItems.map((it) => ({
+    const payload = {
+      results: checklistItems.map((it) => ({
         checklist_item_id: it.id,
         status: checklistResults[it.id]?.status ?? "na",
         notes: checklistResults[it.id]?.notes ?? "",
-      }));
+      })),
+      general_notes: generalNotes,
+    };
+
+    try {
+      if (!navigator.onLine) {
+        addToQueue({ type: "save_inspection_checklist", orderId, data: payload });
+        setInspectionChecklistOpen(false);
+        setSelectedOrder(null);
+        alert("انقطع الاتصال. تم حفظ قائمة الفحص محلياً. سيتم إرسالها تلقائياً عند عودة الإنترنت.");
+        return;
+      }
       const res = await fetch(`/api/admin/workshop/orders/${orderId}/inspection-results`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ results, general_notes: generalNotes }),
+        body: JSON.stringify(payload),
       });
       if (!res.ok) {
         const err = await res.json();
@@ -522,16 +533,30 @@ export function WorkshopContent() {
       setSelectedOrder(null);
       fetchOrders();
     } catch {
-      alert("حدث خطأ");
+      if (!navigator.onLine) {
+        addToQueue({ type: "save_inspection_checklist", orderId, data: payload });
+        setInspectionChecklistOpen(false);
+        setSelectedOrder(null);
+        alert("انقطع الاتصال. تم حفظ قائمة الفحص محلياً. سيتم إرسالها تلقائياً عند عودة الإنترنت.");
+      } else {
+        alert("حدث خطأ");
+      }
     }
   }
 
   async function saveInspectionNotes(orderId: string, notes: string) {
+    const payload = { stage: "inspection" as const, inspection_notes: notes };
+
     try {
+      if (!navigator.onLine) {
+        addToQueue({ type: "update_repair_order_stage", orderId, data: payload });
+        alert("انقطع الاتصال. تم حفظ الملاحظات محلياً. سيتم إرسالها تلقائياً عند عودة الإنترنت.");
+        return;
+      }
       const res = await fetch(`/api/admin/workshop/orders/${orderId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ stage: "inspection", inspection_notes: notes }),
+        body: JSON.stringify(payload),
       });
 
       if (!res.ok) {
@@ -542,7 +567,12 @@ export function WorkshopContent() {
 
       await fetchOrders();
     } catch {
-      alert("حدث خطأ");
+      if (!navigator.onLine) {
+        addToQueue({ type: "update_repair_order_stage", orderId, data: payload });
+        alert("انقطع الاتصال. تم حفظ الملاحظات محلياً. سيتم إرسالها تلقائياً عند عودة الإنترنت.");
+      } else {
+        alert("حدث خطأ");
+      }
     }
   }
 

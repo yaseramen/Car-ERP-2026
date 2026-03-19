@@ -41,16 +41,28 @@ function SettleButton({ treasuries, onSuccess }: { treasuries: Treasury[]; onSuc
 
   async function handleSettle() {
     if (!confirm(`تسليم ${totalToSettle.toFixed(2)} ج.م من خزينة المبيعات والورشة إلى الخزينة الرئيسية؟`)) return;
+
+    const payload = {
+      from_date: fromDate || undefined,
+      to_date: toDate || undefined,
+      note: note.trim() || undefined,
+    };
+
     setLoading(true);
     try {
+      if (!navigator.onLine) {
+        addToQueue({ type: "treasury_settle", data: payload });
+        setModalOpen(false);
+        setFromDate("");
+        setToDate("");
+        setNote("");
+        alert("انقطع الاتصال. تم حفظ التسليم محلياً. سيتم تنفيذه تلقائياً عند عودة الإنترنت.");
+        return;
+      }
       const res = await fetch("/api/admin/treasuries/settle", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          from_date: fromDate || undefined,
-          to_date: toDate || undefined,
-          note: note.trim() || undefined,
-        }),
+        body: JSON.stringify(payload),
       });
       if (!res.ok) {
         const err = await res.json();
@@ -63,7 +75,16 @@ function SettleButton({ treasuries, onSuccess }: { treasuries: Treasury[]; onSuc
       setNote("");
       onSuccess();
     } catch {
-      alert("حدث خطأ");
+      if (!navigator.onLine) {
+        addToQueue({ type: "treasury_settle", data: payload });
+        setModalOpen(false);
+        setFromDate("");
+        setToDate("");
+        setNote("");
+        alert("انقطع الاتصال. تم حفظ التسليم محلياً. سيتم تنفيذه تلقائياً عند عودة الإنترنت.");
+      } else {
+        alert("حدث خطأ");
+      }
     } finally {
       setLoading(false);
     }
