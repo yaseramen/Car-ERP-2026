@@ -505,6 +505,7 @@ export function WorkshopContent() {
               فحص قبل البيع/الشراء
             </button>
           </div>
+          </div>
           <input
             type="text"
             value={searchQuery}
