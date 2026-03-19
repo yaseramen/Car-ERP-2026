@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { getCompanyId } from "@/lib/company";
 import { exportBackup } from "@/lib/backup";
+import { logAudit } from "@/lib/audit";
 import * as XLSX from "xlsx";
 
 export async function GET(request: Request) {
@@ -18,6 +19,14 @@ export async function GET(request: Request) {
 
   try {
     const data = await exportBackup(companyId);
+
+    await logAudit({
+      companyId,
+      userId: session.user.id,
+      userName: session.user.name ?? session.user.email ?? undefined,
+      action: "backup_export",
+      details: `تصدير نسخة احتياطية (${format})`,
+    });
 
     if (format === "excel") {
       const wb = XLSX.utils.book_new();

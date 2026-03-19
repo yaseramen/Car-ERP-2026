@@ -68,9 +68,28 @@ export function ReportsContent() {
   const [suppliersReport, setSuppliersReport] = useState<Record<string, unknown> | null>(null);
   const [loading, setLoading] = useState(true);
   const [tabLoading, setTabLoading] = useState(false);
-  const [dateFrom, setDateFrom] = useState(() => new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10));
-  const [dateTo, setDateTo] = useState(() => new Date().toISOString().slice(0, 10));
+  const [dateFrom, setDateFrom] = useState(() => {
+    try {
+      const s = localStorage.getItem("alameen-reports-dateFrom");
+      if (s) return s;
+    } catch {}
+    return new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+  });
+  const [dateTo, setDateTo] = useState(() => {
+    try {
+      const s = localStorage.getItem("alameen-reports-dateTo");
+      if (s) return s;
+    } catch {}
+    return new Date().toISOString().slice(0, 10);
+  });
   const [searchQuery, setSearchQuery] = useState("");
+
+  useEffect(() => {
+    try {
+      localStorage.setItem("alameen-reports-dateFrom", dateFrom);
+      localStorage.setItem("alameen-reports-dateTo", dateTo);
+    } catch {}
+  }, [dateFrom, dateTo]);
   const [page, setPage] = useState(1);
 
   useEffect(() => {
