@@ -108,7 +108,11 @@ export type QueuedOp =
   | { type: "edit_supplier"; supplierId: string; data: { name: string; phone?: string | null; email?: string | null; address?: string | null; notes?: string | null } }
   | { type: "add_checklist_item"; data: { name_ar: string } }
   | { type: "wallet_charge"; data: { company_id: string; amount: number; description?: string } }
-  | { type: "wallet_debit"; data: { company_id: string; amount: number; description?: string } };
+  | { type: "wallet_debit"; data: { company_id: string; amount: number; description?: string } }
+  | { type: "add_company"; data: { name: string; phone?: string; address?: string } }
+  | { type: "delete_customer"; customerId: string }
+  | { type: "delete_supplier"; supplierId: string }
+  | { type: "delete_item"; itemId: string };
 
 export interface QueuedItem {
   id: string;
@@ -277,6 +281,25 @@ export async function executeQueuedOpDefault(item: QueuedItem): Promise<boolean>
     case "wallet_debit":
       url = "/api/admin/wallets/debit";
       body = JSON.stringify(op.data);
+      break;
+    case "add_company":
+      url = "/api/admin/wallets/companies";
+      body = JSON.stringify(op.data);
+      break;
+    case "delete_customer":
+      url = `/api/admin/customers/${op.customerId}`;
+      body = "{}";
+      method = "DELETE";
+      break;
+    case "delete_supplier":
+      url = `/api/admin/suppliers/${op.supplierId}`;
+      body = "{}";
+      method = "DELETE";
+      break;
+    case "delete_item":
+      url = `/api/admin/inventory/items/${op.itemId}`;
+      body = "{}";
+      method = "DELETE";
       break;
     default:
       return false;

@@ -176,6 +176,13 @@ export function CustomersContent() {
   async function handleDelete(c: Customer) {
     setSaving(true);
     try {
+      if (!navigator.onLine) {
+        addToQueue({ type: "delete_customer", customerId: c.id });
+        setCustomers((prev) => prev.filter((x) => x.id !== c.id));
+        setDeleteConfirm(null);
+        alert("انقطع الاتصال. تم حفظ الحذف محلياً. سيتم تنفيذه تلقائياً عند عودة الإنترنت.");
+        return;
+      }
       const res = await fetch(`/api/admin/customers/${c.id}`, { method: "DELETE" });
       if (!res.ok) {
         const err = await res.json();
@@ -187,7 +194,14 @@ export function CustomersContent() {
       setDeleteConfirm(null);
       if (data.message) alert(data.message);
     } catch {
-      alert("حدث خطأ. حاول مرة أخرى.");
+      if (!navigator.onLine) {
+        addToQueue({ type: "delete_customer", customerId: c.id });
+        setCustomers((prev) => prev.filter((x) => x.id !== c.id));
+        setDeleteConfirm(null);
+        alert("انقطع الاتصال. تم حفظ الحذف محلياً. سيتم تنفيذه تلقائياً عند عودة الإنترنت.");
+      } else {
+        alert("حدث خطأ. حاول مرة أخرى.");
+      }
     } finally {
       setSaving(false);
     }

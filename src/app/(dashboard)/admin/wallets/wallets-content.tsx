@@ -145,12 +145,24 @@ export function WalletsContent() {
 
   async function handleAddCompany(e: React.FormEvent) {
     e.preventDefault();
+    const payload = {
+      name: newCompany.name.trim(),
+      phone: newCompany.phone.trim() || undefined,
+      address: newCompany.address.trim() || undefined,
+    };
     setSaving(true);
     try {
+      if (!navigator.onLine) {
+        addToQueue({ type: "add_company", data: payload });
+        setAddCompanyOpen(false);
+        setNewCompany({ name: "", phone: "", address: "" });
+        alert("انقطع الاتصال. تم حفظ الشركة محلياً. سيتم إضافتها تلقائياً عند عودة الإنترنت.");
+        return;
+      }
       const res = await fetch("/api/admin/wallets/companies", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(newCompany),
+        body: JSON.stringify(payload),
       });
 
       if (!res.ok) {
@@ -164,7 +176,14 @@ export function WalletsContent() {
       setAddCompanyOpen(false);
       setNewCompany({ name: "", phone: "", address: "" });
     } catch {
-      alert("حدث خطأ");
+      if (!navigator.onLine) {
+        addToQueue({ type: "add_company", data: payload });
+        setAddCompanyOpen(false);
+        setNewCompany({ name: "", phone: "", address: "" });
+        alert("انقطع الاتصال. تم حفظ الشركة محلياً. سيتم إضافتها تلقائياً عند عودة الإنترنت.");
+      } else {
+        alert("حدث خطأ");
+      }
     } finally {
       setSaving(false);
     }

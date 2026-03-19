@@ -294,6 +294,13 @@ export function InventoryTable() {
   async function handleDelete(item: Item) {
     setSaving(true);
     try {
+      if (!navigator.onLine) {
+        addToQueue({ type: "delete_item", itemId: item.id });
+        setItems((prev) => prev.filter((i) => i.id !== item.id));
+        setDeleteConfirm(null);
+        alert("انقطع الاتصال. تم حفظ الحذف محلياً. سيتم تنفيذه تلقائياً عند عودة الإنترنت.");
+        return;
+      }
       const res = await fetch(`/api/admin/inventory/items/${item.id}`, { method: "DELETE" });
       if (!res.ok) {
         const err = await res.json();
@@ -304,7 +311,14 @@ export function InventoryTable() {
       setDeleteConfirm(null);
       fetchCategories();
     } catch {
-      alert("حدث خطأ. حاول مرة أخرى.");
+      if (!navigator.onLine) {
+        addToQueue({ type: "delete_item", itemId: item.id });
+        setItems((prev) => prev.filter((i) => i.id !== item.id));
+        setDeleteConfirm(null);
+        alert("انقطع الاتصال. تم حفظ الحذف محلياً. سيتم تنفيذه تلقائياً عند عودة الإنترنت.");
+      } else {
+        alert("حدث خطأ. حاول مرة أخرى.");
+      }
     } finally {
       setSaving(false);
     }

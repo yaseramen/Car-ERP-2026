@@ -169,6 +169,13 @@ export function SuppliersContent() {
   async function handleDelete(s: Supplier) {
     setSaving(true);
     try {
+      if (!navigator.onLine) {
+        addToQueue({ type: "delete_supplier", supplierId: s.id });
+        setSuppliers((prev) => prev.filter((x) => x.id !== s.id));
+        setDeleteConfirm(null);
+        alert("انقطع الاتصال. تم حفظ الحذف محلياً. سيتم تنفيذه تلقائياً عند عودة الإنترنت.");
+        return;
+      }
       const res = await fetch(`/api/admin/suppliers/${s.id}`, { method: "DELETE" });
       if (!res.ok) {
         const err = await res.json();
@@ -180,7 +187,14 @@ export function SuppliersContent() {
       setDeleteConfirm(null);
       if (data.message) alert(data.message);
     } catch {
-      alert("حدث خطأ. حاول مرة أخرى.");
+      if (!navigator.onLine) {
+        addToQueue({ type: "delete_supplier", supplierId: s.id });
+        setSuppliers((prev) => prev.filter((x) => x.id !== s.id));
+        setDeleteConfirm(null);
+        alert("انقطع الاتصال. تم حفظ الحذف محلياً. سيتم تنفيذه تلقائياً عند عودة الإنترنت.");
+      } else {
+        alert("حدث خطأ. حاول مرة أخرى.");
+      }
     } finally {
       setSaving(false);
     }
