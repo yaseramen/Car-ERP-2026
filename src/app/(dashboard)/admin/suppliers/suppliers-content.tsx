@@ -20,6 +20,7 @@ export function SuppliersContent() {
   const [editSupplier, setEditSupplier] = useState<Supplier | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<Supplier | null>(null);
   const [saving, setSaving] = useState(false);
+  const [page, setPage] = useState(1);
   const [form, setForm] = useState({
     name: "",
     phone: "",
@@ -200,6 +201,14 @@ export function SuppliersContent() {
     }
   }
 
+  const ROWS_PER_PAGE = 50;
+  const paginatedSuppliers = suppliers.slice((page - 1) * ROWS_PER_PAGE, page * ROWS_PER_PAGE);
+  const totalPages = Math.max(1, Math.ceil(suppliers.length / ROWS_PER_PAGE));
+
+  useEffect(() => {
+    if (page > totalPages && totalPages > 0) setPage(totalPages);
+  }, [suppliers.length, page, totalPages]);
+
   const inputClass =
     "w-full px-4 py-2.5 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none";
 
@@ -245,7 +254,7 @@ export function SuppliersContent() {
                   </td>
                 </tr>
               ) : (
-                suppliers.map((s) => (
+                paginatedSuppliers.map((s) => (
                   <tr key={s.id} className="border-b border-gray-50 dark:border-gray-700 hover:bg-gray-50/50 dark:hover:bg-gray-700/30">
                     <td className="px-4 py-3 text-sm font-medium text-gray-900 dark:text-gray-100">{s.name}</td>
                     <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-300">{s.phone || "—"}</td>
@@ -273,6 +282,29 @@ export function SuppliersContent() {
               )}
             </tbody>
           </table>
+          {totalPages > 1 && (
+            <div className="flex items-center justify-center gap-2 py-3 border-t border-gray-100 dark:border-gray-700">
+              <button
+                type="button"
+                onClick={() => setPage((p) => Math.max(1, p - 1))}
+                disabled={page <= 1}
+                className="px-3 py-1 rounded border border-gray-300 dark:border-gray-600 text-sm disabled:opacity-50 text-gray-700 dark:text-gray-300"
+              >
+                السابق
+              </button>
+              <span className="text-sm text-gray-600 dark:text-gray-400">
+                صفحة {page} من {totalPages} — {suppliers.length} مورد
+              </span>
+              <button
+                type="button"
+                onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                disabled={page >= totalPages}
+                className="px-3 py-1 rounded border border-gray-300 dark:border-gray-600 text-sm disabled:opacity-50 text-gray-700 dark:text-gray-300"
+              >
+                التالي
+              </button>
+            </div>
+          )}
         </div>
       </div>
 
