@@ -103,8 +103,8 @@ export default function TermsPage() {
           ))}
         </div>
 
-        <div className="mt-16 p-6 bg-amber-50 border border-amber-200 rounded-xl">
-          <p className="text-amber-900 text-sm">
+        <div className="mt-16 p-6 bg-amber-50 dark:bg-amber-900/40 border border-amber-200 dark:border-amber-700 rounded-xl">
+          <p className="text-amber-900 dark:text-amber-200 text-sm">
             <strong>تنويه:</strong> هذه الوثيقة تُقدّم لأغراض إعلامية وعامة. للحصول على مشورة قانونية أو ضريبية
             محددة، يرجى استشارة محامٍ أو محاسب معتمد.
           </p>

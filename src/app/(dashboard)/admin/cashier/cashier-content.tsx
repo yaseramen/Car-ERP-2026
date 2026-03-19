@@ -570,7 +570,7 @@ export function CashierContent() {
         <h2 className="font-bold text-gray-900 mb-4">إتمام البيع</h2>
 
         {restoredFromDraft && (
-          <div className="mb-4 p-3 bg-amber-50 border border-amber-200 rounded-lg text-sm text-amber-800">
+          <div className="mb-4 p-3 bg-amber-50 dark:bg-amber-900/40 border border-amber-200 dark:border-amber-700 rounded-lg text-sm text-amber-800 dark:text-amber-200">
             تم استعادة المسودة السابقة. يمكنك استكمال البيع أو مسح المسودة.
           </div>
         )}

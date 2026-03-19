@@ -226,8 +226,8 @@ export function InventoryTable() {
 
   if (loading) {
     return (
-      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-12 text-center">
-        <p className="text-gray-500">جاري التحميل...</p>
+      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 p-12 text-center">
+        <p className="text-gray-500 dark:text-gray-400">جاري التحميل...</p>
       </div>
     );
   }
@@ -237,31 +237,32 @@ export function InventoryTable() {
   return (
     <>
       {lowStockItems.length > 0 && (
-        <div className="mb-6 bg-amber-50 border border-amber-200 rounded-xl p-4">
-          <h3 className="font-medium text-amber-800 mb-2 flex items-center gap-2">
+        <div className="mb-6 bg-amber-50 dark:bg-amber-900/40 border border-amber-200 dark:border-amber-700 rounded-xl p-4">
+          <h3 className="font-medium mb-2 flex items-center gap-2">
             <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
-            تنبيه: أصناف أقل من الحد الأدنى ({lowStockItems.length})
+            <span className="text-amber-800 dark:text-amber-200">تنبيه: أصناف أقل من الحد الأدنى ({lowStockItems.length})</span>
           </h3>
           <div className="flex flex-wrap gap-2">
             {lowStockItems.map((item) => (
               <Link
                 key={item.id}
-                href={`/admin/inventory/${item.id}`}
+                href={`/admin/purchases?item=${item.id}&qty=${Math.max(1, item.min_quantity - item.quantity)}`}
                 className="inline-flex items-center gap-2 px-3 py-1.5 bg-white dark:bg-gray-800 rounded-lg border border-amber-200 dark:border-amber-800 text-sm text-amber-800 dark:text-amber-200 hover:bg-amber-100 dark:hover:bg-amber-900/50 transition"
               >
                 <span>{item.name}</span>
-                <span className="text-amber-600">
+                <span className="text-amber-600 dark:text-amber-300">
                   ({item.quantity} / {item.min_quantity})
                 </span>
+                <span className="text-xs opacity-75">→ طلب شراء</span>
               </Link>
             ))}
           </div>
         </div>
       )}
 
-      <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-        <div className="p-4 border-b border-gray-100 flex justify-between items-center">
-          <h2 className="font-medium text-gray-900">الأصناف</h2>
+      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden">
+        <div className="p-4 border-b border-gray-100 dark:border-gray-700 flex justify-between items-center">
+          <h2 className="font-medium text-gray-900 dark:text-gray-100">الأصناف</h2>
           <button
             onClick={() => {
               resetForm();
@@ -290,7 +291,7 @@ export function InventoryTable() {
             <tbody>
               {items.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="px-4 py-12 text-center text-gray-500">
+                  <td colSpan={8} className="px-4 py-12 text-center text-gray-500 dark:text-gray-400">
                     لا توجد أصناف. اضغط "إضافة صنف جديد" للبدء.
                   </td>
                 </tr>
@@ -300,7 +301,7 @@ export function InventoryTable() {
                     <td className="px-4 py-3">
                       <Link
                         href={`/admin/inventory/${item.id}`}
-                        className="text-sm font-medium text-emerald-600 hover:text-emerald-700 hover:underline"
+                        className="text-sm font-medium text-emerald-600 dark:text-emerald-400 hover:text-emerald-700 dark:hover:text-emerald-300 hover:underline"
                       >
                         {item.name}
                       </Link>
@@ -385,14 +386,14 @@ export function InventoryTable() {
                         <button
                           type="button"
                           onClick={() => openEditModal(item)}
-                          className="px-3 py-1.5 text-sm text-emerald-600 hover:bg-emerald-50 rounded-lg transition"
+                          className="px-3 py-1.5 text-sm text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-900/30 rounded-lg transition"
                         >
                           تعديل
                         </button>
                         <button
                           type="button"
                           onClick={() => setDeleteConfirm(item)}
-                          className="px-3 py-1.5 text-sm text-red-600 hover:bg-red-50 rounded-lg transition"
+                          className="px-3 py-1.5 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-lg transition"
                         >
                           حذف
                         </button>
