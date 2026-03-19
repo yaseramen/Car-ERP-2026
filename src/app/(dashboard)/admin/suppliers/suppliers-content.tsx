@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import { addToQueue } from "@/lib/offline-queue";
 import { useKeyboardShortcut } from "@/hooks/use-keyboard-shortcut";
 import { exportToExcel } from "@/lib/export-reports";
+import { getErrorMessage } from "@/lib/error-messages";
 
 interface Supplier {
   id: string;
@@ -164,7 +165,7 @@ export function SuppliersContent() {
 
       setModalOpen(false);
       resetForm();
-    } catch {
+    } catch (err) {
       if (editSupplier && !navigator.onLine) {
         addToQueue({
           type: "edit_supplier",
@@ -186,7 +187,7 @@ export function SuppliersContent() {
         resetForm();
         alert("انقطع الاتصال. تم حفظ المورد محلياً. سيتم إضافته تلقائياً عند عودة الإنترنت.");
       } else {
-        alert("حدث خطأ. حاول مرة أخرى.");
+        alert(getErrorMessage(err));
       }
     } finally {
       setSaving(false);
@@ -214,7 +215,7 @@ export function SuppliersContent() {
       fetchSuppliers({ page });
       setDeleteConfirm(null);
       if (data?.message) alert(data.message);
-    } catch {
+    } catch (err) {
       if (!navigator.onLine) {
         addToQueue({ type: "delete_supplier", supplierId: s.id });
         setSuppliers((prev) => prev.filter((x) => x.id !== s.id));
@@ -222,7 +223,7 @@ export function SuppliersContent() {
         setDeleteConfirm(null);
         alert("انقطع الاتصال. تم حفظ الحذف محلياً. سيتم تنفيذه تلقائياً عند عودة الإنترنت.");
       } else {
-        alert("حدث خطأ. حاول مرة أخرى.");
+        alert(getErrorMessage(err));
       }
     } finally {
       setSaving(false);

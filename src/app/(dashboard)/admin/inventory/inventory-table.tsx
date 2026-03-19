@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useKeyboardShortcut } from "@/hooks/use-keyboard-shortcut";
 import { BarcodeScanner } from "@/components/inventory/barcode-scanner";
 import { addToQueue } from "@/lib/offline-queue";
+import { getErrorMessage } from "@/lib/error-messages";
 
 interface Item {
   id: string;
@@ -187,7 +188,7 @@ export function InventoryTable() {
         })
       );
       setEditingCell(null);
-    } catch {
+    } catch (err) {
       if (!navigator.onLine) {
         addToQueue({ type: "inventory_item_patch", itemId, data: payload });
         setItems((prev) =>
@@ -200,7 +201,7 @@ export function InventoryTable() {
         setEditingCell(null);
         alert("انقطع الاتصال. تم حفظ التعديل محلياً. سيتم إرساله تلقائياً عند عودة الإنترنت.");
       } else {
-        alert("حدث خطأ");
+        alert(getErrorMessage(err, "فشل في التحديث. حاول مرة أخرى."));
       }
     }
   }
@@ -334,7 +335,7 @@ export function InventoryTable() {
 
       setModalOpen(false);
       resetForm();
-    } catch {
+    } catch (err) {
       if (editItem && !navigator.onLine) {
         const patchData = {
           name: form.name.trim(),
@@ -367,7 +368,7 @@ export function InventoryTable() {
         resetForm();
         alert("انقطع الاتصال. تم حفظ طلب إضافة الصنف. سيتم إنشاؤه تلقائياً عند عودة الإنترنت.");
       } else {
-        alert("حدث خطأ. حاول مرة أخرى.");
+        alert(getErrorMessage(err));
       }
     } finally {
       setSaving(false);
@@ -394,7 +395,7 @@ export function InventoryTable() {
       fetchItems({ page, search: searchQuery });
       fetchLowStock();
       setDeleteConfirm(null);
-    } catch {
+    } catch (err) {
       if (!navigator.onLine) {
         addToQueue({ type: "delete_item", itemId: item.id });
         setItems((prev) => prev.filter((i) => i.id !== item.id));
@@ -402,7 +403,7 @@ export function InventoryTable() {
         setDeleteConfirm(null);
         alert("انقطع الاتصال. تم حفظ الحذف محلياً. سيتم تنفيذه تلقائياً عند عودة الإنترنت.");
       } else {
-        alert("حدث خطأ. حاول مرة أخرى.");
+        alert(getErrorMessage(err));
       }
     } finally {
       setSaving(false);

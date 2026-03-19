@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import { addToQueue } from "@/lib/offline-queue";
 import { useKeyboardShortcut } from "@/hooks/use-keyboard-shortcut";
 import { exportToExcel } from "@/lib/export-reports";
+import { getErrorMessage } from "@/lib/error-messages";
 
 interface Customer {
   id: string;
@@ -171,7 +172,7 @@ export function CustomersContent() {
 
       setModalOpen(false);
       resetForm();
-    } catch {
+    } catch (err) {
       if (editCustomer && !navigator.onLine) {
         addToQueue({
           type: "edit_customer",
@@ -193,7 +194,7 @@ export function CustomersContent() {
         resetForm();
         alert("انقطع الاتصال. تم حفظ العميل محلياً. سيتم إضافته تلقائياً عند عودة الإنترنت.");
       } else {
-        alert("حدث خطأ. حاول مرة أخرى.");
+        alert(getErrorMessage(err));
       }
     } finally {
       setSaving(false);
@@ -221,7 +222,7 @@ export function CustomersContent() {
       fetchCustomers({ page });
       setDeleteConfirm(null);
       if (data?.message) alert(data.message);
-    } catch {
+    } catch (err) {
       if (!navigator.onLine) {
         addToQueue({ type: "delete_customer", customerId: c.id });
         setCustomers((prev) => prev.filter((x) => x.id !== c.id));
@@ -229,7 +230,7 @@ export function CustomersContent() {
         setDeleteConfirm(null);
         alert("انقطع الاتصال. تم حفظ الحذف محلياً. سيتم تنفيذه تلقائياً عند عودة الإنترنت.");
       } else {
-        alert("حدث خطأ. حاول مرة أخرى.");
+        alert(getErrorMessage(err));
       }
     } finally {
       setSaving(false);
