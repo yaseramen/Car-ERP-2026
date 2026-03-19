@@ -32,7 +32,7 @@ export async function POST(request: Request) {
   }
 }
 
-export async function GET() {
+export async function GET(request: Request) {
   const session = await auth();
   const companyId = getCompanyId(session);
   if (!session?.user || !companyId || !ALLOWED_ROLES.includes(session.user.role as (typeof ALLOWED_ROLES)[number])) {
@@ -40,16 +40,20 @@ export async function GET() {
   }
 
   try {
-    const result = await db.execute({
-      sql: "SELECT id, name, type, location, is_active FROM warehouses WHERE company_id = ? AND is_active = 1 ORDER BY name",
-      args: [companyId],
-    });
+    const { searchParams } = new URL(request.url);
+    const includeInactive = searchParams.get("all") === "1" || searchParams.get("include_inactive") === "1";
+
+    const sql = includeInactive
+      ? "SELECT id, name, type, location, is_active FROM warehouses WHERE company_id = ? ORDER BY is_active DESC, name"
+      : "SELECT id, name, type, location, is_active FROM warehouses WHERE company_id = ? AND is_active = 1 ORDER BY name";
+    const result = await db.execute({ sql, args: [companyId] });
 
     const warehouses = result.rows.map((r) => ({
       id: r.id,
       name: r.name,
       type: r.type,
       location: r.location ? String(r.location) : null,
+      is_active: Number(r.is_active ?? 1) === 1,
     }));
 
     return NextResponse.json(warehouses);
