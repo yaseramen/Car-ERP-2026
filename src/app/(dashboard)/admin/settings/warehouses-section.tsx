@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { addToQueue } from "@/lib/offline-queue";
 
 interface Warehouse {
   id: string;
@@ -57,14 +58,22 @@ export function WarehousesSection() {
     setMessage(null);
     try {
       if (editing) {
+        const payload = {
+          name: form.name.trim(),
+          type: form.type,
+          location: form.location.trim() || null,
+        };
+        if (!navigator.onLine) {
+          addToQueue({ type: "warehouse_patch", warehouseId: editing.id, data: payload });
+          setMessage({ type: "success", text: "انقطع الاتصال. تم حفظ التعديل. سيتم إرساله عند العودة." });
+          setModalOpen(false);
+          fetchWarehouses();
+          return;
+        }
         const res = await fetch(`/api/admin/warehouses/${editing.id}`, {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            name: form.name.trim(),
-            type: form.type,
-            location: form.location.trim() || null,
-          }),
+          body: JSON.stringify(payload),
         });
         const data = await res.json();
         if (!res.ok) {
@@ -91,11 +100,32 @@ export function WarehousesSection() {
       setModalOpen(false);
       fetchWarehouses();
     } catch {
-      setMessage({ type: "error", text: "حدث خطأ" });
+      if (editing && !navigator.onLine) {
+        addToQueue({
+          type: "warehouse_patch",
+          warehouseId: editing.id,
+          data: {
+            name: form.name.trim(),
+            type: form.type,
+            location: form.location.trim() || null,
+          },
+        });
+        setMessage({ type: "success", text: "انقطع الاتصال. تم حفظ التعديل. سيتم إرساله عند العودة." });
+        setModalOpen(false);
+        fetchWarehouses();
+      } else {
+        setMessage({ type: "error", text: "حدث خطأ" });
+      }
     } finally {
       setSaving(false);
     }
   }
+
+  useEffect(() => {
+    const handleOnline = () => fetchWarehouses();
+    window.addEventListener("alameen-online", handleOnline);
+    return () => window.removeEventListener("alameen-online", handleOnline);
+  }, []);
 
   async function handleDelete(w: Warehouse) {
     setSaving(true);

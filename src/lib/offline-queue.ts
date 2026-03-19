@@ -137,6 +137,16 @@ export type QueuedOp =
         quantity: number;
         notes?: string;
       };
+    }
+  | {
+      type: "warehouse_patch";
+      warehouseId: string;
+      data: { name?: string; type?: string; location?: string | null };
+    }
+  | {
+      type: "stock_adjustment";
+      itemId: string;
+      data: { new_quantity: number; warehouse_id?: string; notes?: string };
     };
 
 export interface QueuedItem {
@@ -336,6 +346,15 @@ export async function executeQueuedOpDefault(item: QueuedItem): Promise<boolean>
       break;
     case "stock_transfer":
       url = "/api/admin/inventory/transfer";
+      body = JSON.stringify(op.data);
+      break;
+    case "warehouse_patch":
+      url = `/api/admin/warehouses/${op.warehouseId}`;
+      body = JSON.stringify(op.data);
+      method = "PATCH";
+      break;
+    case "stock_adjustment":
+      url = `/api/admin/inventory/items/${op.itemId}/adjust`;
       body = JSON.stringify(op.data);
       break;
     default:

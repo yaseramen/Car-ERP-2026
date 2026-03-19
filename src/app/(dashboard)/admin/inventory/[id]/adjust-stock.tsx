@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { addToQueue } from "@/lib/offline-queue";
 
 interface AdjustStockProps {
   itemId: string;
@@ -31,10 +32,20 @@ export function AdjustStock({ itemId, itemName, currentQuantity }: AdjustStockPr
     }
     setSaving(true);
     try {
+      const payload = { new_quantity: newNum, notes: notes.trim() || undefined };
+      if (!navigator.onLine) {
+        addToQueue({ type: "stock_adjustment", itemId, data: payload });
+        setOpen(false);
+        setNewQty(String(newNum));
+        setNotes("");
+        alert("انقطع الاتصال. تم حفظ طلب الجرد. سيتم تنفيذه تلقائياً عند عودة الإنترنت.");
+        router.refresh();
+        return;
+      }
       const res = await fetch(`/api/admin/inventory/items/${itemId}/adjust`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ new_quantity: newNum, notes: notes.trim() || undefined }),
+        body: JSON.stringify(payload),
       });
       const data = await res.json();
       if (!res.ok) {
@@ -46,7 +57,16 @@ export function AdjustStock({ itemId, itemName, currentQuantity }: AdjustStockPr
       setNotes("");
       router.refresh();
     } catch {
-      alert("حدث خطأ");
+      if (!navigator.onLine) {
+        addToQueue({ type: "stock_adjustment", itemId, data: { new_quantity: newNum, notes: notes.trim() || undefined } });
+        setOpen(false);
+        setNewQty(String(newNum));
+        setNotes("");
+        alert("انقطع الاتصال. تم حفظ طلب الجرد. سيتم تنفيذه تلقائياً عند عودة الإنترنت.");
+        router.refresh();
+      } else {
+        alert("حدث خطأ");
+      }
     } finally {
       setSaving(false);
     }
