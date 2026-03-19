@@ -131,6 +131,13 @@ export function InventoryTable() {
     };
   }, []);
 
+  useEffect(() => {
+    const p = searchQuery ? 1 : page;
+    if (searchQuery) setPage(1);
+    setLoading(true);
+    fetchItems({ page: p, search: searchQuery });
+  }, [page, searchQuery]);
+
   function resetForm() {
     setForm({
       name: "",
@@ -427,13 +434,6 @@ export function InventoryTable() {
 
   const ROWS_PER_PAGE = 50;
   const totalPages = Math.max(1, Math.ceil(totalItems / ROWS_PER_PAGE));
-
-  useEffect(() => {
-    const p = searchQuery ? 1 : page;
-    if (searchQuery) setPage(1);
-    setLoading(true);
-    fetchItems({ page: p, search: searchQuery });
-  }, [page, searchQuery]);
 
   function handlePageChange(newPage: number) {
     if (newPage === page) return;
