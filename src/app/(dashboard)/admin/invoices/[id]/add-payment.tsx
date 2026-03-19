@@ -80,20 +80,20 @@ export function AddPayment({ invoiceId, total, paidAmount, status }: AddPaymentP
   }
 
   const inputClass =
-    "w-full px-4 py-2.5 rounded-lg border border-gray-300 bg-white text-gray-900 placeholder-gray-500 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none";
+    "w-full px-4 py-2.5 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none";
 
   if (isFullyPaid) {
     return (
-      <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-4">
-        <p className="text-emerald-800 font-medium">الفاتورة مدفوعة بالكامل</p>
+      <div className="bg-emerald-50 dark:bg-emerald-900/30 border border-emerald-200 dark:border-emerald-800 rounded-xl p-4">
+        <p className="text-emerald-800 dark:text-emerald-200 font-medium">الفاتورة مدفوعة بالكامل</p>
       </div>
     );
   }
 
   if (isReturnedOrCancelled) {
     return (
-      <div className="bg-gray-50 border border-gray-200 rounded-xl p-4">
-        <p className="text-gray-600 font-medium">
+      <div className="bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-4">
+        <p className="text-gray-600 dark:text-gray-300 font-medium">
           {status === "returned" ? "الفاتورة مرتجعة" : "الفاتورة ملغاة"}
         </p>
       </div>
@@ -101,13 +101,13 @@ export function AddPayment({ invoiceId, total, paidAmount, status }: AddPaymentP
   }
 
   return (
-    <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-      <h2 className="font-bold text-gray-900 mb-4">تسجيل دفعة</h2>
-      <p className="text-sm text-gray-600 mb-4">المتبقي: {remaining.toFixed(2)} ج.م</p>
+    <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 p-6">
+      <h2 className="font-bold text-gray-900 dark:text-gray-100 mb-4">تسجيل دفعة</h2>
+      <p className="text-sm text-gray-600 dark:text-gray-300 mb-4">المتبقي: {remaining.toFixed(2)} ج.م</p>
 
       <form onSubmit={handleSubmit} className="space-y-4">
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">المبلغ (ج.م) *</label>
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">المبلغ (ج.م) *</label>
           <input
             type="number"
             step="0.01"
@@ -121,7 +121,7 @@ export function AddPayment({ invoiceId, total, paidAmount, status }: AddPaymentP
           />
         </div>
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">طريقة الدفع *</label>
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">طريقة الدفع *</label>
           <select
             value={paymentMethodId}
             onChange={(e) => setPaymentMethodId(e.target.value)}
@@ -136,7 +136,7 @@ export function AddPayment({ invoiceId, total, paidAmount, status }: AddPaymentP
         </div>
         {showRefField && (
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
               {isCredit ? "تاريخ الدفع المتوقع" : methodType === "cheque" ? "رقم الشيك" : methodType === "bank" ? "رقم التحويل" : "رقم الهاتف المحول منه"}
             </label>
             {isCredit ? (
@@ -164,7 +164,7 @@ export function AddPayment({ invoiceId, total, paidAmount, status }: AddPaymentP
           </div>
         )}
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">ملاحظات</label>
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">ملاحظات</label>
           <input
             type="text"
             value={notes}

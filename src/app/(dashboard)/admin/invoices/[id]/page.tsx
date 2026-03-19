@@ -124,11 +124,11 @@ export default async function InvoiceDetailPage({
     };
 
     return (
-    <div className="p-8">
+    <div className="p-4 md:p-8">
       <div className="mb-6 flex justify-between items-center flex-wrap gap-2">
         <Link
           href="/admin/invoices"
-          className="text-sm text-emerald-600 hover:text-emerald-700 no-print"
+          className="text-sm text-emerald-600 dark:text-emerald-400 hover:text-emerald-700 dark:hover:text-emerald-300 no-print"
         >
           ← العودة للفواتير
         </Link>
@@ -153,35 +153,35 @@ export default async function InvoiceDetailPage({
 
       <div id="invoice-print-area">
       {data.company_name && (
-        <div className="mb-6 p-4 bg-gray-50 rounded-xl border border-gray-100">
-          <h2 className="font-bold text-gray-900 mb-3 text-lg">بيانات الشركة</h2>
+        <div className="mb-6 p-4 bg-gray-50 dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700">
+          <h2 className="font-bold text-gray-900 dark:text-gray-100 mb-3 text-lg">بيانات الشركة</h2>
           <dl className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm">
             <div>
-              <dt className="text-gray-500">اسم الشركة</dt>
-              <dd className="font-medium text-gray-900">{data.company_name}</dd>
+              <dt className="text-gray-500 dark:text-gray-400">اسم الشركة</dt>
+              <dd className="font-medium text-gray-900 dark:text-gray-100">{data.company_name}</dd>
             </div>
             {data.company_phone && (
               <div>
-                <dt className="text-gray-500">رقم الهاتف</dt>
-                <dd className="text-gray-900">{data.company_phone}</dd>
+                <dt className="text-gray-500 dark:text-gray-400">رقم الهاتف</dt>
+                <dd className="text-gray-900 dark:text-gray-100">{data.company_phone}</dd>
               </div>
             )}
             {data.company_address && (
               <div>
-                <dt className="text-gray-500">العنوان</dt>
-                <dd className="text-gray-900">{data.company_address}</dd>
+                <dt className="text-gray-500 dark:text-gray-400">العنوان</dt>
+                <dd className="text-gray-900 dark:text-gray-100">{data.company_address}</dd>
               </div>
             )}
             {data.company_tax_number && (
               <div>
-                <dt className="text-gray-500">رقم البطاقة الضريبية</dt>
-                <dd className="text-gray-900">{data.company_tax_number}</dd>
+                <dt className="text-gray-500 dark:text-gray-400">رقم البطاقة الضريبية</dt>
+                <dd className="text-gray-900 dark:text-gray-100">{data.company_tax_number}</dd>
               </div>
             )}
             {data.company_commercial_registration && (
               <div>
-                <dt className="text-gray-500">رقم السجل التجاري</dt>
-                <dd className="text-gray-900">{data.company_commercial_registration}</dd>
+                <dt className="text-gray-500 dark:text-gray-400">رقم السجل التجاري</dt>
+                <dd className="text-gray-900 dark:text-gray-100">{data.company_commercial_registration}</dd>
               </div>
             )}
           </dl>
@@ -192,7 +192,7 @@ export default async function InvoiceDetailPage({
         <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">فاتورة {data.invoice_number}</h1>
         <p className="text-gray-500 dark:text-gray-400 mt-1">
           {data.is_return && (
-            <span className="inline-block px-2 py-0.5 bg-amber-100 text-amber-800 rounded text-sm font-medium mb-2">
+            <span className="inline-block px-2 py-0.5 bg-amber-100 dark:bg-amber-900/50 text-amber-800 dark:text-amber-200 rounded text-sm font-medium mb-2">
               مرتجع
             </span>
           )}{" "}
@@ -201,7 +201,7 @@ export default async function InvoiceDetailPage({
         {data.is_return && data.original_invoice_id && (
           <Link
             href={`/admin/invoices/${data.original_invoice_id}`}
-            className="text-sm text-emerald-600 hover:text-emerald-700 no-print"
+            className="text-sm text-emerald-600 dark:text-emerald-400 hover:text-emerald-700 dark:hover:text-emerald-300 no-print"
           >
             ← عرض الفاتورة الأصلية
           </Link>
@@ -213,68 +213,68 @@ export default async function InvoiceDetailPage({
           <h2 className="font-bold text-gray-900 dark:text-gray-100 mb-4">بيانات الفاتورة</h2>
           <dl className="space-y-3 text-sm">
             <div className="flex justify-between">
-              <dt className="text-gray-500">رقم الفاتورة</dt>
-              <dd className="text-gray-900 font-medium">{data.invoice_number}</dd>
+              <dt className="text-gray-500 dark:text-gray-400">رقم الفاتورة</dt>
+              <dd className="text-gray-900 dark:text-gray-100 font-medium">{data.invoice_number}</dd>
             </div>
             <div className="flex justify-between">
-              <dt className="text-gray-500">النوع</dt>
-              <dd className="text-gray-900">{TYPE_LABELS[data.type] || data.type}</dd>
+              <dt className="text-gray-500 dark:text-gray-400">النوع</dt>
+              <dd className="text-gray-900 dark:text-gray-100">{TYPE_LABELS[data.type] || data.type}</dd>
             </div>
             <div className="flex justify-between">
-              <dt className="text-gray-500">الحالة</dt>
-              <dd className="text-gray-900">{STATUS_LABELS[data.status] || data.status}</dd>
+              <dt className="text-gray-500 dark:text-gray-400">الحالة</dt>
+              <dd className="text-gray-900 dark:text-gray-100">{STATUS_LABELS[data.status] || data.status}</dd>
             </div>
             <div className="flex justify-between">
-              <dt className="text-gray-500">التاريخ</dt>
-              <dd className="text-gray-900">
+              <dt className="text-gray-500 dark:text-gray-400">التاريخ</dt>
+              <dd className="text-gray-900 dark:text-gray-100">
                 {new Date(data.created_at).toLocaleString("ar-EG")}
               </dd>
             </div>
           </dl>
         </div>
 
-        <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100">
+        <div className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-sm border border-gray-100 dark:border-gray-700">
           {data.type === "purchase" ? (
             <>
-              <h2 className="font-bold text-gray-900 mb-4">المورد</h2>
+              <h2 className="font-bold text-gray-900 dark:text-gray-100 mb-4">المورد</h2>
               <dl className="space-y-3 text-sm">
                 <div className="flex justify-between">
-                  <dt className="text-gray-500">اسم المورد</dt>
-                  <dd className="text-gray-900">{data.supplier_name || "—"}</dd>
+                  <dt className="text-gray-500 dark:text-gray-400">اسم المورد</dt>
+                  <dd className="text-gray-900 dark:text-gray-100">{data.supplier_name || "—"}</dd>
                 </div>
                 <div className="flex justify-between">
-                  <dt className="text-gray-500">هاتف المورد</dt>
-                  <dd className="text-gray-900">{data.supplier_phone || "—"}</dd>
+                  <dt className="text-gray-500 dark:text-gray-400">هاتف المورد</dt>
+                  <dd className="text-gray-900 dark:text-gray-100">{data.supplier_phone || "—"}</dd>
                 </div>
               </dl>
             </>
           ) : (
             <>
-              <h2 className="font-bold text-gray-900 mb-4">العميل / السيارة</h2>
+              <h2 className="font-bold text-gray-900 dark:text-gray-100 mb-4">العميل / السيارة</h2>
               <dl className="space-y-3 text-sm">
                 <div className="flex justify-between">
-                  <dt className="text-gray-500">العميل</dt>
-                  <dd className="text-gray-900">{data.customer_name || "—"}</dd>
+                  <dt className="text-gray-500 dark:text-gray-400">العميل</dt>
+                  <dd className="text-gray-900 dark:text-gray-100">{data.customer_name || "—"}</dd>
                 </div>
                 <div className="flex justify-between">
-                  <dt className="text-gray-500">الهاتف</dt>
-                  <dd className="text-gray-900">{data.customer_phone || "—"}</dd>
+                  <dt className="text-gray-500 dark:text-gray-400">الهاتف</dt>
+                  <dd className="text-gray-900 dark:text-gray-100">{data.customer_phone || "—"}</dd>
                 </div>
                 <div className="flex justify-between">
-                  <dt className="text-gray-500">رقم اللوحة</dt>
-                  <dd className="text-gray-900">{data.vehicle_plate || "—"}</dd>
+                  <dt className="text-gray-500 dark:text-gray-400">رقم اللوحة</dt>
+                  <dd className="text-gray-900 dark:text-gray-100">{data.vehicle_plate || "—"}</dd>
                 </div>
                 <div className="flex justify-between">
-                  <dt className="text-gray-500">الموديل</dt>
-                  <dd className="text-gray-900">{data.vehicle_model || "—"}</dd>
+                  <dt className="text-gray-500 dark:text-gray-400">الموديل</dt>
+                  <dd className="text-gray-900 dark:text-gray-100">{data.vehicle_model || "—"}</dd>
                 </div>
                 {data.repair_order_id && (
                   <div className="flex justify-between">
-                    <dt className="text-gray-500">أمر الإصلاح</dt>
+                    <dt className="text-gray-500 dark:text-gray-400">أمر الإصلاح</dt>
                     <dd>
                       <Link
                         href={`/admin/workshop/${data.repair_order_id}`}
-                        className="text-emerald-600 hover:text-emerald-700"
+                        className="text-emerald-600 dark:text-emerald-400 hover:text-emerald-700 dark:hover:text-emerald-300"
                       >
                         {data.order_number || "عرض"}
                       </Link>
@@ -295,60 +295,60 @@ export default async function InvoiceDetailPage({
           {items.length > 0 ? (
             <table className="w-full">
               <thead>
-                <tr className="bg-gray-50">
-                  <th className="text-right px-4 py-3 text-sm font-medium text-gray-600">الصنف</th>
-                  <th className="text-right px-4 py-3 text-sm font-medium text-gray-600">الكمية</th>
-                  <th className="text-right px-4 py-3 text-sm font-medium text-gray-600">سعر الوحدة</th>
-                  <th className="text-right px-4 py-3 text-sm font-medium text-gray-600">الإجمالي</th>
+                <tr className="bg-gray-50 dark:bg-gray-700/50">
+                  <th className="text-right px-4 py-3 text-sm font-medium text-gray-600 dark:text-gray-300">الصنف</th>
+                  <th className="text-right px-4 py-3 text-sm font-medium text-gray-600 dark:text-gray-300">الكمية</th>
+                  <th className="text-right px-4 py-3 text-sm font-medium text-gray-600 dark:text-gray-300">سعر الوحدة</th>
+                  <th className="text-right px-4 py-3 text-sm font-medium text-gray-600 dark:text-gray-300">الإجمالي</th>
                 </tr>
               </thead>
               <tbody>
                 {items.map((item) => (
-                  <tr key={item.id} className="border-b border-gray-50">
-                    <td className="px-4 py-3 text-sm text-gray-900">{item.item_name}</td>
-                    <td className="px-4 py-3 text-sm">{item.quantity}</td>
-                    <td className="px-4 py-3 text-sm">{item.unit_price?.toFixed(2)} ج.م</td>
-                    <td className="px-4 py-3 text-sm font-medium">{item.total?.toFixed(2)} ج.م</td>
+                  <tr key={item.id} className="border-b border-gray-50 dark:border-gray-700">
+                    <td className="px-4 py-3 text-sm text-gray-900 dark:text-gray-100">{item.item_name}</td>
+                    <td className="px-4 py-3 text-sm text-gray-900 dark:text-gray-100">{item.quantity}</td>
+                    <td className="px-4 py-3 text-sm text-gray-900 dark:text-gray-100">{item.unit_price?.toFixed(2)} ج.م</td>
+                    <td className="px-4 py-3 text-sm font-medium text-gray-900 dark:text-gray-100">{item.total?.toFixed(2)} ج.م</td>
                   </tr>
                 ))}
               </tbody>
               <tfoot>
-                <tr className="bg-gray-50">
-                  <td colSpan={3} className="px-4 py-3 text-sm text-right">المجموع الفرعي</td>
-                  <td className="px-4 py-3 text-sm font-medium">{data.subtotal?.toFixed(2)} ج.م</td>
+                <tr className="bg-gray-50 dark:bg-gray-700/50">
+                  <td colSpan={3} className="px-4 py-3 text-sm text-right text-gray-900 dark:text-gray-100">المجموع الفرعي</td>
+                  <td className="px-4 py-3 text-sm font-medium text-gray-900 dark:text-gray-100">{data.subtotal?.toFixed(2)} ج.م</td>
                 </tr>
                 {data.discount > 0 && (
-                  <tr className="bg-gray-50">
-                    <td colSpan={3} className="px-4 py-3 text-sm text-right">الخصم</td>
-                    <td className="px-4 py-3 text-sm text-red-600">-{data.discount?.toFixed(2)} ج.م</td>
+                  <tr className="bg-gray-50 dark:bg-gray-700/50">
+                    <td colSpan={3} className="px-4 py-3 text-sm text-right text-gray-900 dark:text-gray-100">الخصم</td>
+                    <td className="px-4 py-3 text-sm text-red-600 dark:text-red-400">-{data.discount?.toFixed(2)} ج.م</td>
                   </tr>
                 )}
                 {data.tax > 0 && (
-                  <tr className="bg-gray-50">
-                    <td colSpan={3} className="px-4 py-3 text-sm text-right">الضريبة</td>
-                    <td className="px-4 py-3 text-sm">+{data.tax?.toFixed(2)} ج.م</td>
+                  <tr className="bg-gray-50 dark:bg-gray-700/50">
+                    <td colSpan={3} className="px-4 py-3 text-sm text-right text-gray-900 dark:text-gray-100">الضريبة</td>
+                    <td className="px-4 py-3 text-sm text-gray-900 dark:text-gray-100">+{data.tax?.toFixed(2)} ج.م</td>
                   </tr>
                 )}
                 {data.digital_service_fee > 0 && (
-                  <tr className="bg-gray-50">
-                    <td colSpan={3} className="px-4 py-3 text-sm text-right">الخدمة الرقمية</td>
-                    <td className="px-4 py-3 text-sm">{data.digital_service_fee?.toFixed(2)} ج.م</td>
+                  <tr className="bg-gray-50 dark:bg-gray-700/50">
+                    <td colSpan={3} className="px-4 py-3 text-sm text-right text-gray-900 dark:text-gray-100">الخدمة الرقمية</td>
+                    <td className="px-4 py-3 text-sm text-gray-900 dark:text-gray-100">{data.digital_service_fee?.toFixed(2)} ج.م</td>
                   </tr>
                 )}
-                <tr className="bg-emerald-50 font-bold">
-                  <td colSpan={3} className="px-4 py-3 text-sm text-right">الإجمالي النهائي</td>
-                  <td className="px-4 py-3 text-sm text-emerald-700">{data.total?.toFixed(2)} ج.م</td>
+                <tr className="bg-emerald-50 dark:bg-emerald-900/30 font-bold">
+                  <td colSpan={3} className="px-4 py-3 text-sm text-right text-gray-900 dark:text-gray-100">الإجمالي النهائي</td>
+                  <td className="px-4 py-3 text-sm text-emerald-700 dark:text-emerald-400">{data.total?.toFixed(2)} ج.م</td>
                 </tr>
                 {data.paid_amount > 0 && (
                   <tr>
-                    <td colSpan={3} className="px-4 py-3 text-sm text-right">المدفوع</td>
-                    <td className="px-4 py-3 text-sm">{data.paid_amount?.toFixed(2)} ج.م</td>
+                    <td colSpan={3} className="px-4 py-3 text-sm text-right text-gray-900 dark:text-gray-100">المدفوع</td>
+                    <td className="px-4 py-3 text-sm text-gray-900 dark:text-gray-100">{data.paid_amount?.toFixed(2)} ج.م</td>
                   </tr>
                 )}
               </tfoot>
             </table>
           ) : (
-            <div className="p-8 text-center text-gray-500">لا توجد بنود</div>
+            <div className="p-8 text-center text-gray-500 dark:text-gray-400">لا توجد بنود</div>
           )}
         </div>
       </div>
@@ -362,36 +362,36 @@ export default async function InvoiceDetailPage({
             status={data.status}
           />
         </div>
-        <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-          <div className="p-4 border-b border-gray-100">
-            <h2 className="font-bold text-gray-900">سجل المدفوعات</h2>
+        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden">
+          <div className="p-4 border-b border-gray-100 dark:border-gray-700">
+            <h2 className="font-bold text-gray-900 dark:text-gray-100">سجل المدفوعات</h2>
           </div>
           <div className="p-4">
             {payments.length > 0 ? (
               <ul className="space-y-3">
                 {payments.map((p) => (
-                  <li key={p.id} className="flex justify-between items-center text-sm">
+                  <li key={p.id} className="flex justify-between items-center text-sm text-gray-900 dark:text-gray-100">
                     <span>{p.method_name} — {new Date(p.created_at).toLocaleString("ar-EG")}</span>
-                    <span className="font-medium text-emerald-600">+{p.amount.toFixed(2)} ج.م</span>
+                    <span className="font-medium text-emerald-600 dark:text-emerald-400">+{p.amount.toFixed(2)} ج.م</span>
                   </li>
                 ))}
               </ul>
             ) : (
-              <p className="text-gray-500 text-sm">لا توجد مدفوعات مسجلة</p>
+              <p className="text-gray-500 dark:text-gray-400 text-sm">لا توجد مدفوعات مسجلة</p>
             )}
           </div>
         </div>
       </div>
 
       {data.notes && data.notes.trim() && (
-        <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100">
-          <h2 className="font-bold text-gray-900 mb-2">ملاحظات</h2>
-          <p className="text-gray-600 text-sm whitespace-pre-wrap">{data.notes}</p>
+        <div className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-sm border border-gray-100 dark:border-gray-700">
+          <h2 className="font-bold text-gray-900 dark:text-gray-100 mb-2">ملاحظات</h2>
+          <p className="text-gray-600 dark:text-gray-300 text-sm whitespace-pre-wrap">{data.notes}</p>
         </div>
       )}
 
-      <div className="mt-8 pt-4 border-t border-gray-200 text-center text-sm text-gray-500">
-        <p className="font-medium text-gray-600">برمجة وتطوير البرنامج</p>
+      <div className="mt-8 pt-4 border-t border-gray-200 dark:border-gray-700 text-center text-sm text-gray-500 dark:text-gray-400">
+        <p className="font-medium text-gray-600 dark:text-gray-400">برمجة وتطوير البرنامج</p>
         <p className="mt-1">{DEVELOPER_INFO.name}</p>
         <p>هاتف: {DEVELOPER_INFO.phone}</p>
         {DEVELOPER_INFO.email && <p>البريد: {DEVELOPER_INFO.email}</p>}

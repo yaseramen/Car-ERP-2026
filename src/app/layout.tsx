@@ -1,8 +1,9 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { AuthSessionProvider } from "@/components/providers/session-provider";
 import { PwaProvider } from "@/components/pwa/pwa-provider";
+import { OfflineProvider } from "@/components/offline/offline-provider";
 import { ThemeProvider } from "@/components/theme/theme-provider";
 
 const geistSans = Geist({
@@ -37,6 +38,12 @@ export const metadata: Metadata = {
   },
 };
 
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 5,
+};
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -56,7 +63,9 @@ export default function RootLayout({
       >
         <AuthSessionProvider>
           <ThemeProvider>
-            <PwaProvider>{children}</PwaProvider>
+            <OfflineProvider>
+              <PwaProvider>{children}</PwaProvider>
+            </OfflineProvider>
           </ThemeProvider>
         </AuthSessionProvider>
       </body>

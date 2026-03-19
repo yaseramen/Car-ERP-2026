@@ -9,7 +9,7 @@ export default async function SuppliersPage() {
   }
 
   return (
-    <div className="p-8">
+    <div className="p-4 md:p-8">
       <div className="mb-8">
         <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">الموردون</h1>
         <p className="text-gray-500 dark:text-gray-400 mt-1">إدارة الموردين وربطهم بفواتير الشراء</p>

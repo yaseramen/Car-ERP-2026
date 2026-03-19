@@ -115,6 +115,10 @@ export default function FaqPage() {
         <Link href="/how-it-works" className="text-emerald-600 hover:text-emerald-700">
           كيف يعمل البرنامج
         </Link>
+        {" · "}
+        <Link href="/terms" className="text-emerald-600 hover:text-emerald-700">
+          سياسة الاستخدام
+        </Link>
       </footer>
     </div>
   );

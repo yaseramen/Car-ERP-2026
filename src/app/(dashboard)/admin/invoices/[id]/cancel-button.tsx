@@ -46,7 +46,7 @@ export function CancelButton({ invoiceId, type, status }: CancelButtonProps) {
       type="button"
       onClick={handleCancel}
       disabled={loading}
-      className="no-print px-4 py-2 bg-red-100 hover:bg-red-200 text-red-800 font-medium rounded-lg transition-colors disabled:opacity-50"
+      className="no-print px-4 py-2 bg-red-100 dark:bg-red-900/50 hover:bg-red-200 dark:hover:bg-red-800/70 text-red-800 dark:text-red-200 font-medium rounded-lg transition-colors disabled:opacity-50"
     >
       {loading ? "جاري..." : "إلغاء الفاتورة"}
     </button>

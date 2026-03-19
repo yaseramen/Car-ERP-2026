@@ -2,9 +2,9 @@ import { auth } from "@/auth";
 import { redirect, notFound } from "next/navigation";
 import Link from "next/link";
 import { db } from "@/lib/db/client";
+import { getCompanyId } from "@/lib/company";
+import { canAccess } from "@/lib/permissions";
 import { EditMinQuantity } from "./edit-min-quantity";
-
-const SYSTEM_COMPANY_ID = "company-system";
 
 export default async function ItemReportPage({
   params,
@@ -12,9 +12,11 @@ export default async function ItemReportPage({
   params: Promise<{ id: string }>;
 }) {
   const session = await auth();
-  if (!session?.user || session.user.role !== "super_admin") {
-    redirect("/login");
-  }
+  if (!session?.user) redirect("/login");
+  const companyId = getCompanyId(session);
+  const allowed = session.user.role === "super_admin" || session.user.role === "tenant_owner" ||
+    (session.user.role === "employee" && session.user.id && companyId && await canAccess(session.user.id, session.user.role ?? "", companyId, "inventory", "read"));
+  if (!allowed || !companyId) redirect("/login");
 
   const { id } = await params;
 
@@ -24,7 +26,7 @@ export default async function ItemReportPage({
             COALESCE((SELECT SUM(quantity) FROM item_warehouse_stock WHERE item_id = i.id), 0) as total_quantity
             FROM items i 
             WHERE i.id = ? AND i.company_id = ?`,
-      args: [id, SYSTEM_COMPANY_ID],
+      args: [id, companyId],
     });
 
     if (itemResult.rows.length === 0) notFound();
@@ -108,7 +110,7 @@ export default async function ItemReportPage({
     }));
 
     return (
-      <div className="p-8">
+      <div className="p-4 md:p-8">
         <div className="mb-6">
           <Link
             href="/admin/inventory"
@@ -144,10 +146,6 @@ export default async function ItemReportPage({
                 <dd className="text-gray-900">{item.unit || "قطعة"}</dd>
               </div>
               <div className="flex justify-between">
-                <dt className="text-gray-500">سعر التكلفة</dt>
-                <dd className="text-gray-900">{item.purchase_price?.toFixed(2)} ج.م</dd>
-              </div>
-              <div className="flex justify-between">
                 <dt className="text-gray-500">سعر البيع</dt>
                 <dd className="text-gray-900">{item.sale_price?.toFixed(2)} ج.م</dd>
               </div>
@@ -164,14 +162,14 @@ export default async function ItemReportPage({
           </dl>
         </div>
 
-          <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100">
-            <h2 className="font-bold text-gray-900 mb-4">المخزون حسب المخزن</h2>
+          <div className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-sm border border-gray-100 dark:border-gray-700">
+            <h2 className="font-bold text-gray-900 dark:text-gray-100 mb-4">المخزون حسب المخزن</h2>
             {stockByWarehouse.length > 0 ? (
               <dl className="space-y-3 text-sm">
                 {stockByWarehouse.map((s) => (
                   <div key={s.warehouse_name} className="flex justify-between">
-                    <dt className="text-gray-500">{s.warehouse_name}</dt>
-                    <dd className="text-gray-900">{s.quantity} (محجوز: {s.reserved})</dd>
+                    <dt className="text-gray-500 dark:text-gray-400">{s.warehouse_name}</dt>
+                    <dd className="text-gray-900 dark:text-gray-100">{s.quantity} (محجوز: {s.reserved})</dd>
                   </div>
                 ))}
               </dl>
@@ -217,9 +215,9 @@ export default async function ItemReportPage({
           </div>
         </div>
 
-        <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-          <div className="p-4 border-b border-gray-100">
-            <h2 className="font-bold text-gray-900">سجل الفواتير</h2>
+        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden">
+          <div className="p-4 border-b border-gray-100 dark:border-gray-700">
+            <h2 className="font-bold text-gray-900 dark:text-gray-100">سجل الفواتير</h2>
           </div>
           <div className="overflow-x-auto">
             {invoiceHistory.length > 0 ? (

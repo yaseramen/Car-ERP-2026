@@ -84,31 +84,31 @@ export function PartialReturnButton({ invoiceId, type, status, items }: PartialR
   }
 
   const inputClass =
-    "w-full px-3 py-2 rounded-lg border border-gray-300 bg-white text-gray-900 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none";
+    "w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none";
 
   return (
     <>
       <button
         type="button"
         onClick={handleOpen}
-        className="no-print px-4 py-2 bg-blue-100 hover:bg-blue-200 text-blue-800 font-medium rounded-lg transition-colors"
+        className="no-print px-4 py-2 bg-blue-100 dark:bg-blue-900/50 hover:bg-blue-200 dark:hover:bg-blue-800/70 text-blue-800 dark:text-blue-200 font-medium rounded-lg transition-colors"
       >
         إرجاع جزئي
       </button>
 
       {open && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50" dir="rtl">
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
-            <div className="p-6 border-b border-gray-100">
-              <h3 className="text-lg font-bold text-gray-900">إرجاع جزئي</h3>
-              <p className="text-sm text-gray-500 mt-1">حدد الكميات المراد إرجاعها للمخزن</p>
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl w-full max-w-lg max-h-[90vh] overflow-y-auto border border-gray-200 dark:border-gray-700">
+            <div className="p-6 border-b border-gray-100 dark:border-gray-700">
+              <h3 className="text-lg font-bold text-gray-900 dark:text-gray-100">إرجاع جزئي</h3>
+              <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">حدد الكميات المراد إرجاعها للمخزن</p>
             </div>
             <form onSubmit={handleSubmit} className="p-6 space-y-4">
               {returnableItems.map((item) => (
                 <div key={item.id} className="flex items-center gap-4">
                   <div className="flex-1 min-w-0">
-                    <div className="font-medium text-gray-900 truncate">{item.item_name}</div>
-                    <div className="text-sm text-gray-500">
+                    <div className="font-medium text-gray-900 dark:text-gray-100 truncate">{item.item_name}</div>
+                    <div className="text-sm text-gray-500 dark:text-gray-400">
                       الكمية في الفاتورة: {item.quantity} — {item.unit_price.toFixed(2)} ج.م
                     </div>
                   </div>
@@ -131,11 +131,11 @@ export function PartialReturnButton({ invoiceId, type, status, items }: PartialR
                   </div>
                 </div>
               ))}
-              <div className="flex gap-3 pt-4 border-t border-gray-100">
+              <div className="flex gap-3 pt-4 border-t border-gray-100 dark:border-gray-700">
                 <button
                   type="button"
                   onClick={() => setOpen(false)}
-                  className="flex-1 px-4 py-2.5 text-gray-600 hover:bg-gray-100 rounded-lg transition"
+                  className="flex-1 px-4 py-2.5 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition"
                 >
                   إلغاء
                 </button>

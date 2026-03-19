@@ -151,28 +151,28 @@ export function ObdContent() {
   }
 
   const inputClass =
-    "w-full px-4 py-2.5 rounded-lg border border-gray-300 bg-white text-gray-900 placeholder-gray-500 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none";
+    "w-full px-4 py-2.5 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none";
 
   function ResultCard({ r }: { r: ObdResult }) {
     return (
-      <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-        <div className="p-4 border-b border-gray-100 flex justify-between items-center">
-          <h2 className="font-bold text-gray-900">كود {r.code}</h2>
-          <span className="text-sm text-gray-500">
+      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden">
+        <div className="p-4 border-b border-gray-100 dark:border-gray-700 flex justify-between items-center">
+          <h2 className="font-bold text-gray-900 dark:text-gray-100">كود {r.code}</h2>
+          <span className="text-sm text-gray-500 dark:text-gray-400">
             المصدر: {r.source === "local" ? "محلي" : r.source === "ai" ? "ذكاء اصطناعي" : "غير موجود"} — {r.cost} ج.م
           </span>
         </div>
         <div className="p-6 space-y-6">
           {r.description_ar && (
             <div>
-              <h3 className="text-sm font-medium text-gray-500 mb-1">الوصف</h3>
-              <p className="text-gray-900">{r.description_ar}</p>
+              <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">الوصف</h3>
+              <p className="text-gray-900 dark:text-gray-100">{r.description_ar}</p>
             </div>
           )}
           {r.causes && (
             <div>
-              <h3 className="text-sm font-medium text-gray-500 mb-1">الأسباب المحتملة</h3>
-              <ul className="list-disc list-inside space-y-1 text-gray-900">
+              <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">الأسباب المحتملة</h3>
+              <ul className="list-disc list-inside space-y-1 text-gray-900 dark:text-gray-100">
                 {r.causes.split("|").map((c, i) => (
                   <li key={i}>{c.trim()}</li>
                 ))}
@@ -181,8 +181,8 @@ export function ObdContent() {
           )}
           {r.solutions && (
             <div>
-              <h3 className="text-sm font-medium text-gray-500 mb-1">الحلول المقترحة</h3>
-              <ul className="list-disc list-inside space-y-1 text-gray-900">
+              <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">الحلول المقترحة</h3>
+              <ul className="list-disc list-inside space-y-1 text-gray-900 dark:text-gray-100">
                 {r.solutions.split("|").map((s, i) => (
                   <li key={i}>{s.trim()}</li>
                 ))}
@@ -191,8 +191,8 @@ export function ObdContent() {
           )}
           {r.symptoms && (
             <div>
-              <h3 className="text-sm font-medium text-gray-500 mb-1">الأعراض</h3>
-              <ul className="list-disc list-inside space-y-1 text-gray-900">
+              <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">الأعراض</h3>
+              <ul className="list-disc list-inside space-y-1 text-gray-900 dark:text-gray-100">
                 {r.symptoms.split("|").map((s, i) => (
                   <li key={i}>{s.trim()}</li>
                 ))}
@@ -207,22 +207,22 @@ export function ObdContent() {
   return (
     <div className="space-y-6">
       {aiStatus && !aiStatus.aiAvailable && (
-        <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 text-amber-800">
+        <div className="bg-amber-50 dark:bg-amber-900/30 border border-amber-200 dark:border-amber-800 rounded-lg p-4 text-amber-800 dark:text-amber-200">
           <p className="font-medium">⚠️ الذكاء الاصطناعي غير متاح</p>
           <p className="text-sm mt-1">{aiStatus.message}</p>
         </div>
       )}
       {aiStatus && aiStatus.aiAvailable && (
-        <div className="bg-emerald-50 border border-emerald-200 rounded-lg px-4 py-2 text-emerald-800 text-sm">
+        <div className="bg-emerald-50 dark:bg-emerald-900/30 border border-emerald-200 dark:border-emerald-800 rounded-lg px-4 py-2 text-emerald-800 dark:text-emerald-200 text-sm">
           ✓ {aiStatus.message}
         </div>
       )}
-      <div className="flex gap-2 border-b border-gray-200 pb-2">
+      <div className="flex gap-2 border-b border-gray-200 dark:border-gray-700 pb-2">
         <button
           type="button"
           onClick={() => setMode("search")}
           className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-            mode === "search" ? "bg-emerald-600 text-white" : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+            mode === "search" ? "bg-emerald-600 text-white" : "bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600"
           }`}
         >
           بحث بكود واحد
@@ -231,7 +231,7 @@ export function ObdContent() {
           type="button"
           onClick={() => setMode("upload")}
           className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-            mode === "upload" ? "bg-emerald-600 text-white" : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+            mode === "upload" ? "bg-emerald-600 text-white" : "bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600"
           }`}
         >
           رفع تقرير (PDF أو صورة)
@@ -240,7 +240,7 @@ export function ObdContent() {
           type="button"
           onClick={() => setMode("description")}
           className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-            mode === "description" ? "bg-emerald-600 text-white" : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+            mode === "description" ? "bg-emerald-600 text-white" : "bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600"
           }`}
         >
           تحليل بالوصف
@@ -249,7 +249,7 @@ export function ObdContent() {
           type="button"
           onClick={() => setMode("manage")}
           className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-            mode === "manage" ? "bg-emerald-600 text-white" : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+            mode === "manage" ? "bg-emerald-600 text-white" : "bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600"
           }`}
         >
           إدارة قاعدة البيانات
@@ -258,7 +258,7 @@ export function ObdContent() {
           type="button"
           onClick={() => setMode("logs")}
           className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-            mode === "logs" ? "bg-emerald-600 text-white" : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+            mode === "logs" ? "bg-emerald-600 text-white" : "bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600"
           }`}
         >
           سجلات التحليل
@@ -266,7 +266,7 @@ export function ObdContent() {
       </div>
 
       {mode === "search" && (
-        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 p-6">
           <form onSubmit={handleSearch} className="flex gap-3">
             <input
               type="text"
@@ -284,20 +284,20 @@ export function ObdContent() {
               {loading ? "جاري البحث..." : "بحث"}
             </button>
           </form>
-          <p className="text-sm text-gray-500 mt-2">
+          <p className="text-sm text-gray-500 dark:text-gray-400 mt-2">
             تكلفة كل بحث: 1 ج.م (تُخصم من محفظة الشركة)
           </p>
         </div>
       )}
 
       {mode === "description" && (
-        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-          <p className="text-gray-600 mb-4">
+        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 p-6">
+          <p className="text-gray-600 dark:text-gray-300 mb-4">
             صف مشكلة السيارة بدون جهاز كشف أعطال — سيحلل الذكاء الاصطناعي ويقترح الأسباب والحلول والأكواد المحتملة.
           </p>
           <form onSubmit={handleAnalyzeByDescription} className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">وصف الحالة *</label>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">وصف الحالة *</label>
               <textarea
                 value={descForm.description}
                 onChange={(e) => setDescForm((f) => ({ ...f, description: e.target.value }))}
@@ -308,7 +308,7 @@ export function ObdContent() {
             </div>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-500 mb-1">الماركة (اختياري)</label>
+                <label className="block text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">الماركة (اختياري)</label>
                 <input
                   type="text"
                   value={descForm.brand}
@@ -318,7 +318,7 @@ export function ObdContent() {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-500 mb-1">النموذج (اختياري)</label>
+                <label className="block text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">النموذج (اختياري)</label>
                 <input
                   type="text"
                   value={descForm.model}
@@ -328,7 +328,7 @@ export function ObdContent() {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-500 mb-1">سنة الصنع (اختياري)</label>
+                <label className="block text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">سنة الصنع (اختياري)</label>
                 <input
                   type="text"
                   value={descForm.year}
@@ -346,27 +346,27 @@ export function ObdContent() {
             >
               {loading ? "جاري التحليل..." : "تحليل"}
             </button>
-            <p className="text-sm text-gray-500">تكلفة التحليل: 1 ج.م</p>
+            <p className="text-sm text-gray-500 dark:text-gray-400">تكلفة التحليل: 1 ج.م</p>
           </form>
           {descResult && (
-            <div className="mt-6 p-4 bg-gray-50 rounded-lg space-y-4">
-              <h3 className="font-bold text-gray-900">نتيجة التحليل — {descResult.cost} ج.م</h3>
+            <div className="mt-6 p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg space-y-4">
+              <h3 className="font-bold text-gray-900 dark:text-gray-100">نتيجة التحليل — {descResult.cost} ج.م</h3>
               {descResult.summary_ar && (
                 <div>
-                  <p className="text-sm font-medium text-gray-500 mb-1">الملخص</p>
-                  <p className="text-gray-900">{descResult.summary_ar}</p>
+                  <p className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">الملخص</p>
+                  <p className="text-gray-900 dark:text-gray-100">{descResult.summary_ar}</p>
                 </div>
               )}
               {descResult.possible_codes?.length > 0 && (
                 <div>
-                  <p className="text-sm font-medium text-gray-500 mb-1">أكواد محتملة</p>
-                  <p className="text-gray-900" dir="ltr">{descResult.possible_codes.join(", ")}</p>
+                  <p className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">أكواد محتملة</p>
+                  <p className="text-gray-900 dark:text-gray-100" dir="ltr">{descResult.possible_codes.join(", ")}</p>
                 </div>
               )}
               {descResult.causes && (
                 <div>
-                  <p className="text-sm font-medium text-gray-500 mb-1">الأسباب المحتملة</p>
-                  <ul className="list-disc list-inside text-gray-900 space-y-1">
+                  <p className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">الأسباب المحتملة</p>
+                  <ul className="list-disc list-inside text-gray-900 dark:text-gray-100 space-y-1">
                     {descResult.causes.split("|").map((c, i) => (
                       <li key={i}>{c.trim()}</li>
                     ))}
@@ -375,8 +375,8 @@ export function ObdContent() {
               )}
               {descResult.solutions && (
                 <div>
-                  <p className="text-sm font-medium text-gray-500 mb-1">الحلول المقترحة</p>
-                  <ul className="list-disc list-inside text-gray-900 space-y-1">
+                  <p className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">الحلول المقترحة</p>
+                  <ul className="list-disc list-inside text-gray-900 dark:text-gray-100 space-y-1">
                     {descResult.solutions.split("|").map((s, i) => (
                       <li key={i}>{s.trim()}</li>
                     ))}
@@ -385,8 +385,8 @@ export function ObdContent() {
               )}
               {descResult.recommendations && (
                 <div>
-                  <p className="text-sm font-medium text-gray-500 mb-1">توصيات</p>
-                  <p className="text-gray-900">{descResult.recommendations}</p>
+                  <p className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">توصيات</p>
+                  <p className="text-gray-900 dark:text-gray-100">{descResult.recommendations}</p>
                 </div>
               )}
             </div>
@@ -399,7 +399,7 @@ export function ObdContent() {
       {mode === "logs" && <ObdLogs justAnalyzed={!!analyzeResults} />}
 
       {mode === "upload" && (
-        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 p-6">
           <form onSubmit={handleAnalyze} className="space-y-4">
             <div
               onDragOver={(e) => {
@@ -419,7 +419,7 @@ export function ObdContent() {
               }}
               onClick={() => fileInputRef.current?.click()}
               className={`border-2 border-dashed rounded-xl p-8 text-center cursor-pointer transition-colors ${
-                dragOver ? "border-emerald-500 bg-emerald-50" : "border-gray-300 hover:border-emerald-400"
+                dragOver ? "border-emerald-500 bg-emerald-50 dark:bg-emerald-900/30" : "border-gray-300 dark:border-gray-600 hover:border-emerald-400 dark:hover:border-emerald-500"
               }`}
             >
               <input
@@ -432,9 +432,9 @@ export function ObdContent() {
                   if (f) setFile(f);
                 }}
               />
-              <p className="text-gray-600">
+              <p className="text-gray-600 dark:text-gray-300">
                 {file ? (
-                  <span className="font-medium text-emerald-600">{file.name}</span>
+                  <span className="font-medium text-emerald-600 dark:text-emerald-400">{file.name}</span>
                 ) : (
                   <>اسحب الملف هنا أو انقر للاختيار — PDF أو صورة (حد أقصى 4 ميجابايت)</>
                 )}
@@ -447,7 +447,7 @@ export function ObdContent() {
             >
               {loading ? "جاري التحليل..." : "تحليل التقرير"}
             </button>
-            <p className="text-sm text-gray-500">
+            <p className="text-sm text-gray-500 dark:text-gray-400">
               تكلفة كل كود: 1 ج.م — سيتم استخراج كل الأكواد من التقرير وتحليلها
             </p>
           </form>
@@ -458,12 +458,12 @@ export function ObdContent() {
 
       {analyzeResults && (
         <div className="space-y-4">
-          <div className="flex flex-wrap justify-between items-center gap-3 bg-emerald-50 rounded-lg px-4 py-3">
-            <span className="font-medium text-gray-900">
+          <div className="flex flex-wrap justify-between items-center gap-3 bg-emerald-50 dark:bg-emerald-900/30 rounded-lg px-4 py-3 border border-emerald-100 dark:border-emerald-800">
+            <span className="font-medium text-gray-900 dark:text-gray-100">
               تم العثور على {analyzeResults.codesFound} كود — إجمالي التكلفة: {analyzeResults.totalCost} ج.م
             </span>
             {analyzeResults.vehicle && (analyzeResults.vehicle.brand || analyzeResults.vehicle.model || analyzeResults.vehicle.year) && (
-              <span className="text-sm text-gray-600">
+              <span className="text-sm text-gray-600 dark:text-gray-300">
                 {[analyzeResults.vehicle.brand, analyzeResults.vehicle.model, analyzeResults.vehicle.year].filter(Boolean).join(" · ")}
                 {analyzeResults.vehicle.vin && ` · VIN: ${analyzeResults.vehicle.vin}`}
               </span>
@@ -569,8 +569,8 @@ function ObdManage({ inputClass }: { inputClass: string }) {
   return (
     <div className="space-y-6">
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-          <h3 className="font-bold text-gray-900 mb-4">ماركات المركبات</h3>
+        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 p-6">
+          <h3 className="font-bold text-gray-900 dark:text-gray-100 mb-4">ماركات المركبات</h3>
           <form onSubmit={addBrand} className="flex gap-2 mb-4">
             <input
               type="text"
@@ -591,14 +591,14 @@ function ObdManage({ inputClass }: { inputClass: string }) {
               إضافة
             </button>
           </form>
-          <ul className="text-sm text-gray-700 space-y-1">
+          <ul className="text-sm text-gray-700 dark:text-gray-300 space-y-1">
             {brands.map((b) => (
               <li key={b.id}>{b.name_ar}</li>
             ))}
           </ul>
         </div>
-        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-          <h3 className="font-bold text-gray-900 mb-4">نماذج المركبات</h3>
+        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 p-6">
+          <h3 className="font-bold text-gray-900 dark:text-gray-100 mb-4">نماذج المركبات</h3>
           <form onSubmit={addModel} className="space-y-2 mb-4">
             <select
               value={newModel.brand_id}
@@ -623,15 +623,15 @@ function ObdManage({ inputClass }: { inputClass: string }) {
               </button>
             </div>
           </form>
-          <ul className="text-sm text-gray-700 space-y-1">
+          <ul className="text-sm text-gray-700 dark:text-gray-300 space-y-1">
             {models.map((m) => (
               <li key={m.id}>{m.brand_name} — {m.name_ar}</li>
             ))}
           </ul>
         </div>
       </div>
-      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-        <h3 className="font-bold text-gray-900 mb-4">إضافة كود OBD يدوياً</h3>
+      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 p-6">
+        <h3 className="font-bold text-gray-900 dark:text-gray-100 mb-4">إضافة كود OBD يدوياً</h3>
         <form onSubmit={addCode} className="space-y-3">
           <input
             type="text"
@@ -702,7 +702,7 @@ function ObdLogs({ justAnalyzed }: { justAnalyzed?: boolean }) {
     fetchLogs();
   }, []);
 
-  if (loading) return <div className="p-6 text-gray-500">جاري التحميل...</div>;
+  if (loading) return <div className="p-6 text-gray-500 dark:text-gray-400">جاري التحميل...</div>;
   if (!data) return null;
 
   const { reports, stats } = data;
@@ -710,57 +710,57 @@ function ObdLogs({ justAnalyzed }: { justAnalyzed?: boolean }) {
   return (
     <div className="space-y-6">
       {justAnalyzed && (
-        <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-4 text-emerald-800">
+        <div className="bg-emerald-50 dark:bg-emerald-900/30 border border-emerald-200 dark:border-emerald-800 rounded-lg p-4 text-emerald-800 dark:text-emerald-200">
           ✓ تم حفظ التقرير تلقائياً في قاعدة البيانات
         </div>
       )}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div className="bg-emerald-50 rounded-xl p-4 border border-emerald-100">
-          <p className="text-sm text-emerald-700">تقارير مرفوعة</p>
-          <p className="text-2xl font-bold text-emerald-900">{stats.reports_count}</p>
+        <div className="bg-emerald-50 dark:bg-emerald-900/30 rounded-xl p-4 border border-emerald-100 dark:border-emerald-800">
+          <p className="text-sm text-emerald-700 dark:text-emerald-300">تقارير مرفوعة</p>
+          <p className="text-2xl font-bold text-emerald-900 dark:text-emerald-100">{stats.reports_count}</p>
         </div>
-        <div className="bg-blue-50 rounded-xl p-4 border border-blue-100">
-          <p className="text-sm text-blue-700">أكواد مخزنة</p>
-          <p className="text-2xl font-bold text-blue-900">{stats.codes_count}</p>
+        <div className="bg-blue-50 dark:bg-blue-900/30 rounded-xl p-4 border border-blue-100 dark:border-blue-800">
+          <p className="text-sm text-blue-700 dark:text-blue-300">أكواد مخزنة</p>
+          <p className="text-2xl font-bold text-blue-900 dark:text-blue-100">{stats.codes_count}</p>
         </div>
-        <div className="bg-amber-50 rounded-xl p-4 border border-amber-100">
-          <p className="text-sm text-amber-700">عمليات بحث</p>
-          <p className="text-2xl font-bold text-amber-900">{stats.searches_count}</p>
+        <div className="bg-amber-50 dark:bg-amber-900/30 rounded-xl p-4 border border-amber-100 dark:border-amber-800">
+          <p className="text-sm text-amber-700 dark:text-amber-300">عمليات بحث</p>
+          <p className="text-2xl font-bold text-amber-900 dark:text-amber-100">{stats.searches_count}</p>
         </div>
       </div>
-      <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-        <div className="p-4 border-b border-gray-100 flex justify-between items-center">
-          <h3 className="font-bold text-gray-900">آخر التقارير المرفوعة</h3>
-          <button onClick={fetchLogs} className="text-sm text-emerald-600 hover:underline">
+      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden">
+        <div className="p-4 border-b border-gray-100 dark:border-gray-700 flex justify-between items-center">
+          <h3 className="font-bold text-gray-900 dark:text-gray-100">آخر التقارير المرفوعة</h3>
+          <button onClick={fetchLogs} className="text-sm text-emerald-600 dark:text-emerald-400 hover:underline">
             تحديث
           </button>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
-              <tr className="bg-gray-50 text-right">
-                <th className="p-3 font-medium text-gray-600">الملف</th>
-                <th className="p-3 font-medium text-gray-600">المركبة</th>
-                <th className="p-3 font-medium text-gray-600">الأكواد</th>
-                <th className="p-3 font-medium text-gray-600">التكلفة</th>
-                <th className="p-3 font-medium text-gray-600">التاريخ</th>
+              <tr className="bg-gray-50 dark:bg-gray-700/50 text-right">
+                <th className="p-3 font-medium text-gray-600 dark:text-gray-300">الملف</th>
+                <th className="p-3 font-medium text-gray-600 dark:text-gray-300">المركبة</th>
+                <th className="p-3 font-medium text-gray-600 dark:text-gray-300">الأكواد</th>
+                <th className="p-3 font-medium text-gray-600 dark:text-gray-300">التكلفة</th>
+                <th className="p-3 font-medium text-gray-600 dark:text-gray-300">التاريخ</th>
               </tr>
             </thead>
             <tbody>
               {reports.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="p-6 text-center text-gray-500">
+                  <td colSpan={5} className="p-6 text-center text-gray-500 dark:text-gray-400">
                     لا توجد تقارير مسجلة بعد
                   </td>
                 </tr>
               ) : (
                 reports.map((r) => (
-                  <tr key={r.id} className="border-t border-gray-100 hover:bg-gray-50">
-                    <td className="p-3 text-gray-900">{r.file_name}</td>
-                    <td className="p-3 text-gray-700">
+                  <tr key={r.id} className="border-t border-gray-100 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/30">
+                    <td className="p-3 text-gray-900 dark:text-gray-100">{r.file_name}</td>
+                    <td className="p-3 text-gray-700 dark:text-gray-300">
                       {[r.vehicle_brand, r.vehicle_model, r.vehicle_year].filter(Boolean).join(" · ") || "—"}
                     </td>
-                    <td className="p-3 text-gray-700" dir="ltr">
+                    <td className="p-3 text-gray-700 dark:text-gray-300" dir="ltr">
                       {r.codes_extracted
                         ? (() => {
                             try {
@@ -772,8 +772,8 @@ function ObdLogs({ justAnalyzed }: { justAnalyzed?: boolean }) {
                           })()
                         : r.codes_count}
                     </td>
-                    <td className="p-3 text-gray-700">{r.total_cost} ج.م</td>
-                    <td className="p-3 text-gray-500">{new Date(r.created_at).toLocaleDateString("ar-EG")}</td>
+                    <td className="p-3 text-gray-700 dark:text-gray-300">{r.total_cost} ج.م</td>
+                    <td className="p-3 text-gray-500 dark:text-gray-400">{new Date(r.created_at).toLocaleDateString("ar-EG")}</td>
                   </tr>
                 ))
               )}

@@ -7,11 +7,11 @@ import { addToQueue, processQueue } from "@/lib/offline-queue";
 import type { QueuedItem } from "@/lib/offline-queue";
 
 const STAGES = [
-  { id: "received", label: "استلام", color: "bg-blue-100 text-blue-800" },
-  { id: "inspection", label: "فحص", color: "bg-amber-100 text-amber-800" },
-  { id: "maintenance", label: "صيانة", color: "bg-purple-100 text-purple-800" },
-  { id: "ready", label: "جاهزة", color: "bg-emerald-100 text-emerald-800" },
-  { id: "completed", label: "مكتمل", color: "bg-gray-100 text-gray-800" },
+  { id: "received", label: "استلام", color: "bg-blue-100 dark:bg-blue-900/50 text-blue-800 dark:text-blue-200" },
+  { id: "inspection", label: "فحص", color: "bg-amber-100 dark:bg-amber-900/50 text-amber-800 dark:text-amber-200" },
+  { id: "maintenance", label: "صيانة", color: "bg-purple-100 dark:bg-purple-900/50 text-purple-800 dark:text-purple-200" },
+  { id: "ready", label: "جاهزة", color: "bg-emerald-100 dark:bg-emerald-900/50 text-emerald-800 dark:text-emerald-200" },
+  { id: "completed", label: "مكتمل", color: "bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200" },
 ];
 
 interface RepairOrder {
@@ -19,6 +19,7 @@ interface RepairOrder {
   order_number: string;
   order_type?: string;
   customer_name: string | null;
+  customer_phone?: string | null;
   vehicle_plate: string;
   vehicle_model: string | null;
   vehicle_year: number | null;
@@ -110,6 +111,7 @@ export function WorkshopContent() {
     { vehicle_plate: string; vehicle_model: string | null; vehicle_year: number | null; mileage: number | null }[]
   >([]);
   const [typeFilter, setTypeFilter] = useState<"" | "maintenance" | "inspection">("");
+  const [searchQuery, setSearchQuery] = useState("");
   const [modalOrderType, setModalOrderType] = useState<"maintenance" | "inspection">("maintenance");
   const [inspectionChecklistOpen, setInspectionChecklistOpen] = useState(false);
   const [checklistItems, setChecklistItems] = useState<{ id: string; name_ar: string }[]>([]);
@@ -558,40 +560,61 @@ export function WorkshopContent() {
 
   if (loading) {
     return (
-      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-12 text-center">
-        <p className="text-gray-500">جاري التحميل...</p>
+      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 p-12 text-center">
+        <p className="text-gray-500 dark:text-gray-400">جاري التحميل...</p>
       </div>
     );
   }
 
+  const searchLower = searchQuery.trim().toLowerCase();
+  const filteredOrders = searchLower
+    ? orders.filter(
+        (o) =>
+          (o.customer_name?.toLowerCase().includes(searchLower)) ||
+          (o.customer_phone?.includes(searchQuery.trim())) ||
+          o.vehicle_plate?.toLowerCase().includes(searchLower) ||
+          (o.vehicle_model?.toLowerCase().includes(searchLower)) ||
+          o.order_number?.toLowerCase().includes(searchLower)
+      )
+    : orders;
+
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap justify-between items-center gap-4">
-        <div className="flex items-center gap-2">
-          <h2 className="font-medium text-gray-900">أوامر الإصلاح</h2>
+        <div className="flex flex-col sm:flex-row sm:items-center gap-3 flex-1 min-w-0">
+          <div className="flex items-center gap-2">
+            <h2 className="font-medium text-gray-900 dark:text-gray-100">أوامر الإصلاح</h2>
           <div className="flex rounded-lg border border-gray-200 p-0.5">
             <button
               type="button"
               onClick={() => setTypeFilter("")}
-              className={`px-3 py-1.5 text-sm rounded-md transition ${typeFilter === "" ? "bg-gray-100 text-gray-900 font-medium" : "text-gray-600 hover:bg-gray-50"}`}
+              className={`px-3 py-1.5 text-sm rounded-md transition ${typeFilter === "" ? "bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-gray-100 font-medium" : "text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700"}`}
             >
               الكل
             </button>
             <button
               type="button"
               onClick={() => setTypeFilter("maintenance")}
-              className={`px-3 py-1.5 text-sm rounded-md transition ${typeFilter === "maintenance" ? "bg-purple-100 text-purple-800 font-medium" : "text-gray-600 hover:bg-gray-50"}`}
+              className={`px-3 py-1.5 text-sm rounded-md transition ${typeFilter === "maintenance" ? "bg-purple-100 dark:bg-purple-900/50 text-purple-800 dark:text-purple-200 font-medium" : "text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700"}`}
             >
               صيانة
             </button>
             <button
               type="button"
               onClick={() => setTypeFilter("inspection")}
-              className={`px-3 py-1.5 text-sm rounded-md transition ${typeFilter === "inspection" ? "bg-amber-100 text-amber-800 font-medium" : "text-gray-600 hover:bg-gray-50"}`}
+              className={`px-3 py-1.5 text-sm rounded-md transition ${typeFilter === "inspection" ? "bg-amber-100 dark:bg-amber-900/50 text-amber-800 dark:text-amber-200 font-medium" : "text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700"}`}
             >
               فحص قبل البيع/الشراء
             </button>
           </div>
+          </div>
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="بحث: اسم العميل، هاتف، لوحة، موديل..."
+            className="flex-1 min-w-[200px] max-w-xs px-3 py-2 text-sm rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none"
+          />
         </div>
         <div className="flex gap-2">
           <button
@@ -617,11 +640,11 @@ export function WorkshopContent() {
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
         {STAGES.map((stage) => {
-          const stageOrders = orders.filter((o) => o.stage === stage.id);
+          const stageOrders = filteredOrders.filter((o) => o.stage === stage.id);
           return (
             <div
               key={stage.id}
-              className="bg-gray-50 rounded-xl border border-gray-200 overflow-hidden"
+              className="bg-gray-50 dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden"
             >
               <div className={`p-3 ${stage.color} font-medium text-sm`}>
                 {stage.label}
@@ -633,7 +656,7 @@ export function WorkshopContent() {
                   return (
                     <div
                       key={order.id}
-                      className="bg-white rounded-lg p-3 border border-gray-100 shadow-sm"
+                      className="bg-white dark:bg-gray-800 rounded-lg p-3 border border-gray-100 dark:border-gray-700 shadow-sm"
                     >
                       <Link
                         href={`/admin/workshop/${order.id}`}
@@ -643,23 +666,29 @@ export function WorkshopContent() {
                       </Link>
                       <Link
                         href={`/admin/workshop/${order.id}`}
-                        className="text-sm text-gray-600 hover:text-emerald-600 mt-1 block"
+                        className="text-sm text-gray-600 dark:text-gray-400 hover:text-emerald-600 dark:hover:text-emerald-400 mt-1 block"
                       >
                         {order.vehicle_plate}
                       </Link>
+                      {order.customer_name && (
+                        <div className="text-xs text-gray-600 dark:text-gray-400 mt-0.5">{order.customer_name}</div>
+                      )}
+                      {order.customer_phone && (
+                        <div className="text-xs text-gray-500 dark:text-gray-500" dir="ltr">{order.customer_phone}</div>
+                      )}
                       {order.vehicle_model && (
-                        <div className="text-xs text-gray-500">{order.vehicle_model}</div>
+                        <div className="text-xs text-gray-500 dark:text-gray-500">{order.vehicle_model}</div>
                       )}
                       {order.stage === "inspection" && (
                         <div className="mt-2 space-y-1">
-                          <label className="text-xs font-medium text-gray-600 block">ملاحظات الفحص</label>
+                          <label className="text-xs font-medium text-gray-600 dark:text-gray-400 block">ملاحظات الفحص</label>
                           <textarea
                             value={inspectionNotesDrafts[order.id] ?? order.inspection_notes ?? ""}
                             onChange={(e) =>
                               setInspectionNotesDrafts((prev) => ({ ...prev, [order.id]: e.target.value }))
                             }
                             placeholder="أدخل نتائج الفحص والأعطال المكتشفة..."
-                            className="w-full px-2 py-1.5 text-xs rounded border border-gray-200 bg-white text-gray-900 placeholder-gray-400 focus:ring-1 focus:ring-amber-500 focus:border-amber-500 outline-none resize-none"
+                            className="w-full px-2 py-1.5 text-xs rounded border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 focus:ring-1 focus:ring-amber-500 focus:border-amber-500 outline-none resize-none"
                             rows={3}
                           />
                           <button
@@ -673,7 +702,7 @@ export function WorkshopContent() {
                                 return next;
                               });
                             }}
-                            className="w-full py-1 text-xs bg-amber-100 hover:bg-amber-200 text-amber-800 rounded transition"
+                            className="w-full py-1 text-xs bg-amber-100 dark:bg-amber-900/50 hover:bg-amber-200 dark:hover:bg-amber-800/70 text-amber-800 dark:text-amber-200 rounded transition"
                           >
                             حفظ الملاحظات
                           </button>
@@ -687,7 +716,7 @@ export function WorkshopContent() {
                         </div>
                       )}
                       {order.stage === "completed" && order.invoice_number && (
-                        <div className="text-xs text-gray-500 mt-1">فاتورة: {order.invoice_number}</div>
+                        <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">فاتورة: {order.invoice_number}</div>
                       )}
                       {order.order_type === "inspection" && (
                         <div className="text-xs text-amber-600 mt-1 font-medium">فحص قبل البيع/الشراء</div>
@@ -752,7 +781,7 @@ export function WorkshopContent() {
                   );
                 })}
                 {stageOrders.length === 0 && (
-                  <p className="text-sm text-gray-400 text-center py-4">فارغ</p>
+                  <p className="text-sm text-gray-400 dark:text-gray-500 text-center py-4">فارغ</p>
                 )}
               </div>
             </div>
@@ -762,12 +791,12 @@ export function WorkshopContent() {
 
       {modalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50" dir="rtl">
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-md">
-            <div className="p-6 border-b border-gray-100">
-              <h3 className="text-lg font-bold text-gray-900">
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl w-full max-w-md">
+            <div className="p-6 border-b border-gray-100 dark:border-gray-700">
+              <h3 className="text-lg font-bold text-gray-900 dark:text-gray-100">
                 {modalOrderType === "inspection" ? "استلام سيارة للفحص" : "استلام سيارة للصيانة"}
               </h3>
-              <p className="text-sm text-gray-500 mt-1">
+              <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
                 {modalOrderType === "inspection"
                   ? "فحص قبل البيع/الشراء — المرحلة الأولى: استلام"
                   : "المرحلة الأولى: استلام"}
@@ -775,7 +804,7 @@ export function WorkshopContent() {
             </div>
             <form onSubmit={handleCreate} className="p-6 space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">العميل (ابحث بالاسم أو رقم الهاتف)</label>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">العميل (ابحث بالاسم أو رقم الهاتف)</label>
                 <SearchableSelect
                   options={[
                     { id: "", label: "بدون عميل" },
@@ -805,7 +834,7 @@ export function WorkshopContent() {
               </div>
               {form.customer_id && customerVehicles.length > 0 && (
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">اختر سيارة سابقة (يمكن تعديل البيانات)</label>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">اختر سيارة سابقة (يمكن تعديل البيانات)</label>
                   <select
                     value=""
                     onChange={(e) => {
@@ -833,11 +862,11 @@ export function WorkshopContent() {
                       </option>
                     ))}
                   </select>
-                  <p className="text-xs text-gray-500 mt-1">يمكنك تعديل اللوحة أو الموديل إذا بيعت السيارة أو اشتراها عميل آخر</p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">يمكنك تعديل اللوحة أو الموديل إذا بيعت السيارة أو اشتراها عميل آخر</p>
                 </div>
               )}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">رقم اللوحة *</label>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">رقم اللوحة *</label>
                 <input
                   type="text"
                   value={form.vehicle_plate}
@@ -848,7 +877,7 @@ export function WorkshopContent() {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">موديل السيارة</label>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">موديل السيارة</label>
                 <input
                   type="text"
                   value={form.vehicle_model}
@@ -859,7 +888,7 @@ export function WorkshopContent() {
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">سنة الصنع</label>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">سنة الصنع</label>
                   <input
                     type="number"
                     value={form.vehicle_year}
@@ -869,7 +898,7 @@ export function WorkshopContent() {
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">الكمية (كم)</label>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">الكمية (كم)</label>
                   <input
                     type="number"
                     value={form.mileage}
@@ -883,7 +912,7 @@ export function WorkshopContent() {
                 <button
                   type="button"
                   onClick={() => setModalOpen(false)}
-                  className="flex-1 px-4 py-2.5 text-gray-600 hover:bg-gray-100 rounded-lg transition"
+                  className="flex-1 px-4 py-2.5 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition"
                 >
                   إلغاء
                 </button>
@@ -902,11 +931,11 @@ export function WorkshopContent() {
 
       {addCustomerOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50" dir="rtl">
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-sm p-6">
-            <h3 className="text-lg font-bold text-gray-900 mb-4">إضافة عميل جديد</h3>
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl w-full max-w-sm p-6">
+            <h3 className="text-lg font-bold text-gray-900 dark:text-gray-100 mb-4">إضافة عميل جديد</h3>
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">الاسم *</label>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">الاسم *</label>
                 <input
                   type="text"
                   value={newCustomerForm.name}
@@ -916,7 +945,7 @@ export function WorkshopContent() {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">الهاتف</label>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">الهاتف</label>
                 <input
                   type="text"
                   value={newCustomerForm.phone}
@@ -926,7 +955,7 @@ export function WorkshopContent() {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">البريد</label>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">البريد</label>
                 <input
                   type="email"
                   value={newCustomerForm.email}
@@ -942,7 +971,7 @@ export function WorkshopContent() {
                     setAddCustomerOpen(false);
                     setNewCustomerForm({ name: "", phone: "", email: "" });
                   }}
-                  className="flex-1 px-4 py-2.5 text-gray-600 hover:bg-gray-100 rounded-lg transition"
+                  className="flex-1 px-4 py-2.5 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition"
                 >
                   إلغاء
                 </button>
@@ -962,16 +991,16 @@ export function WorkshopContent() {
 
       {addPartsOpen && selectedOrder && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50" dir="rtl">
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-md max-h-[90vh] overflow-y-auto">
-            <div className="p-6 border-b border-gray-100">
-              <h3 className="text-lg font-bold text-gray-900">إضافة قطعة - {selectedOrder.order_number}</h3>
-              <p className="text-sm text-gray-500 mt-1">{selectedOrder.vehicle_plate}</p>
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl w-full max-w-md max-h-[90vh] overflow-y-auto">
+            <div className="p-6 border-b border-gray-100 dark:border-gray-700">
+              <h3 className="text-lg font-bold text-gray-900 dark:text-gray-100">إضافة قطعة - {selectedOrder.order_number}</h3>
+              <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">{selectedOrder.vehicle_plate}</p>
             </div>
             <div className="p-6 space-y-4">
               {orderItems.length > 0 && (
                 <div>
-                  <h4 className="text-sm font-medium text-gray-700 mb-2">القطع المضافة</h4>
-                  <ul className="space-y-1 text-sm">
+                  <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">القطع المضافة</h4>
+                  <ul className="space-y-1 text-sm text-gray-900 dark:text-gray-100">
                     {orderItems.map((oi) => (
                       <li key={oi.id} className="flex justify-between">
                         <span>{oi.item_name} x {oi.quantity}</span>
@@ -983,7 +1012,7 @@ export function WorkshopContent() {
               )}
               <form onSubmit={handleAddPart} className="space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">الصنف</label>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">الصنف</label>
                   <select
                     value={addForm.item_id}
                     onChange={(e) => setAddForm((f: { item_id: string; quantity: string }) => ({ ...f, item_id: e.target.value }))}
@@ -999,7 +1028,7 @@ export function WorkshopContent() {
                   </select>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">الكمية</label>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">الكمية</label>
                   <input
                     type="number"
                     min="0.01"
@@ -1017,7 +1046,7 @@ export function WorkshopContent() {
                       setAddPartsOpen(false);
                       setSelectedOrder(null);
                     }}
-                    className="flex-1 px-4 py-2.5 text-gray-600 hover:bg-gray-100 rounded-lg transition"
+                    className="flex-1 px-4 py-2.5 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition"
                   >
                     إغلاق
                   </button>
@@ -1037,16 +1066,16 @@ export function WorkshopContent() {
 
       {addServicesOpen && selectedOrder && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50" dir="rtl">
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-md max-h-[90vh] overflow-y-auto">
-            <div className="p-6 border-b border-gray-100">
-              <h3 className="text-lg font-bold text-gray-900">إضافة خدمة - {selectedOrder.order_number}</h3>
-              <p className="text-sm text-gray-500 mt-1">{selectedOrder.vehicle_plate}</p>
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl w-full max-w-md max-h-[90vh] overflow-y-auto">
+            <div className="p-6 border-b border-gray-100 dark:border-gray-700">
+              <h3 className="text-lg font-bold text-gray-900 dark:text-gray-100">إضافة خدمة - {selectedOrder.order_number}</h3>
+              <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">{selectedOrder.vehicle_plate}</p>
             </div>
             <div className="p-6 space-y-4">
               {orderServices.length > 0 && (
                 <div>
-                  <h4 className="text-sm font-medium text-gray-700 mb-2">الخدمات المضافة</h4>
-                  <ul className="space-y-1 text-sm">
+                  <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">الخدمات المضافة</h4>
+                  <ul className="space-y-1 text-sm text-gray-900 dark:text-gray-100">
                     {orderServices.map((s) => (
                       <li key={s.id} className="flex justify-between">
                         <span>{s.description} x {s.quantity}</span>
@@ -1058,7 +1087,7 @@ export function WorkshopContent() {
               )}
               <form onSubmit={handleAddService} className="space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">وصف الخدمة *</label>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">وصف الخدمة *</label>
                   <input
                     type="text"
                     value={serviceForm.description}
@@ -1070,7 +1099,7 @@ export function WorkshopContent() {
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">الكمية</label>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">الكمية</label>
                     <input
                       type="number"
                       min="0.01"
@@ -1081,7 +1110,7 @@ export function WorkshopContent() {
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">السعر (ج.م)</label>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">السعر (ج.م)</label>
                     <input
                       type="number"
                       step="0.01"
@@ -1100,7 +1129,7 @@ export function WorkshopContent() {
                       setAddServicesOpen(false);
                       setSelectedOrder(null);
                     }}
-                    className="flex-1 px-4 py-2.5 text-gray-600 hover:bg-gray-100 rounded-lg transition"
+                    className="flex-1 px-4 py-2.5 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition"
                   >
                     إغلاق
                   </button>
@@ -1120,15 +1149,15 @@ export function WorkshopContent() {
 
       {inspectionChecklistOpen && selectedOrder && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50" dir="rtl">
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
-            <div className="p-6 border-b border-gray-100">
-              <h3 className="text-lg font-bold text-gray-900">قائمة الفحص - {selectedOrder.order_number}</h3>
-              <p className="text-sm text-gray-500 mt-1">{selectedOrder.vehicle_plate}</p>
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
+            <div className="p-6 border-b border-gray-100 dark:border-gray-700">
+              <h3 className="text-lg font-bold text-gray-900 dark:text-gray-100">قائمة الفحص - {selectedOrder.order_number}</h3>
+              <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">{selectedOrder.vehicle_plate}</p>
             </div>
             <div className="p-6 space-y-4">
               {checklistItems.map((item) => (
                 <div key={item.id} className="flex flex-col gap-1">
-                  <label className="text-sm font-medium text-gray-700">{item.name_ar}</label>
+                  <label className="text-sm font-medium text-gray-700 dark:text-gray-300">{item.name_ar}</label>
                   <div className="flex gap-2 items-center">
                     <select
                       value={checklistResults[item.id]?.status ?? "na"}
@@ -1138,7 +1167,7 @@ export function WorkshopContent() {
                           [item.id]: { ...(prev[item.id] ?? { status: "na", notes: "" }), status: e.target.value },
                         }))
                       }
-                      className="w-36 px-3 py-2 rounded-lg border border-gray-300 bg-white text-gray-900 text-sm"
+                      className="w-36 px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 text-sm"
                     >
                       <option value="na">غير مفحوص</option>
                       <option value="ok">سليم</option>
@@ -1155,19 +1184,19 @@ export function WorkshopContent() {
                         }))
                       }
                       placeholder="ملاحظات"
-                      className="flex-1 px-3 py-2 rounded-lg border border-gray-300 bg-white text-gray-900 text-sm placeholder-gray-400"
+                      className="flex-1 px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 text-sm placeholder-gray-400 dark:placeholder-gray-500"
                     />
                   </div>
                 </div>
               ))}
-              <div className="flex gap-2 items-center pt-2 border-t border-gray-200">
+              <div className="flex gap-2 items-center pt-2 border-t border-gray-200 dark:border-gray-700">
                 <input
                   type="text"
                   value={newItemName}
                   onChange={(e) => setNewItemName(e.target.value)}
                   onKeyDown={(e) => e.key === "Enter" && addChecklistItem()}
                   placeholder="إضافة بند جديد..."
-                  className="flex-1 px-3 py-2 rounded-lg border border-gray-300 bg-white text-gray-900 text-sm placeholder-gray-400"
+                  className="flex-1 px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 text-sm placeholder-gray-400 dark:placeholder-gray-500"
                 />
                 <button
                   type="button"
@@ -1179,13 +1208,13 @@ export function WorkshopContent() {
                 </button>
               </div>
               <div className="pt-4">
-                <label className="block text-sm font-medium text-gray-700 mb-2">ملاحظات عامة</label>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">ملاحظات عامة</label>
                 <textarea
                   value={generalNotes}
                   onChange={(e) => setGeneralNotes(e.target.value)}
                   placeholder="ملاحظات إضافية أو خلاصة التقرير..."
                   rows={4}
-                  className="w-full px-3 py-2 rounded-lg border border-gray-300 bg-white text-gray-900 text-sm placeholder-gray-400 resize-none"
+                  className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 text-sm placeholder-gray-400 dark:placeholder-gray-500 resize-none"
                 />
               </div>
               <div className="flex gap-3 pt-4">
@@ -1195,7 +1224,7 @@ export function WorkshopContent() {
                     setInspectionChecklistOpen(false);
                     setSelectedOrder(null);
                   }}
-                  className="flex-1 px-4 py-2.5 text-gray-600 hover:bg-gray-100 rounded-lg transition"
+                  className="flex-1 px-4 py-2.5 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition"
                 >
                   إغلاق
                 </button>

@@ -41,7 +41,7 @@ export function ReturnButton({ invoiceId, type, status }: ReturnButtonProps) {
       type="button"
       onClick={handleReturn}
       disabled={loading}
-      className="no-print px-4 py-2 bg-amber-100 hover:bg-amber-200 text-amber-800 font-medium rounded-lg transition-colors disabled:opacity-50"
+      className="no-print px-4 py-2 bg-amber-100 dark:bg-amber-900/50 hover:bg-amber-200 dark:hover:bg-amber-800/70 text-amber-800 dark:text-amber-200 font-medium rounded-lg transition-colors disabled:opacity-50"
     >
       {loading ? "جاري..." : "جعل مرتجع"}
     </button>

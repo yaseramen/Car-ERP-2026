@@ -96,6 +96,7 @@ export function CashierContent() {
   const [saving, setSaving] = useState(false);
   const [lastInvoice, setLastInvoice] = useState<{ id: string; invoice_number: string } | null>(null);
 
+  const [feeConfig, setFeeConfig] = useState<{ rate: number; minFee: number }>({ rate: 0.0001, minFee: 0.5 });
   const [addItemId, setAddItemId] = useState("");
   const [addQty, setAddQty] = useState("1");
 
@@ -111,14 +112,19 @@ export function CashierContent() {
 
   async function fetchData() {
     try {
-      const [itemsRes, customersRes, methodsRes] = await Promise.all([
+      const [itemsRes, customersRes, methodsRes, feeRes] = await Promise.all([
         fetch("/api/admin/inventory/items"),
         fetch("/api/admin/customers"),
         fetch("/api/admin/payment-methods"),
+        fetch("/api/admin/digital-fee"),
       ]);
       if (itemsRes.ok) setItems(await itemsRes.json());
       if (customersRes.ok) setCustomers(await customersRes.json());
       if (methodsRes.ok) setPaymentMethods(await methodsRes.json());
+      if (feeRes.ok) {
+        const d = await feeRes.json();
+        setFeeConfig({ rate: Number(d.rate ?? 0.0001), minFee: Number(d.minFee ?? 0.5) });
+      }
     } catch {}
   }
 
@@ -328,7 +334,7 @@ export function CashierContent() {
   const afterDiscount = Math.max(0, subtotal - discountAmount);
   const taxAmount = taxEnabled ? (afterDiscount * (Number(taxRate) || 0)) / 100 : 0;
   const beforeDigitalFee = afterDiscount + taxAmount;
-  const digitalFee = Math.max(0.5, beforeDigitalFee * 0.0001);
+  const digitalFee = Math.max(feeConfig.minFee, beforeDigitalFee * feeConfig.rate);
   const total = beforeDigitalFee + digitalFee;
   const paid = Number(paidAmount) || 0;
 
@@ -432,9 +438,9 @@ export function CashierContent() {
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
       <div className="space-y-6">
         <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-          <h2 className="font-bold text-gray-900 mb-4">إضافة صنف (ابحث بالاسم أو الكود أو امسح الباركود)</h2>
-          <p className="text-xs text-gray-500 mb-2">
-            اختصارات: F2 بحث | Ctrl+Enter إضافة للسلة | Alt+Enter إتمام البيع
+          <h2 className="font-bold text-gray-900 dark:text-gray-100 mb-4">إضافة صنف (ابحث بالاسم أو الكود أو امسح الباركود)</h2>
+          <p className="text-xs text-gray-500 dark:text-gray-400 mb-2" title="اختصارات لوحة المفاتيح">
+            ⌨️ F2 بحث | Ctrl+Enter إضافة للسلة | Alt+Enter إتمام البيع
           </p>
           <div className="flex gap-2">
             <div className="flex-1 min-w-[200px]">
@@ -456,7 +462,7 @@ export function CashierContent() {
             <button
               type="button"
               onClick={() => setShowBarcodeScanner(true)}
-              className="px-4 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg shrink-0"
+              className="px-4 py-2.5 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 rounded-lg shrink-0"
               title="مسح الباركود"
             >
               📷
@@ -564,7 +570,7 @@ export function CashierContent() {
         <h2 className="font-bold text-gray-900 mb-4">إتمام البيع</h2>
 
         {restoredFromDraft && (
-          <div className="mb-4 p-3 bg-amber-50 border border-amber-200 rounded-lg text-sm text-amber-800">
+          <div className="mb-4 p-3 bg-amber-50 dark:bg-amber-900/40 border border-amber-200 dark:border-amber-700 rounded-lg text-sm text-amber-800 dark:text-amber-200">
             تم استعادة المسودة السابقة. يمكنك استكمال البيع أو مسح المسودة.
           </div>
         )}
@@ -606,7 +612,7 @@ export function CashierContent() {
               <button
                 type="button"
                 onClick={() => setAddCustomerOpen(true)}
-                className="px-4 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg shrink-0"
+                className="px-4 py-2.5 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 rounded-lg shrink-0"
               >
                 +
               </button>
@@ -777,7 +783,7 @@ export function CashierContent() {
                     setAddCustomerOpen(false);
                     setNewCustomerForm({ name: "", phone: "", email: "" });
                   }}
-                  className="flex-1 px-4 py-2.5 text-gray-600 hover:bg-gray-100 rounded-lg transition"
+                  className="flex-1 px-4 py-2.5 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition"
                 >
                   إلغاء
                 </button>

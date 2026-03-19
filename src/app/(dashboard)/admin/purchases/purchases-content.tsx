@@ -1,8 +1,10 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { SearchableSelect } from "@/components/ui/searchable-select";
+import { BarcodeScanner } from "@/components/inventory/barcode-scanner";
 
 interface CartItem {
   item_id: string;
@@ -17,6 +19,7 @@ interface InventoryItem {
   name: string;
   code?: string | null;
   purchase_price: number;
+  sale_price: number;
 }
 
 interface Supplier {
@@ -25,9 +28,23 @@ interface Supplier {
   phone?: string | null;
 }
 
-export function PurchasesContent() {
+type ItemSupplier = { supplier_id: string; supplier_name: string; last_price: number; last_date: string };
+
+export function PurchasesContent({
+  initialItemId,
+  initialQty,
+  initialSupplierId,
+}: {
+  initialItemId?: string;
+  initialQty?: string;
+  initialSupplierId?: string;
+} = {}) {
+  const router = useRouter();
   const [items, setItems] = useState<InventoryItem[]>([]);
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
+  const [itemSuppliers, setItemSuppliers] = useState<ItemSupplier[]>([]);
+  const [showSupplierCompare, setShowSupplierCompare] = useState(false);
+  const initialApplied = useRef(false);
   const [cart, setCart] = useState<CartItem[]>([]);
   const [supplierId, setSupplierId] = useState("");
   const [notes, setNotes] = useState("");
@@ -48,6 +65,7 @@ export function PurchasesContent() {
   const [savingSupplier, setSavingSupplier] = useState(false);
 
   const [addProductOpen, setAddProductOpen] = useState(false);
+  const [showBarcodeScanner, setShowBarcodeScanner] = useState(false);
   const [newProductForm, setNewProductForm] = useState({
     name: "",
     code: "",
@@ -96,12 +114,71 @@ export function PurchasesContent() {
     if (addProductOpen) fetchCategories();
   }, [addProductOpen]);
 
+  useEffect(() => {
+    if (initialApplied.current || !initialItemId || items.length === 0) return;
+    const item = items.find((i) => i.id === initialItemId);
+    if (!item) return;
+    initialApplied.current = true;
+
+    const qty = Math.max(1, Number(initialQty) || 1);
+    setAddItemId(initialItemId);
+    setAddQty(String(qty));
+    setAddPrice(String(item.purchase_price));
+
+    fetch(`/api/admin/inventory/items/${initialItemId}/suppliers`)
+      .then((r) => (r.ok ? r.json() : { suppliers: [] }))
+      .then((data: { suppliers: ItemSupplier[] }) => {
+        const list = data.suppliers || [];
+        setItemSuppliers(list);
+        const first = list[0];
+        const price = first?.last_price ?? item.purchase_price;
+        if (first) {
+          setSupplierId(initialSupplierId && list.some((s) => s.supplier_id === initialSupplierId) ? initialSupplierId : first.supplier_id);
+          setAddPrice(String(price));
+        }
+        setCart((prev) => {
+          const existing = prev.find((c) => c.item_id === item.id);
+          if (existing) {
+            const newQty = existing.quantity + qty;
+            const newPrice = (existing.quantity * existing.unit_price + qty * price) / newQty;
+            return prev.map((c) =>
+              c.item_id === item.id ? { ...c, quantity: newQty, unit_price: newPrice, total: newQty * newPrice } : c
+            );
+          }
+          return [...prev, { item_id: item.id, name: item.name, quantity: qty, unit_price: price, total: qty * price }];
+        });
+      })
+      .catch(() => {
+        setCart((prev) => {
+          const existing = prev.find((c) => c.item_id === item.id);
+          const price = item.purchase_price;
+          if (existing) {
+            const newQty = existing.quantity + qty;
+            const newPrice = (existing.quantity * existing.unit_price + qty * price) / newQty;
+            return prev.map((c) =>
+              c.item_id === item.id ? { ...c, quantity: newQty, unit_price: newPrice, total: newQty * newPrice } : c
+            );
+          }
+          return [...prev, { item_id: item.id, name: item.name, quantity: qty, unit_price: price, total: qty * price }];
+        });
+      })
+      .finally(() => {
+        router.replace("/admin/purchases", { scroll: false });
+      });
+  }, [items, initialItemId, initialQty, initialSupplierId, router]);
+
+
   function addToCart() {
     const item = items.find((i) => i.id === addItemId);
     if (!item || Number(addQty) <= 0) return;
 
     const qty = Number(addQty);
     const price = Number(addPrice) || item.purchase_price;
+    if (price > item.sale_price) {
+      if (!confirm("⚠️ تنبيه خسارة: سعر الشراء المدخل أعلى من سعر البيع للصنف. هل تريد المتابعة؟")) {
+        return;
+      }
+    }
     const total = qty * price;
 
     const existing = cart.find((c) => c.item_id === item.id);
@@ -140,6 +217,12 @@ export function PurchasesContent() {
     if (qty <= 0) {
       removeFromCart(itemId);
       return;
+    }
+    const item = items.find((i) => i.id === itemId);
+    if (item && price > 0 && item.sale_price > 0 && price > item.sale_price) {
+      if (!confirm("⚠️ تنبيه خسارة: سعر الشراء أعلى من سعر البيع. هل تريد المتابعة؟")) {
+        return;
+      }
     }
     setCart((prev) =>
       prev.map((c) =>
@@ -264,6 +347,13 @@ export function PurchasesContent() {
       alert("اسم الصنف مطلوب");
       return;
     }
+    const purchasePrice = Number(newProductForm.purchase_price) || 0;
+    const salePrice = Number(newProductForm.sale_price) || purchasePrice;
+    if (purchasePrice > 0 && salePrice < purchasePrice) {
+      if (!confirm("⚠️ تنبيه خسارة: سعر البيع أقل من سعر الشراء. هل تريد المتابعة؟")) {
+        return;
+      }
+    }
     setSavingProduct(true);
     try {
       const payload = {
@@ -333,12 +423,11 @@ export function PurchasesContent() {
                   searchText: i.code ? String(i.code) : undefined,
                 }))}
                 value={addItemId}
-                onChange={(id, opt) => {
-                  if (opt) {
-                    setAddItemId(id);
-                    const item = items.find((i) => i.id === id);
-                    if (item) setAddPrice(String(item.purchase_price));
-                  }
+                onChange={(id) => {
+                  setAddItemId(id);
+                  const item = items.find((i) => i.id === id);
+                  if (item) setAddPrice(String(item.purchase_price));
+                  setItemSuppliers([]);
                 }}
                 placeholder="ابحث بالاسم أو الكود..."
                 addNewLabel="+ إضافة صنف جديد"
@@ -349,6 +438,20 @@ export function PurchasesContent() {
                 }}
                 className={inputClass}
               />
+              {addItemId && (
+                <button
+                  type="button"
+                  onClick={async () => {
+                    const r = await fetch(`/api/admin/inventory/items/${addItemId}/suppliers`);
+                    const data = r.ok ? await r.json() : { suppliers: [] };
+                    setItemSuppliers(data.suppliers || []);
+                    setShowSupplierCompare(true);
+                  }}
+                  className="mt-2 text-sm text-amber-600 dark:text-amber-400 hover:underline"
+                >
+                  مقارنة أسعار التجار
+                </button>
+              )}
             </div>
             <div className="w-24">
               <label className="block text-xs text-gray-500 mb-1">الكمية</label>
@@ -372,6 +475,13 @@ export function PurchasesContent() {
                 className="px-3 py-2.5 rounded-lg border border-gray-300 bg-white text-gray-900"
                 placeholder="0"
               />
+              {addItemId && (() => {
+                const it = items.find((i) => i.id === addItemId);
+                const p = Number(addPrice) || 0;
+                return it && p > 0 && it.sale_price > 0 && p > it.sale_price ? (
+                  <p className="mt-1 text-xs text-red-600 font-medium">⚠️ خسارة: أعلى من سعر البيع</p>
+                ) : null;
+              })()}
             </div>
             <button
               type="button"
@@ -615,7 +725,7 @@ export function PurchasesContent() {
                   setAddSupplierOpen(false);
                   setNewSupplierForm({ name: "", phone: "", email: "" });
                 }}
-                className="flex-1 px-4 py-2.5 text-gray-600 hover:bg-gray-100 rounded-lg transition"
+                className="flex-1 px-4 py-2.5 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition"
               >
                 إلغاء
               </button>
@@ -660,13 +770,23 @@ export function PurchasesContent() {
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">الباركود (تلقائي إن تُرك فارغاً)</label>
-                    <input
-                      type="text"
-                      value={newProductForm.barcode}
-                      onChange={(e) => setNewProductForm((f) => ({ ...f, barcode: e.target.value }))}
-                      className={inputClass}
-                      placeholder="امسح أو اكتب الباركود"
-                    />
+                    <div className="flex gap-2">
+                      <input
+                        type="text"
+                        value={newProductForm.barcode}
+                        onChange={(e) => setNewProductForm((f) => ({ ...f, barcode: e.target.value }))}
+                        className={inputClass}
+                        placeholder="امسح أو اكتب الباركود"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowBarcodeScanner(true)}
+                        className="px-4 py-2.5 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 rounded-lg shrink-0"
+                        title="مسح بالكاميرا"
+                      >
+                        📷 مسح
+                      </button>
+                    </div>
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">القسم</label>
@@ -758,7 +878,7 @@ export function PurchasesContent() {
                   </div>
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">سعر التكلفة (ج.م)</label>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">سعر الشراء (ج.م)</label>
                       <input
                         type="number"
                         step="0.01"
@@ -780,6 +900,9 @@ export function PurchasesContent() {
                         className={inputClass}
                         placeholder="0"
                       />
+                      {Number(newProductForm.purchase_price) > 0 && Number(newProductForm.sale_price) > 0 && Number(newProductForm.sale_price) < Number(newProductForm.purchase_price) && (
+                        <p className="mt-1 text-sm text-red-600 font-medium">⚠️ تنبيه خسارة: سعر البيع أقل من سعر الشراء</p>
+                      )}
                     </div>
                   </div>
                   <div className="flex gap-3 pt-4">
@@ -789,7 +912,7 @@ export function PurchasesContent() {
                         setAddProductOpen(false);
                         resetProductForm();
                       }}
-                      className="flex-1 px-4 py-2.5 text-gray-600 hover:bg-gray-100 rounded-lg transition"
+                      className="flex-1 px-4 py-2.5 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition"
                     >
                       إلغاء
                     </button>
@@ -805,6 +928,55 @@ export function PurchasesContent() {
               </div>
             </div>
           )}
+
+      {showBarcodeScanner && (
+        <BarcodeScanner
+          onScan={(value) => {
+            setNewProductForm((f) => ({ ...f, barcode: value }));
+            setShowBarcodeScanner(false);
+          }}
+          onClose={() => setShowBarcodeScanner(false)}
+        />
+      )}
+
+      {showSupplierCompare && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50" dir="rtl">
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl w-full max-w-md border border-gray-200 dark:border-gray-700">
+            <div className="p-4 border-b border-gray-100 dark:border-gray-700 flex justify-between items-center">
+              <h3 className="font-bold text-gray-900 dark:text-gray-100">مقارنة أسعار التجار</h3>
+              <button
+                type="button"
+                onClick={() => setShowSupplierCompare(false)}
+                className="p-2 text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"
+              >
+                ✕
+              </button>
+            </div>
+            <div className="p-4 max-h-80 overflow-y-auto">
+              {itemSuppliers.length === 0 ? (
+                <p className="text-gray-500 dark:text-gray-400 text-sm">لا يوجد سجل شراء سابق لهذا الصنف من أي مورد</p>
+              ) : (
+                <ul className="space-y-2">
+                  {itemSuppliers.map((s) => (
+                    <li
+                      key={s.supplier_id}
+                      className="flex justify-between items-center p-3 rounded-lg bg-gray-50 dark:bg-gray-700/50 hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer"
+                      onClick={() => {
+                        setSupplierId(s.supplier_id);
+                        setAddPrice(String(s.last_price));
+                        setShowSupplierCompare(false);
+                      }}
+                    >
+                      <span className="font-medium text-gray-900 dark:text-gray-100">{s.supplier_name}</span>
+                      <span className="text-emerald-600 dark:text-emerald-400 font-medium">{s.last_price.toFixed(2)} ج.م</span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 }
