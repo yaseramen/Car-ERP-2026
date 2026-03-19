@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { AuthSessionProvider } from "@/components/providers/session-provider";
 import { PwaProvider } from "@/components/pwa/pwa-provider";
+import { OfflineProvider } from "@/components/offline/offline-provider";
 import { ThemeProvider } from "@/components/theme/theme-provider";
 
 const geistSans = Geist({
@@ -62,7 +63,9 @@ export default function RootLayout({
       >
         <AuthSessionProvider>
           <ThemeProvider>
-            <PwaProvider>{children}</PwaProvider>
+            <OfflineProvider>
+              <PwaProvider>{children}</PwaProvider>
+            </OfflineProvider>
           </ThemeProvider>
         </AuthSessionProvider>
       </body>

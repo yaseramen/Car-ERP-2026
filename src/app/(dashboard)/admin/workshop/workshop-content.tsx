@@ -80,7 +80,15 @@ export function WorkshopContent() {
     mileage: "",
     customer_id: "",
   });
-  const [inspectionNotesDrafts, setInspectionNotesDrafts] = useState<Record<string, string>>({});
+  const [inspectionNotesDrafts, setInspectionNotesDrafts] = useState<Record<string, string>>(() => {
+    if (typeof window === "undefined") return {};
+    try {
+      const raw = localStorage.getItem("alameen-workshop-notes");
+      return raw ? JSON.parse(raw) : {};
+    } catch {
+      return {};
+    }
+  });
   const [customerVehicles, setCustomerVehicles] = useState<
     { vehicle_plate: string; vehicle_model: string | null; vehicle_year: number | null; mileage: number | null }[]
   >([]);
@@ -187,6 +195,23 @@ export function WorkshopContent() {
 
   useEffect(() => {
     fetchOrders();
+  }, [typeFilter]);
+
+  useEffect(() => {
+    if (Object.keys(inspectionNotesDrafts).length > 0) {
+      try {
+        localStorage.setItem("alameen-workshop-notes", JSON.stringify(inspectionNotesDrafts));
+      } catch {}
+    }
+  }, [inspectionNotesDrafts]);
+
+  useEffect(() => {
+    const handleOnline = () => {
+      fetchOrders();
+      fetchCustomers();
+    };
+    window.addEventListener("alameen-online", handleOnline);
+    return () => window.removeEventListener("alameen-online", handleOnline);
   }, [typeFilter]);
 
   useEffect(() => {
