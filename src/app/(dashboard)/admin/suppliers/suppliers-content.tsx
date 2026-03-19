@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import { addToQueue } from "@/lib/offline-queue";
 import { useKeyboardShortcut } from "@/hooks/use-keyboard-shortcut";
+import { TableSkeleton } from "@/components/ui/skeleton";
 import { exportToExcel } from "@/lib/export-reports";
 import { getErrorMessage } from "@/lib/error-messages";
 
@@ -249,8 +250,11 @@ export function SuppliersContent() {
 
   if (loading) {
     return (
-      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 p-12 text-center">
-        <p className="text-gray-500 dark:text-gray-400">جاري التحميل...</p>
+      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden">
+        <div className="p-4 border-b border-gray-100 dark:border-gray-700">
+          <div className="h-6 w-36 bg-gray-200 dark:bg-gray-700 animate-pulse rounded" />
+        </div>
+        <TableSkeleton rows={8} cols={4} />
       </div>
     );
   }
