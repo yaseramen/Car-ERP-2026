@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { addToQueue } from "@/lib/offline-queue";
+import { exportToExcel } from "@/lib/export-reports";
 
 interface Customer {
   id: string;
@@ -230,17 +231,35 @@ export function CustomersContent() {
   return (
     <>
       <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden">
-        <div className="p-4 border-b border-gray-100 dark:border-gray-700 flex justify-between items-center">
+        <div className="p-4 border-b border-gray-100 dark:border-gray-700 flex flex-wrap gap-2 justify-between items-center">
           <h2 className="font-medium text-gray-900 dark:text-gray-100">قائمة العملاء</h2>
-          <button
-            onClick={() => {
-              resetForm();
-              setModalOpen(true);
-            }}
-            className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-medium rounded-lg transition-colors"
-          >
-            إضافة عميل جديد
-          </button>
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={() => {
+                const data = customers.map((c) => ({
+                  الاسم: c.name,
+                  الهاتف: c.phone || "—",
+                  البريد: c.email || "—",
+                  العنوان: c.address || "—",
+                  الملاحظات: c.notes || "—",
+                }));
+                exportToExcel(data, `عملاء-${new Date().toISOString().slice(0, 10)}`, "العملاء");
+              }}
+              className="px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white text-sm font-medium rounded-lg transition-colors"
+            >
+              تصدير Excel
+            </button>
+            <button
+              onClick={() => {
+                resetForm();
+                setModalOpen(true);
+              }}
+              className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-medium rounded-lg transition-colors"
+            >
+              إضافة عميل جديد
+            </button>
+          </div>
         </div>
 
         <div className="overflow-x-auto">

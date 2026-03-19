@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { addToQueue } from "@/lib/offline-queue";
+import { exportToExcel } from "@/lib/export-reports";
 
 interface Supplier {
   id: string;
@@ -223,17 +224,35 @@ export function SuppliersContent() {
   return (
     <>
       <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden">
-        <div className="p-4 border-b border-gray-100 dark:border-gray-700 flex justify-between items-center">
+        <div className="p-4 border-b border-gray-100 dark:border-gray-700 flex flex-wrap gap-2 justify-between items-center">
           <h2 className="font-medium text-gray-900 dark:text-gray-100">قائمة الموردين</h2>
-          <button
-            onClick={() => {
-              resetForm();
-              setModalOpen(true);
-            }}
-            className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-medium rounded-lg transition-colors"
-          >
-            إضافة مورد جديد
-          </button>
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={() => {
+                const data = suppliers.map((s) => ({
+                  الاسم: s.name,
+                  الهاتف: s.phone || "—",
+                  البريد: s.email || "—",
+                  العنوان: s.address || "—",
+                  الملاحظات: s.notes || "—",
+                }));
+                exportToExcel(data, `موردين-${new Date().toISOString().slice(0, 10)}`, "الموردون");
+              }}
+              className="px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white text-sm font-medium rounded-lg transition-colors"
+            >
+              تصدير Excel
+            </button>
+            <button
+              onClick={() => {
+                resetForm();
+                setModalOpen(true);
+              }}
+              className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-medium rounded-lg transition-colors"
+            >
+              إضافة مورد جديد
+            </button>
+          </div>
         </div>
 
         <div className="overflow-x-auto">
