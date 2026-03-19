@@ -35,7 +35,7 @@ export default async function RepairOrderReportPage({
 
   try {
     const orderResult = await db.execute({
-      sql: `SELECT ro.*, c.name as customer_name, inv.invoice_number, inv.subtotal, inv.digital_service_fee, inv.total as invoice_total
+      sql: `SELECT ro.*, c.name as customer_name, ro.invoice_id, inv.invoice_number, inv.subtotal, inv.digital_service_fee, inv.total as invoice_total
             FROM repair_orders ro
             LEFT JOIN customers c ON ro.customer_id = c.id
             LEFT JOIN invoices inv ON ro.invoice_id = inv.id
@@ -46,10 +46,13 @@ export default async function RepairOrderReportPage({
     if (orderResult.rows.length === 0) notFound();
 
     const row = orderResult.rows[0];
+    const customerId = row.customer_id ? String(row.customer_id) : null;
+    const vehiclePlate = String(row.vehicle_plate ?? "");
+
     const order = {
       id: String(row.id),
       order_number: String(row.order_number ?? ""),
-      vehicle_plate: String(row.vehicle_plate ?? ""),
+      vehicle_plate: vehiclePlate,
       vehicle_model: row.vehicle_model ? String(row.vehicle_model) : null,
       vehicle_year: row.vehicle_year != null ? Number(row.vehicle_year) : null,
       mileage: row.mileage != null ? Number(row.mileage) : null,
@@ -61,6 +64,7 @@ export default async function RepairOrderReportPage({
       completed_at: row.completed_at ? String(row.completed_at) : null,
       created_at: String(row.created_at ?? ""),
       customer_name: row.customer_name ? String(row.customer_name) : null,
+      invoice_id: row.invoice_id ? String(row.invoice_id) : null,
       invoice_number: row.invoice_number ? String(row.invoice_number) : null,
       invoice_subtotal: row.subtotal != null ? Number(row.subtotal) : null,
       invoice_digital_fee: row.digital_service_fee != null ? Number(row.digital_service_fee) : null,
@@ -86,6 +90,37 @@ export default async function RepairOrderReportPage({
     }));
 
     const itemsTotal = items.reduce((sum, i) => sum + i.total, 0);
+
+    const previousOrdersResult = customerId
+      ? await db.execute({
+          sql: `SELECT ro.id, ro.order_number, ro.vehicle_plate, ro.stage, ro.inspection_notes, ro.received_at, ro.completed_at, ro.invoice_id, inv.invoice_number, inv.total as invoice_total
+                FROM repair_orders ro
+                LEFT JOIN invoices inv ON ro.invoice_id = inv.id
+                WHERE ro.company_id = ? AND ro.id != ? AND ro.customer_id = ?
+                ORDER BY ro.created_at DESC LIMIT 10`,
+          args: [companyId, id, customerId],
+        })
+      : await db.execute({
+          sql: `SELECT ro.id, ro.order_number, ro.vehicle_plate, ro.stage, ro.inspection_notes, ro.received_at, ro.completed_at, ro.invoice_id, inv.invoice_number, inv.total as invoice_total
+                FROM repair_orders ro
+                LEFT JOIN invoices inv ON ro.invoice_id = inv.id
+                WHERE ro.company_id = ? AND ro.id != ? AND ro.vehicle_plate = ?
+                ORDER BY ro.created_at DESC LIMIT 10`,
+          args: [companyId, id, vehiclePlate],
+        });
+
+    const previousOrders = previousOrdersResult.rows.map((r) => ({
+      id: String(r.id),
+      order_number: String(r.order_number ?? ""),
+      vehicle_plate: String(r.vehicle_plate ?? ""),
+      stage: String(r.stage ?? ""),
+      inspection_notes: r.inspection_notes ? String(r.inspection_notes) : null,
+      received_at: r.received_at ? String(r.received_at) : null,
+      completed_at: r.completed_at ? String(r.completed_at) : null,
+      invoice_id: r.invoice_id ? String(r.invoice_id) : null,
+      invoice_number: r.invoice_number ? String(r.invoice_number) : null,
+      invoice_total: r.invoice_total != null ? Number(r.invoice_total) : null,
+    }));
 
     return (
       <div className="p-4 md:p-8">
@@ -137,8 +172,8 @@ export default async function RepairOrderReportPage({
             </dl>
           </div>
 
-          <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100">
-            <h2 className="font-bold text-gray-900 mb-4">حالة الأمر</h2>
+          <div className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-sm border border-gray-100 dark:border-gray-700">
+            <h2 className="font-bold text-gray-900 dark:text-gray-100 mb-4">حالة الأمر</h2>
             <dl className="space-y-3 text-sm">
               <div className="flex justify-between">
                 <dt className="text-gray-500">المرحلة</dt>
@@ -149,30 +184,97 @@ export default async function RepairOrderReportPage({
                 </dd>
               </div>
               <div className="flex justify-between">
-                <dt className="text-gray-500">العميل</dt>
-                <dd className="text-gray-900">{order.customer_name || "—"}</dd>
+                <dt className="text-gray-500 dark:text-gray-400">العميل</dt>
+                <dd className="text-gray-900 dark:text-gray-100">{order.customer_name || "—"}</dd>
               </div>
               <div className="flex justify-between">
-                <dt className="text-gray-500">تاريخ الاستلام</dt>
-                <dd className="text-gray-900">
+                <dt className="text-gray-500 dark:text-gray-400">تاريخ الاستلام</dt>
+                <dd className="text-gray-900 dark:text-gray-100">
                   {order.received_at ? new Date(order.received_at).toLocaleString("ar-EG") : "—"}
                 </dd>
               </div>
               <div className="flex justify-between">
-                <dt className="text-gray-500">تاريخ الإكمال</dt>
-                <dd className="text-gray-900">
+                <dt className="text-gray-500 dark:text-gray-400">تاريخ الإكمال</dt>
+                <dd className="text-gray-900 dark:text-gray-100">
                   {order.completed_at ? new Date(order.completed_at).toLocaleString("ar-EG") : "—"}
                 </dd>
               </div>
               {order.invoice_number && (
                 <div className="flex justify-between">
-                  <dt className="text-gray-500">رقم الفاتورة</dt>
-                  <dd className="text-gray-900 font-medium">{order.invoice_number}</dd>
+                  <dt className="text-gray-500 dark:text-gray-400">رقم الفاتورة</dt>
+                  <dd className="text-gray-900 dark:text-gray-100 font-medium">
+                    {order.invoice_id ? (
+                      <Link href={`/admin/invoices/${order.invoice_id}`} className="text-emerald-600 dark:text-emerald-400 hover:underline">
+                        {order.invoice_number}
+                      </Link>
+                    ) : (
+                      order.invoice_number
+                    )}
+                  </dd>
                 </div>
               )}
             </dl>
           </div>
         </div>
+
+        {previousOrders.length > 0 && (
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden mb-8">
+            <div className="p-4 border-b border-gray-100 dark:border-gray-700">
+              <h2 className="font-bold text-gray-900 dark:text-gray-100">سجل الزيارات السابقة</h2>
+              <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+                {customerId ? "أوامر سابقة لنفس العميل" : "أوامر سابقة لنفس السيارة (اللوحة)"}
+              </p>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead>
+                  <tr className="bg-gray-50 dark:bg-gray-700/50">
+                    <th className="text-right px-4 py-3 text-sm font-medium text-gray-600 dark:text-gray-300">رقم الأمر</th>
+                    <th className="text-right px-4 py-3 text-sm font-medium text-gray-600 dark:text-gray-300">اللوحة</th>
+                    <th className="text-right px-4 py-3 text-sm font-medium text-gray-600 dark:text-gray-300">المرحلة</th>
+                    <th className="text-right px-4 py-3 text-sm font-medium text-gray-600 dark:text-gray-300">ملاحظات الفحص</th>
+                    <th className="text-right px-4 py-3 text-sm font-medium text-gray-600 dark:text-gray-300">الفاتورة</th>
+                    <th className="text-right px-4 py-3 text-sm font-medium text-gray-600 dark:text-gray-300">التاريخ</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {previousOrders.map((prev) => (
+                    <tr key={prev.id} className="border-b border-gray-50 dark:border-gray-700">
+                      <td className="px-4 py-3 text-sm">
+                        <Link href={`/admin/workshop/${prev.id}`} className="text-emerald-600 dark:text-emerald-400 hover:underline font-medium">
+                          {prev.order_number}
+                        </Link>
+                      </td>
+                      <td className="px-4 py-3 text-sm text-gray-900 dark:text-gray-100">{prev.vehicle_plate}</td>
+                      <td className="px-4 py-3 text-sm">
+                        <span className="px-2 py-0.5 rounded text-xs bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300">
+                          {STAGE_LABELS[prev.stage] || prev.stage}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-400 max-w-[200px] truncate" title={prev.inspection_notes || undefined}>
+                        {prev.inspection_notes ? (prev.inspection_notes.length > 50 ? prev.inspection_notes.slice(0, 50) + "…" : prev.inspection_notes) : "—"}
+                      </td>
+                      <td className="px-4 py-3 text-sm">
+                        {prev.invoice_number && prev.invoice_id ? (
+                          <Link href={`/admin/invoices/${prev.invoice_id}`} className="text-emerald-600 dark:text-emerald-400 hover:underline">
+                            {prev.invoice_number} ({prev.invoice_total?.toFixed(0)} ج.م)
+                          </Link>
+                        ) : prev.invoice_number ? (
+                          <span>{prev.invoice_number} ({prev.invoice_total?.toFixed(0)} ج.م)</span>
+                        ) : (
+                          "—"
+                        )}
+                      </td>
+                      <td className="px-4 py-3 text-sm text-gray-900 dark:text-gray-100">
+                        {prev.received_at ? new Date(prev.received_at).toLocaleDateString("ar-EG") : "—"}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
 
         {order.inspection_notes && (
           <div className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-sm border border-gray-100 dark:border-gray-700 mb-8">

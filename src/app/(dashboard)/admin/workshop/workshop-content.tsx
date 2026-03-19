@@ -17,6 +17,7 @@ interface RepairOrder {
   order_number: string;
   order_type?: string;
   customer_name: string | null;
+  customer_phone?: string | null;
   vehicle_plate: string;
   vehicle_model: string | null;
   vehicle_year: number | null;
@@ -84,6 +85,7 @@ export function WorkshopContent() {
     { vehicle_plate: string; vehicle_model: string | null; vehicle_year: number | null; mileage: number | null }[]
   >([]);
   const [typeFilter, setTypeFilter] = useState<"" | "maintenance" | "inspection">("");
+  const [searchQuery, setSearchQuery] = useState("");
   const [modalOrderType, setModalOrderType] = useState<"maintenance" | "inspection">("maintenance");
   const [inspectionChecklistOpen, setInspectionChecklistOpen] = useState(false);
   const [checklistItems, setChecklistItems] = useState<{ id: string; name_ar: string }[]>([]);
@@ -437,11 +439,24 @@ export function WorkshopContent() {
     );
   }
 
+  const searchLower = searchQuery.trim().toLowerCase();
+  const filteredOrders = searchLower
+    ? orders.filter(
+        (o) =>
+          (o.customer_name?.toLowerCase().includes(searchLower)) ||
+          (o.customer_phone?.includes(searchQuery.trim())) ||
+          o.vehicle_plate?.toLowerCase().includes(searchLower) ||
+          (o.vehicle_model?.toLowerCase().includes(searchLower)) ||
+          o.order_number?.toLowerCase().includes(searchLower)
+      )
+    : orders;
+
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap justify-between items-center gap-4">
-        <div className="flex items-center gap-2">
-          <h2 className="font-medium text-gray-900">أوامر الإصلاح</h2>
+        <div className="flex flex-col sm:flex-row sm:items-center gap-3 flex-1 min-w-0">
+          <div className="flex items-center gap-2">
+            <h2 className="font-medium text-gray-900 dark:text-gray-100">أوامر الإصلاح</h2>
           <div className="flex rounded-lg border border-gray-200 p-0.5">
             <button
               type="button"
@@ -465,6 +480,13 @@ export function WorkshopContent() {
               فحص قبل البيع/الشراء
             </button>
           </div>
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="بحث: اسم العميل، هاتف، لوحة، موديل..."
+            className="flex-1 min-w-[200px] max-w-xs px-3 py-2 text-sm rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none"
+          />
         </div>
         <div className="flex gap-2">
           <button
@@ -490,11 +512,11 @@ export function WorkshopContent() {
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
         {STAGES.map((stage) => {
-          const stageOrders = orders.filter((o) => o.stage === stage.id);
+          const stageOrders = filteredOrders.filter((o) => o.stage === stage.id);
           return (
             <div
               key={stage.id}
-              className="bg-gray-50 rounded-xl border border-gray-200 overflow-hidden"
+              className="bg-gray-50 dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden"
             >
               <div className={`p-3 ${stage.color} font-medium text-sm`}>
                 {stage.label}
@@ -506,7 +528,7 @@ export function WorkshopContent() {
                   return (
                     <div
                       key={order.id}
-                      className="bg-white rounded-lg p-3 border border-gray-100 shadow-sm"
+                      className="bg-white dark:bg-gray-800 rounded-lg p-3 border border-gray-100 dark:border-gray-700 shadow-sm"
                     >
                       <Link
                         href={`/admin/workshop/${order.id}`}
@@ -516,12 +538,18 @@ export function WorkshopContent() {
                       </Link>
                       <Link
                         href={`/admin/workshop/${order.id}`}
-                        className="text-sm text-gray-600 hover:text-emerald-600 mt-1 block"
+                        className="text-sm text-gray-600 dark:text-gray-400 hover:text-emerald-600 dark:hover:text-emerald-400 mt-1 block"
                       >
                         {order.vehicle_plate}
                       </Link>
+                      {order.customer_name && (
+                        <div className="text-xs text-gray-600 dark:text-gray-400 mt-0.5">{order.customer_name}</div>
+                      )}
+                      {order.customer_phone && (
+                        <div className="text-xs text-gray-500 dark:text-gray-500" dir="ltr">{order.customer_phone}</div>
+                      )}
                       {order.vehicle_model && (
-                        <div className="text-xs text-gray-500">{order.vehicle_model}</div>
+                        <div className="text-xs text-gray-500 dark:text-gray-500">{order.vehicle_model}</div>
                       )}
                       {order.stage === "inspection" && (
                         <div className="mt-2 space-y-1">
@@ -625,7 +653,7 @@ export function WorkshopContent() {
                   );
                 })}
                 {stageOrders.length === 0 && (
-                  <p className="text-sm text-gray-400 text-center py-4">فارغ</p>
+                  <p className="text-sm text-gray-400 dark:text-gray-500 text-center py-4">فارغ</p>
                 )}
               </div>
             </div>
