@@ -31,6 +31,7 @@ export function InventoryTable() {
   const [newCategory, setNewCategory] = useState("");
   const [newUnit, setNewUnit] = useState("");
   const [editingCell, setEditingCell] = useState<{ itemId: string; field: "category" | "min_quantity" } | null>(null);
+  const [page, setPage] = useState(1);
   const [form, setForm] = useState({
     name: "",
     code: "",
@@ -374,6 +375,14 @@ export function InventoryTable() {
     );
   }
 
+  const ROWS_PER_PAGE = 50;
+  const paginatedItems = items.slice((page - 1) * ROWS_PER_PAGE, page * ROWS_PER_PAGE);
+  const totalPages = Math.max(1, Math.ceil(items.length / ROWS_PER_PAGE));
+
+  useEffect(() => {
+    if (page > totalPages && totalPages > 0) setPage(totalPages);
+  }, [items.length, page, totalPages]);
+
   const lowStockItems = items.filter((i) => i.min_quantity > 0 && i.quantity < i.min_quantity * 0.8);
   const approachingLimitItems = items.filter((i) => i.min_quantity > 0 && i.quantity >= i.min_quantity * 0.8 && i.quantity < i.min_quantity);
 
@@ -460,7 +469,7 @@ export function InventoryTable() {
                   </td>
                 </tr>
               ) : (
-                items.map((item) => (
+                paginatedItems.map((item) => (
                   <tr key={item.id} className="border-b border-gray-50 dark:border-gray-700 hover:bg-gray-50/50 dark:hover:bg-gray-700/30">
                     <td className="px-4 py-3">
                       <Link
@@ -578,6 +587,29 @@ export function InventoryTable() {
               )}
             </tbody>
           </table>
+          {totalPages > 1 && (
+            <div className="flex items-center justify-center gap-2 py-3 border-t border-gray-100 dark:border-gray-700">
+              <button
+                type="button"
+                onClick={() => setPage((p) => Math.max(1, p - 1))}
+                disabled={page <= 1}
+                className="px-3 py-1 rounded border border-gray-300 dark:border-gray-600 text-sm disabled:opacity-50 text-gray-700 dark:text-gray-300"
+              >
+                السابق
+              </button>
+              <span className="text-sm text-gray-600 dark:text-gray-400">
+                صفحة {page} من {totalPages} — عرض {items.length} صنف
+              </span>
+              <button
+                type="button"
+                onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                disabled={page >= totalPages}
+                className="px-3 py-1 rounded border border-gray-300 dark:border-gray-600 text-sm disabled:opacity-50 text-gray-700 dark:text-gray-300"
+              >
+                التالي
+              </button>
+            </div>
+          )}
         </div>
       </div>
 
