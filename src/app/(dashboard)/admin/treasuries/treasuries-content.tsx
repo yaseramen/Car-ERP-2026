@@ -390,17 +390,30 @@ export function TreasuriesContent() {
     e.preventDefault();
     if (!transferFrom || !transferTo || !transferAmount || Number(transferAmount) <= 0) return;
 
+    const payload = {
+      from_id: transferFrom,
+      to_id: transferTo,
+      amount: Number(transferAmount),
+      description: transferDesc.trim() || undefined,
+    };
+
     setSaving(true);
     try {
+      if (!navigator.onLine) {
+        addToQueue({ type: "treasury_transfer", data: payload });
+        setTransferOpen(false);
+        setTransferFrom("");
+        setTransferTo("");
+        setTransferAmount("");
+        setTransferDesc("");
+        alert("انقطع الاتصال. تم حفظ التحويل محلياً. سيتم إرساله تلقائياً عند عودة الإنترنت.");
+        return;
+      }
+
       const res = await fetch("/api/admin/treasuries/transfer", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          from_id: transferFrom,
-          to_id: transferTo,
-          amount: Number(transferAmount),
-          description: transferDesc.trim() || undefined,
-        }),
+        body: JSON.stringify(payload),
       });
 
       if (!res.ok) {
@@ -417,7 +430,17 @@ export function TreasuriesContent() {
       fetchTreasuries();
       if (selectedId) fetchTransactions(selectedId);
     } catch {
-      alert("حدث خطأ");
+      if (!navigator.onLine) {
+        addToQueue({ type: "treasury_transfer", data: payload });
+        setTransferOpen(false);
+        setTransferFrom("");
+        setTransferTo("");
+        setTransferAmount("");
+        setTransferDesc("");
+        alert("انقطع الاتصال. تم حفظ التحويل محلياً. سيتم إرساله تلقائياً عند عودة الإنترنت.");
+      } else {
+        alert("حدث خطأ");
+      }
     } finally {
       setSaving(false);
     }

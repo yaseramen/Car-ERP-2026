@@ -40,6 +40,31 @@ export type QueuedOp =
         description?: string;
         payment_method_id?: string;
       };
+    }
+  | {
+      type: "invoice_pay";
+      invoiceId: string;
+      data: { amount: number; payment_method_id: string; reference_number?: string; notes?: string };
+    }
+  | {
+      type: "create_repair_order";
+      data: {
+        vehicle_plate: string;
+        vehicle_model?: string;
+        vehicle_year?: number;
+        mileage?: number;
+        customer_id?: string;
+        order_type?: "maintenance" | "inspection";
+      };
+    }
+  | {
+      type: "update_repair_order_stage";
+      orderId: string;
+      data: { stage: string; inspection_notes?: string };
+    }
+  | {
+      type: "treasury_transfer";
+      data: { from_id: string; to_id: string; amount: number; description?: string };
     };
 
 export interface QueuedItem {
@@ -138,6 +163,23 @@ export async function executeQueuedOpDefault(item: QueuedItem): Promise<boolean>
       break;
     case "treasury_transaction":
       url = "/api/admin/treasuries/transaction";
+      body = JSON.stringify(op.data);
+      break;
+    case "invoice_pay":
+      url = `/api/admin/invoices/${op.invoiceId}/pay`;
+      body = JSON.stringify(op.data);
+      break;
+    case "create_repair_order":
+      url = "/api/admin/workshop/orders";
+      body = JSON.stringify(op.data);
+      break;
+    case "update_repair_order_stage":
+      url = `/api/admin/workshop/orders/${op.orderId}`;
+      body = JSON.stringify(op.data);
+      method = "PATCH";
+      break;
+    case "treasury_transfer":
+      url = "/api/admin/treasuries/transfer";
       body = JSON.stringify(op.data);
       break;
     default:

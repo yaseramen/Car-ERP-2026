@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { addToQueue } from "@/lib/offline-queue";
 
 interface AddPaymentProps {
   invoiceId: string;
@@ -44,21 +45,39 @@ export function AddPayment({ invoiceId, total, paidAmount, status }: AddPaymentP
     }
   }, [paymentMethodId, paymentMethods, remaining]);
 
+  useEffect(() => {
+    const handleOnline = () => router.refresh();
+    window.addEventListener("alameen-online", handleOnline);
+    return () => window.removeEventListener("alameen-online", handleOnline);
+  }, [router]);
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!amount || Number(amount) <= 0 || !paymentMethodId) return;
 
+    const payload = {
+      amount: Number(amount),
+      payment_method_id: paymentMethodId,
+      reference_number: methodType === "cash" ? undefined : (isCredit ? paymentDate : referenceNumber) || undefined,
+      notes: notes || undefined,
+    };
+
     setSaving(true);
     try {
+      if (!navigator.onLine) {
+        addToQueue({ type: "invoice_pay", invoiceId, data: payload });
+        setAmount("");
+        setReferenceNumber("");
+        setPaymentDate("");
+        setNotes("");
+        alert("انقطع الاتصال. تم حفظ الدفعة محلياً. سيتم إرسالها تلقائياً عند عودة الإنترنت.");
+        return;
+      }
+
       const res = await fetch(`/api/admin/invoices/${invoiceId}/pay`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          amount: Number(amount),
-          payment_method_id: paymentMethodId,
-          reference_number: methodType === "cash" ? undefined : (isCredit ? paymentDate : referenceNumber) || undefined,
-          notes: notes || undefined,
-        }),
+        body: JSON.stringify(payload),
       });
 
       if (!res.ok) {
@@ -73,7 +92,16 @@ export function AddPayment({ invoiceId, total, paidAmount, status }: AddPaymentP
       setNotes("");
       router.refresh();
     } catch {
-      alert("حدث خطأ");
+      if (!navigator.onLine) {
+        addToQueue({ type: "invoice_pay", invoiceId, data: payload });
+        setAmount("");
+        setReferenceNumber("");
+        setPaymentDate("");
+        setNotes("");
+        alert("انقطع الاتصال. تم حفظ الدفعة محلياً. سيتم إرسالها تلقائياً عند عودة الإنترنت.");
+      } else {
+        alert("حدث خطأ");
+      }
     } finally {
       setSaving(false);
     }
