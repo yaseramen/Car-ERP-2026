@@ -20,6 +20,9 @@ interface Item {
 
 export function InventoryTable() {
   const [items, setItems] = useState<Item[]>([]);
+  const [totalItems, setTotalItems] = useState(0);
+  const [lowStockItems, setLowStockItems] = useState<Array<{ id: string; name: string; quantity: number; min_quantity: number }>>([]);
+  const [approachingLimitItems, setApproachingLimitItems] = useState<Array<{ id: string; name: string; quantity: number; min_quantity: number }>>([]);
   const [loading, setLoading] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
   const [editItem, setEditItem] = useState<Item | null>(null);
@@ -44,14 +47,49 @@ export function InventoryTable() {
     min_quantity: "",
   });
 
-  async function fetchItems() {
+  async function fetchItems(opts?: { page?: number; search?: string }) {
     try {
-      const res = await fetch("/api/admin/inventory/items");
-      if (res.ok) setItems(await res.json());
+      const page = opts?.page ?? 1;
+      const search = opts?.search ?? searchQuery;
+      const limit = 50;
+      const offset = (page - 1) * limit;
+      const url = `/api/admin/inventory/items?limit=${limit}&offset=${offset}${search ? `&search=${encodeURIComponent(search)}` : ""}`;
+      const res = await fetch(url);
+      if (res.ok) {
+        const data = await res.json();
+        if (Array.isArray(data)) {
+          setItems(data);
+          setTotalItems(data.length);
+        } else {
+          setItems(data.items ?? []);
+          setTotalItems(data.total ?? 0);
+        }
+      } else {
+        setItems([]);
+        setTotalItems(0);
+      }
     } catch {
       setItems([]);
+      setTotalItems(0);
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function fetchLowStock() {
+    try {
+      const res = await fetch("/api/admin/inventory/low-stock");
+      if (res.ok) {
+        const data = await res.json();
+        setLowStockItems(data.lowStock ?? []);
+        setApproachingLimitItems(data.approaching ?? []);
+      } else {
+        setLowStockItems([]);
+        setApproachingLimitItems([]);
+      }
+    } catch {
+      setLowStockItems([]);
+      setApproachingLimitItems([]);
     }
   }
 
@@ -67,18 +105,20 @@ export function InventoryTable() {
   }
 
   useEffect(() => {
-    fetchItems();
     fetchCategories();
+    fetchLowStock();
   }, []);
 
   useEffect(() => {
     const handleOnline = () => {
-      fetchItems();
+      fetchItems({ page, search: searchQuery });
       fetchCategories();
+      fetchLowStock();
     };
     const handleRefresh = () => {
-      fetchItems();
+      fetchItems({ page, search: searchQuery });
       fetchCategories();
+      fetchLowStock();
     };
     window.addEventListener("alameen-online", handleOnline);
     window.addEventListener("alameen-inventory-refresh", handleRefresh);
@@ -286,7 +326,8 @@ export function InventoryTable() {
           return;
         }
         const newItem = await res.json();
-        setItems((prev) => [newItem, ...prev]);
+        fetchItems({ page: 1, search: searchQuery });
+        fetchLowStock();
         fetchCategories();
       }
 
@@ -338,6 +379,7 @@ export function InventoryTable() {
       if (!navigator.onLine) {
         addToQueue({ type: "delete_item", itemId: item.id });
         setItems((prev) => prev.filter((i) => i.id !== item.id));
+        setTotalItems((t) => Math.max(0, t - 1));
         setDeleteConfirm(null);
         alert("انقطع الاتصال. تم حفظ الحذف محلياً. سيتم تنفيذه تلقائياً عند عودة الإنترنت.");
         return;
@@ -348,13 +390,14 @@ export function InventoryTable() {
         alert(err.error || "فشل في الحذف");
         return;
       }
-      setItems((prev) => prev.filter((i) => i.id !== item.id));
+      fetchItems({ page, search: searchQuery });
+      fetchLowStock();
       setDeleteConfirm(null);
-      fetchCategories();
     } catch {
       if (!navigator.onLine) {
         addToQueue({ type: "delete_item", itemId: item.id });
         setItems((prev) => prev.filter((i) => i.id !== item.id));
+        setTotalItems((t) => Math.max(0, t - 1));
         setDeleteConfirm(null);
         alert("انقطع الاتصال. تم حفظ الحذف محلياً. سيتم تنفيذه تلقائياً عند عودة الإنترنت.");
       } else {
@@ -377,28 +420,19 @@ export function InventoryTable() {
   }
 
   const ROWS_PER_PAGE = 50;
-  const filteredItems = searchQuery.trim()
-    ? items.filter(
-        (i) =>
-          i.name.toLowerCase().includes(searchQuery.trim().toLowerCase()) ||
-          (i.code?.toLowerCase().includes(searchQuery.trim().toLowerCase()) ?? false) ||
-          (i.barcode?.toLowerCase().includes(searchQuery.trim().toLowerCase()) ?? false) ||
-          (i.category?.toLowerCase().includes(searchQuery.trim().toLowerCase()) ?? false)
-      )
-    : items;
-  const paginatedItems = filteredItems.slice((page - 1) * ROWS_PER_PAGE, page * ROWS_PER_PAGE);
-  const totalPages = Math.max(1, Math.ceil(filteredItems.length / ROWS_PER_PAGE));
+  const totalPages = Math.max(1, Math.ceil(totalItems / ROWS_PER_PAGE));
 
   useEffect(() => {
-    setPage(1);
-  }, [searchQuery]);
+    const p = searchQuery ? 1 : page;
+    if (searchQuery) setPage(1);
+    setLoading(true);
+    fetchItems({ page: p, search: searchQuery });
+  }, [page, searchQuery]);
 
-  useEffect(() => {
-    if (page > totalPages && totalPages > 0) setPage(totalPages);
-  }, [filteredItems.length, page, totalPages]);
-
-  const lowStockItems = items.filter((i) => i.min_quantity > 0 && i.quantity < i.min_quantity * 0.8);
-  const approachingLimitItems = items.filter((i) => i.min_quantity > 0 && i.quantity >= i.min_quantity * 0.8 && i.quantity < i.min_quantity);
+  function handlePageChange(newPage: number) {
+    if (newPage === page) return;
+    setPage(newPage);
+  }
 
   return (
     <>
@@ -488,17 +522,11 @@ export function InventoryTable() {
               {items.length === 0 ? (
                 <tr>
                   <td colSpan={8} className="px-4 py-12 text-center text-gray-500 dark:text-gray-400">
-                    لا توجد أصناف. اضغط "إضافة صنف جديد" للبدء.
-                  </td>
-                </tr>
-              ) : filteredItems.length === 0 ? (
-                <tr>
-                  <td colSpan={8} className="px-4 py-12 text-center text-gray-500 dark:text-gray-400">
-                    لا توجد نتائج للبحث. جرّب كلمات أخرى.
+                    {searchQuery ? "لا توجد نتائج للبحث. جرّب كلمات أخرى." : "لا توجد أصناف. اضغط \"إضافة صنف جديد\" للبدء."}
                   </td>
                 </tr>
               ) : (
-                paginatedItems.map((item) => (
+                items.map((item) => (
                   <tr key={item.id} className="border-b border-gray-50 dark:border-gray-700 hover:bg-gray-50/50 dark:hover:bg-gray-700/30">
                     <td className="px-4 py-3">
                       <Link
@@ -620,18 +648,18 @@ export function InventoryTable() {
             <div className="flex items-center justify-center gap-2 py-3 border-t border-gray-100 dark:border-gray-700">
               <button
                 type="button"
-                onClick={() => setPage((p) => Math.max(1, p - 1))}
+                onClick={() => handlePageChange(Math.max(1, page - 1))}
                 disabled={page <= 1}
                 className="px-3 py-1 rounded border border-gray-300 dark:border-gray-600 text-sm disabled:opacity-50 text-gray-700 dark:text-gray-300"
               >
                 السابق
               </button>
               <span className="text-sm text-gray-600 dark:text-gray-400">
-                صفحة {page} من {totalPages} — {filteredItems.length} من {items.length} صنف
+                صفحة {page} من {totalPages} — {totalItems} صنف
               </span>
               <button
                 type="button"
-                onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                onClick={() => handlePageChange(Math.min(totalPages, page + 1))}
                 disabled={page >= totalPages}
                 className="px-3 py-1 rounded border border-gray-300 dark:border-gray-600 text-sm disabled:opacity-50 text-gray-700 dark:text-gray-300"
               >

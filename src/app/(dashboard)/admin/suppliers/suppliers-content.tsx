@@ -22,6 +22,7 @@ export function SuppliersContent() {
   const [deleteConfirm, setDeleteConfirm] = useState<Supplier | null>(null);
   const [saving, setSaving] = useState(false);
   const [page, setPage] = useState(1);
+  const [totalSuppliers, setTotalSuppliers] = useState(0);
   const [form, setForm] = useState({
     name: "",
     phone: "",
@@ -30,20 +31,40 @@ export function SuppliersContent() {
     notes: "",
   });
 
-  async function fetchSuppliers() {
+  async function fetchSuppliers(opts?: { page?: number }) {
     try {
-      const res = await fetch("/api/admin/suppliers");
-      if (res.ok) setSuppliers(await res.json());
+      const p = opts?.page ?? page;
+      const limit = 50;
+      const offset = (p - 1) * limit;
+      const res = await fetch(`/api/admin/suppliers?limit=${limit}&offset=${offset}`);
+      if (res.ok) {
+        const data = await res.json();
+        if (Array.isArray(data)) {
+          setSuppliers(data);
+          setTotalSuppliers(data.length);
+        } else {
+          setSuppliers(data.suppliers ?? []);
+          setTotalSuppliers(data.total ?? 0);
+        }
+      } else {
+        setSuppliers([]);
+        setTotalSuppliers(0);
+      }
     } catch {
       setSuppliers([]);
+      setTotalSuppliers(0);
     } finally {
       setLoading(false);
     }
   }
 
   useEffect(() => {
-    fetchSuppliers();
+    fetchSuppliers({ page: 1 });
   }, []);
+
+  useEffect(() => {
+    if (page > 1) fetchSuppliers({ page });
+  }, [page]);
 
   useEffect(() => {
     const handleOnline = () => fetchSuppliers();
@@ -133,8 +154,8 @@ export function SuppliersContent() {
           alert(err.error || "فشل في الحفظ");
           return;
         }
-        const newSupplier = await res.json();
-        setSuppliers((prev) => [newSupplier, ...prev]);
+        await res.json();
+        fetchSuppliers({ page: 1 });
       }
 
       setModalOpen(false);
@@ -174,6 +195,7 @@ export function SuppliersContent() {
       if (!navigator.onLine) {
         addToQueue({ type: "delete_supplier", supplierId: s.id });
         setSuppliers((prev) => prev.filter((x) => x.id !== s.id));
+        setTotalSuppliers((t) => Math.max(0, t - 1));
         setDeleteConfirm(null);
         alert("انقطع الاتصال. تم حفظ الحذف محلياً. سيتم تنفيذه تلقائياً عند عودة الإنترنت.");
         return;
@@ -185,13 +207,14 @@ export function SuppliersContent() {
         return;
       }
       const data = await res.json();
-      setSuppliers((prev) => prev.filter((x) => x.id !== s.id));
+      fetchSuppliers({ page });
       setDeleteConfirm(null);
-      if (data.message) alert(data.message);
+      if (data?.message) alert(data.message);
     } catch {
       if (!navigator.onLine) {
         addToQueue({ type: "delete_supplier", supplierId: s.id });
         setSuppliers((prev) => prev.filter((x) => x.id !== s.id));
+        setTotalSuppliers((t) => Math.max(0, t - 1));
         setDeleteConfirm(null);
         alert("انقطع الاتصال. تم حفظ الحذف محلياً. سيتم تنفيذه تلقائياً عند عودة الإنترنت.");
       } else {
@@ -203,8 +226,7 @@ export function SuppliersContent() {
   }
 
   const ROWS_PER_PAGE = 50;
-  const paginatedSuppliers = suppliers.slice((page - 1) * ROWS_PER_PAGE, page * ROWS_PER_PAGE);
-  const totalPages = Math.max(1, Math.ceil(suppliers.length / ROWS_PER_PAGE));
+  const totalPages = Math.max(1, Math.ceil(totalSuppliers / ROWS_PER_PAGE));
 
   useEffect(() => {
     if (page > totalPages && totalPages > 0) setPage(totalPages);
@@ -229,8 +251,11 @@ export function SuppliersContent() {
           <div className="flex gap-2">
             <button
               type="button"
-              onClick={() => {
-                const data = suppliers.map((s) => ({
+              onClick={async () => {
+                const res = await fetch("/api/admin/suppliers");
+                const all = res.ok ? await res.json() : [];
+                const list = Array.isArray(all) ? all : (all.suppliers ?? []);
+                const data = list.map((s: Supplier) => ({
                   الاسم: s.name,
                   الهاتف: s.phone || "—",
                   البريد: s.email || "—",
@@ -273,7 +298,7 @@ export function SuppliersContent() {
                   </td>
                 </tr>
               ) : (
-                paginatedSuppliers.map((s) => (
+                suppliers.map((s) => (
                   <tr key={s.id} className="border-b border-gray-50 dark:border-gray-700 hover:bg-gray-50/50 dark:hover:bg-gray-700/30">
                     <td className="px-4 py-3 text-sm font-medium text-gray-900 dark:text-gray-100">{s.name}</td>
                     <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-300">{s.phone || "—"}</td>
@@ -312,7 +337,7 @@ export function SuppliersContent() {
                 السابق
               </button>
               <span className="text-sm text-gray-600 dark:text-gray-400">
-                صفحة {page} من {totalPages} — {suppliers.length} مورد
+                صفحة {page} من {totalPages} — {totalSuppliers} مورد
               </span>
               <button
                 type="button"

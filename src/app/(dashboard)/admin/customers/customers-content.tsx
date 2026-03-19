@@ -22,6 +22,7 @@ export function CustomersContent() {
   const [deleteConfirm, setDeleteConfirm] = useState<Customer | null>(null);
   const [saving, setSaving] = useState(false);
   const [page, setPage] = useState(1);
+  const [totalCustomers, setTotalCustomers] = useState(0);
   const [form, setForm] = useState({
     name: "",
     phone: "",
@@ -30,20 +31,40 @@ export function CustomersContent() {
     notes: "",
   });
 
-  async function fetchCustomers() {
+  async function fetchCustomers(opts?: { page?: number }) {
     try {
-      const res = await fetch("/api/admin/customers");
-      if (res.ok) setCustomers(await res.json());
+      const p = opts?.page ?? page;
+      const limit = 50;
+      const offset = (p - 1) * limit;
+      const res = await fetch(`/api/admin/customers?limit=${limit}&offset=${offset}`);
+      if (res.ok) {
+        const data = await res.json();
+        if (Array.isArray(data)) {
+          setCustomers(data);
+          setTotalCustomers(data.length);
+        } else {
+          setCustomers(data.customers ?? []);
+          setTotalCustomers(data.total ?? 0);
+        }
+      } else {
+        setCustomers([]);
+        setTotalCustomers(0);
+      }
     } catch {
       setCustomers([]);
+      setTotalCustomers(0);
     } finally {
       setLoading(false);
     }
   }
 
   useEffect(() => {
-    fetchCustomers();
+    fetchCustomers({ page: 1 });
   }, []);
+
+  useEffect(() => {
+    if (page > 1) fetchCustomers({ page });
+  }, [page]);
 
   useEffect(() => {
     const handleOnline = () => fetchCustomers();
@@ -140,8 +161,8 @@ export function CustomersContent() {
           alert(err.error || "فشل في الحفظ");
           return;
         }
-        const newCustomer = await res.json();
-        setCustomers((prev) => [newCustomer, ...prev]);
+        await res.json();
+        fetchCustomers({ page: 1 });
       }
 
       setModalOpen(false);
@@ -181,6 +202,7 @@ export function CustomersContent() {
       if (!navigator.onLine) {
         addToQueue({ type: "delete_customer", customerId: c.id });
         setCustomers((prev) => prev.filter((x) => x.id !== c.id));
+        setTotalCustomers((t) => Math.max(0, t - 1));
         setDeleteConfirm(null);
         alert("انقطع الاتصال. تم حفظ الحذف محلياً. سيتم تنفيذه تلقائياً عند عودة الإنترنت.");
         return;
@@ -192,13 +214,14 @@ export function CustomersContent() {
         return;
       }
       const data = await res.json();
-      setCustomers((prev) => prev.filter((x) => x.id !== c.id));
+      fetchCustomers({ page });
       setDeleteConfirm(null);
-      if (data.message) alert(data.message);
+      if (data?.message) alert(data.message);
     } catch {
       if (!navigator.onLine) {
         addToQueue({ type: "delete_customer", customerId: c.id });
         setCustomers((prev) => prev.filter((x) => x.id !== c.id));
+        setTotalCustomers((t) => Math.max(0, t - 1));
         setDeleteConfirm(null);
         alert("انقطع الاتصال. تم حفظ الحذف محلياً. سيتم تنفيذه تلقائياً عند عودة الإنترنت.");
       } else {
@@ -210,8 +233,7 @@ export function CustomersContent() {
   }
 
   const ROWS_PER_PAGE = 50;
-  const paginatedCustomers = customers.slice((page - 1) * ROWS_PER_PAGE, page * ROWS_PER_PAGE);
-  const totalPages = Math.max(1, Math.ceil(customers.length / ROWS_PER_PAGE));
+  const totalPages = Math.max(1, Math.ceil(totalCustomers / ROWS_PER_PAGE));
 
   useEffect(() => {
     if (page > totalPages && totalPages > 0) setPage(totalPages);
@@ -236,8 +258,11 @@ export function CustomersContent() {
           <div className="flex gap-2">
             <button
               type="button"
-              onClick={() => {
-                const data = customers.map((c) => ({
+              onClick={async () => {
+                const res = await fetch("/api/admin/customers");
+                const all = res.ok ? await res.json() : [];
+                const list = Array.isArray(all) ? all : (all.customers ?? []);
+                const data = list.map((c: Customer) => ({
                   الاسم: c.name,
                   الهاتف: c.phone || "—",
                   البريد: c.email || "—",
@@ -280,7 +305,7 @@ export function CustomersContent() {
                   </td>
                 </tr>
               ) : (
-                paginatedCustomers.map((c) => (
+                customers.map((c) => (
                   <tr key={c.id} className="border-b border-gray-50 dark:border-gray-700 hover:bg-gray-50/50 dark:hover:bg-gray-700/30">
                     <td className="px-4 py-3 text-sm font-medium text-gray-900 dark:text-gray-100">{c.name}</td>
                     <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-300">{c.phone || "—"}</td>
@@ -319,7 +344,7 @@ export function CustomersContent() {
                 السابق
               </button>
               <span className="text-sm text-gray-600 dark:text-gray-400">
-                صفحة {page} من {totalPages} — {customers.length} عميل
+                صفحة {page} من {totalPages} — {totalCustomers} عميل
               </span>
               <button
                 type="button"

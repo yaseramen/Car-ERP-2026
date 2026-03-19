@@ -7,20 +7,35 @@ import { randomUUID } from "crypto";
 
 const ALLOWED_ROLES = ["super_admin", "tenant_owner", "employee"] as const;
 
-export async function GET() {
+export async function GET(request: Request) {
   const session = await auth();
   const companyId = getCompanyId(session);
   if (!session?.user || !companyId || !ALLOWED_ROLES.includes(session.user.role as (typeof ALLOWED_ROLES)[number])) {
     return NextResponse.json({ error: "غير مصرح" }, { status: 401 });
   }
 
+  const { searchParams } = new URL(request.url);
+  const usePagination = searchParams.has("limit") || searchParams.has("offset");
+  const limit = usePagination ? Math.min(200, Math.max(1, Number(searchParams.get("limit")) || 50)) : 10000;
+  const offset = usePagination ? Math.max(0, Number(searchParams.get("offset")) || 0) : 0;
+
   try {
+    let total = 0;
+    if (usePagination) {
+      const countRes = await db.execute({
+        sql: "SELECT COUNT(*) as cnt FROM customers WHERE company_id = ? AND is_active = 1",
+        args: [companyId],
+      });
+      total = Number(countRes.rows[0]?.cnt ?? 0);
+    }
+
     const result = await db.execute({
       sql: `SELECT id, name, phone, email, address, notes, created_at
             FROM customers
             WHERE company_id = ? AND is_active = 1
-            ORDER BY name`,
-      args: [companyId],
+            ORDER BY name
+            LIMIT ? OFFSET ?`,
+      args: [companyId, limit, offset],
     });
 
     const customers = result.rows.map((row) => ({
@@ -33,6 +48,7 @@ export async function GET() {
       created_at: row.created_at,
     }));
 
+    if (usePagination) return NextResponse.json({ customers, total });
     return NextResponse.json(customers);
   } catch (error) {
     console.error("Customers GET error:", error);
