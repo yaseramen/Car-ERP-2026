@@ -39,6 +39,7 @@ export function InventoryTable() {
   const [editingCell, setEditingCell] = useState<{ itemId: string; field: "category" | "min_quantity" } | null>(null);
   const [page, setPage] = useState(1);
   const [searchQuery, setSearchQuery] = useState("");
+  const inventoryFormRef = useRef<HTMLFormElement>(null);
   const [form, setForm] = useState({
     name: "",
     code: "",
@@ -137,6 +138,12 @@ export function InventoryTable() {
     setLoading(true);
     fetchItems({ page: p, search: searchQuery });
   }, [page, searchQuery]);
+
+  useKeyboardShortcut({
+    onSave: () => modalOpen && !saving && inventoryFormRef.current?.requestSubmit(),
+    onEscape: () => modalOpen && setModalOpen(false),
+    enabled: modalOpen,
+  });
 
   function resetForm() {
     setForm({
@@ -439,13 +446,6 @@ export function InventoryTable() {
     if (newPage === page) return;
     setPage(newPage);
   }
-
-  const inventoryFormRef = useRef<HTMLFormElement>(null);
-  useKeyboardShortcut({
-    onSave: () => modalOpen && !saving && inventoryFormRef.current?.requestSubmit(),
-    onEscape: () => modalOpen && setModalOpen(false),
-    enabled: modalOpen,
-  });
 
   return (
     <>
