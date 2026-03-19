@@ -1,8 +1,10 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { SearchableSelect } from "@/components/ui/searchable-select";
+import { addToQueue, processQueue } from "@/lib/offline-queue";
+import type { QueuedItem } from "@/lib/offline-queue";
 
 const STAGES = [
   { id: "received", label: "استلام", color: "bg-blue-100 text-blue-800" },
@@ -65,8 +67,24 @@ export function WorkshopContent() {
   const [orderItems, setOrderItems] = useState<OrderItem[]>([]);
   const [orderServices, setOrderServices] = useState<OrderService[]>([]);
   const [inventoryItems, setInventoryItems] = useState<InventoryItem[]>([]);
-  const [addForm, setAddForm] = useState({ item_id: "", quantity: "1" });
-  const [serviceForm, setServiceForm] = useState({ description: "", quantity: "1", unit_price: "" });
+  const [addForm, setAddForm] = useState(() => {
+    if (typeof window === "undefined") return { item_id: "", quantity: "1" };
+    try {
+      const raw = localStorage.getItem("alameen-workshop-part-draft");
+      return raw ? JSON.parse(raw) : { item_id: "", quantity: "1" };
+    } catch {
+      return { item_id: "", quantity: "1" };
+    }
+  });
+  const [serviceForm, setServiceForm] = useState(() => {
+    if (typeof window === "undefined") return { description: "", quantity: "1", unit_price: "" };
+    try {
+      const raw = localStorage.getItem("alameen-workshop-service-draft");
+      return raw ? JSON.parse(raw) : { description: "", quantity: "1", unit_price: "" };
+    } catch {
+      return { description: "", quantity: "1", unit_price: "" };
+    }
+  });
   const [saving, setSaving] = useState(false);
   const [customers, setCustomers] = useState<{ id: string; name: string; phone?: string | null }[]>([]);
   const [addCustomerOpen, setAddCustomerOpen] = useState(false);
@@ -79,7 +97,15 @@ export function WorkshopContent() {
     mileage: "",
     customer_id: "",
   });
-  const [inspectionNotesDrafts, setInspectionNotesDrafts] = useState<Record<string, string>>({});
+  const [inspectionNotesDrafts, setInspectionNotesDrafts] = useState<Record<string, string>>(() => {
+    if (typeof window === "undefined") return {};
+    try {
+      const raw = localStorage.getItem("alameen-workshop-notes");
+      return raw ? JSON.parse(raw) : {};
+    } catch {
+      return {};
+    }
+  });
   const [customerVehicles, setCustomerVehicles] = useState<
     { vehicle_plate: string; vehicle_model: string | null; vehicle_year: number | null; mileage: number | null }[]
   >([]);
@@ -188,6 +214,71 @@ export function WorkshopContent() {
   }, [typeFilter]);
 
   useEffect(() => {
+    if (Object.keys(inspectionNotesDrafts).length > 0) {
+      try {
+        localStorage.setItem("alameen-workshop-notes", JSON.stringify(inspectionNotesDrafts));
+      } catch {}
+    }
+  }, [inspectionNotesDrafts]);
+
+  useEffect(() => {
+    try {
+      if (serviceForm.description || serviceForm.quantity !== "1" || serviceForm.unit_price) {
+        localStorage.setItem("alameen-workshop-service-draft", JSON.stringify(serviceForm));
+      } else {
+        localStorage.removeItem("alameen-workshop-service-draft");
+      }
+    } catch {}
+  }, [serviceForm]);
+
+  useEffect(() => {
+    try {
+      if (addForm.item_id || addForm.quantity !== "1") {
+        localStorage.setItem("alameen-workshop-part-draft", JSON.stringify(addForm));
+      } else {
+        localStorage.removeItem("alameen-workshop-part-draft");
+      }
+    } catch {}
+  }, [addForm]);
+
+  async function executeQueuedOp(item: QueuedItem): Promise<boolean> {
+    const { op } = item;
+    if (op.type === "add_service") {
+      const res = await fetch(`/api/admin/workshop/orders/${op.orderId}/services`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(op.data),
+      });
+      return res.ok;
+    }
+    if (op.type === "add_part") {
+      const res = await fetch(`/api/admin/workshop/orders/${op.orderId}/items`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(op.data),
+      });
+      return res.ok;
+    }
+    return false;
+  }
+
+  useEffect(() => {
+    const handleOnline = async () => {
+      const { processed, failed } = await processQueue(executeQueuedOp);
+      if (processed > 0) {
+        const msg = failed > 0
+          ? `تم إرسال ${processed} عملية. فشل ${failed} عملية.`
+          : `تم إرسال ${processed} عملية معلقة بنجاح.`;
+        setTimeout(() => alert(msg), 300);
+      }
+      fetchOrders();
+      fetchCustomers();
+    };
+    window.addEventListener("alameen-online", handleOnline);
+    return () => window.removeEventListener("alameen-online", handleOnline);
+  }, [typeFilter]);
+
+  useEffect(() => {
     if (addPartsOpen && selectedOrder) {
       fetchOrderItems(selectedOrder.id);
       fetchInventoryItems();
@@ -266,16 +357,27 @@ export function WorkshopContent() {
   async function handleAddService(e: React.FormEvent) {
     e.preventDefault();
     if (!selectedOrder) return;
+    const desc = serviceForm.description.trim();
+    const qty = Number(serviceForm.quantity) || 1;
+    const price = Number(serviceForm.unit_price) || 0;
+    if (!desc) {
+      alert("وصف الخدمة مطلوب");
+      return;
+    }
     setSaving(true);
     try {
+      if (!navigator.onLine) {
+        addToQueue({ type: "add_service", orderId: selectedOrder.id, data: { description: desc, quantity: qty, unit_price: price } });
+        setServiceForm({ description: "", quantity: "1", unit_price: "" });
+        alert("انقطع الاتصال. تم حفظ الخدمة محلياً. سيتم إرسالها تلقائياً عند عودة الإنترنت.");
+        setAddServicesOpen(false);
+        setSelectedOrder(null);
+        return;
+      }
       const res = await fetch(`/api/admin/workshop/orders/${selectedOrder.id}/services`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          description: serviceForm.description.trim(),
-          quantity: Number(serviceForm.quantity) || 1,
-          unit_price: Number(serviceForm.unit_price) || 0,
-        }),
+        body: JSON.stringify({ description: desc, quantity: qty, unit_price: price }),
       });
       if (!res.ok) {
         const err = await res.json();
@@ -286,7 +388,15 @@ export function WorkshopContent() {
       await fetchOrders();
       setServiceForm({ description: "", quantity: "1", unit_price: "" });
     } catch {
-      alert("حدث خطأ");
+      if (!navigator.onLine) {
+        addToQueue({ type: "add_service", orderId: selectedOrder.id, data: { description: desc, quantity: qty, unit_price: price } });
+        setServiceForm({ description: "", quantity: "1", unit_price: "" });
+        alert("انقطع الاتصال. تم حفظ الخدمة محلياً. سيتم إرسالها تلقائياً عند عودة الإنترنت.");
+        setAddServicesOpen(false);
+        setSelectedOrder(null);
+      } else {
+        alert("حدث خطأ. حاول مرة أخرى.");
+      }
     } finally {
       setSaving(false);
     }
@@ -295,28 +405,45 @@ export function WorkshopContent() {
   async function handleAddPart(e: React.FormEvent) {
     e.preventDefault();
     if (!selectedOrder) return;
+    const itemId = addForm.item_id;
+    const qty = Number(addForm.quantity) || 1;
+    if (!itemId) {
+      alert("اختر قطعة");
+      return;
+    }
     setSaving(true);
     try {
+      if (!navigator.onLine) {
+        addToQueue({ type: "add_part", orderId: selectedOrder.id, data: { item_id: itemId, quantity: qty } });
+        setAddForm({ item_id: "", quantity: "1" });
+        alert("انقطع الاتصال. تم حفظ القطعة محلياً. سيتم إرسالها تلقائياً عند عودة الإنترنت.");
+        setAddPartsOpen(false);
+        setSelectedOrder(null);
+        return;
+      }
       const res = await fetch(`/api/admin/workshop/orders/${selectedOrder.id}/items`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          item_id: addForm.item_id,
-          quantity: Number(addForm.quantity) || 1,
-        }),
+        body: JSON.stringify({ item_id: itemId, quantity: qty }),
       });
-
       if (!res.ok) {
         const err = await res.json();
         alert(err.error || "فشل في إضافة القطعة");
         return;
       }
-
       await fetchOrderItems(selectedOrder.id);
       await fetchOrders();
       setAddForm({ item_id: "", quantity: "1" });
     } catch {
-      alert("حدث خطأ");
+      if (!navigator.onLine) {
+        addToQueue({ type: "add_part", orderId: selectedOrder.id, data: { item_id: itemId, quantity: qty } });
+        setAddForm({ item_id: "", quantity: "1" });
+        alert("انقطع الاتصال. تم حفظ القطعة محلياً. سيتم إرسالها تلقائياً عند عودة الإنترنت.");
+        setAddPartsOpen(false);
+        setSelectedOrder(null);
+      } else {
+        alert("حدث خطأ. حاول مرة أخرى.");
+      }
     } finally {
       setSaving(false);
     }
@@ -859,7 +986,7 @@ export function WorkshopContent() {
                   <label className="block text-sm font-medium text-gray-700 mb-1">الصنف</label>
                   <select
                     value={addForm.item_id}
-                    onChange={(e) => setAddForm((f) => ({ ...f, item_id: e.target.value }))}
+                    onChange={(e) => setAddForm((f: { item_id: string; quantity: string }) => ({ ...f, item_id: e.target.value }))}
                     required
                     className={inputClass}
                   >
@@ -878,7 +1005,7 @@ export function WorkshopContent() {
                     min="0.01"
                     step="0.01"
                     value={addForm.quantity}
-                    onChange={(e) => setAddForm((f) => ({ ...f, quantity: e.target.value }))}
+                    onChange={(e) => setAddForm((f: { item_id: string; quantity: string }) => ({ ...f, quantity: e.target.value }))}
                     required
                     className={inputClass}
                   />
@@ -935,7 +1062,7 @@ export function WorkshopContent() {
                   <input
                     type="text"
                     value={serviceForm.description}
-                    onChange={(e) => setServiceForm((f) => ({ ...f, description: e.target.value }))}
+                    onChange={(e) => setServiceForm((f: { description: string; quantity: string; unit_price: string }) => ({ ...f, description: e.target.value }))}
                     required
                     className={inputClass}
                     placeholder="مثال: فحص المحرك، تغيير الزيت، إلخ"
@@ -949,7 +1076,7 @@ export function WorkshopContent() {
                       min="0.01"
                       step="0.01"
                       value={serviceForm.quantity}
-                      onChange={(e) => setServiceForm((f) => ({ ...f, quantity: e.target.value }))}
+                      onChange={(e) => setServiceForm((f: { description: string; quantity: string; unit_price: string }) => ({ ...f, quantity: e.target.value }))}
                       className={inputClass}
                     />
                   </div>
@@ -960,7 +1087,7 @@ export function WorkshopContent() {
                       step="0.01"
                       min="0"
                       value={serviceForm.unit_price}
-                      onChange={(e) => setServiceForm((f) => ({ ...f, unit_price: e.target.value }))}
+                      onChange={(e) => setServiceForm((f: { description: string; quantity: string; unit_price: string }) => ({ ...f, unit_price: e.target.value }))}
                       className={inputClass}
                       placeholder="0"
                     />
