@@ -74,8 +74,16 @@ export function InventoryTable() {
       fetchItems();
       fetchCategories();
     };
+    const handleRefresh = () => {
+      fetchItems();
+      fetchCategories();
+    };
     window.addEventListener("alameen-online", handleOnline);
-    return () => window.removeEventListener("alameen-online", handleOnline);
+    window.addEventListener("alameen-inventory-refresh", handleRefresh);
+    return () => {
+      window.removeEventListener("alameen-online", handleOnline);
+      window.removeEventListener("alameen-inventory-refresh", handleRefresh);
+    };
   }, []);
 
   function resetForm() {

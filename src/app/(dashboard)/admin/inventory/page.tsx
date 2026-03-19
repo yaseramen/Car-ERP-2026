@@ -2,6 +2,7 @@ import { auth } from "@/auth";
 import { redirect } from "next/navigation";
 import { canAccess } from "@/lib/permissions";
 import { InventoryTable } from "./inventory-table";
+import { TransferStock } from "./transfer-stock";
 
 export default async function InventoryPage() {
   const session = await auth();
@@ -17,6 +18,7 @@ export default async function InventoryPage() {
           <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">المخزن</h1>
           <p className="text-gray-500 dark:text-gray-400 mt-1">إدارة الأصناف والمخزون</p>
         </div>
+        <TransferStock />
       </div>
 
       <InventoryTable />
