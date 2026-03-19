@@ -132,14 +132,24 @@ export function ReportsContent() {
         الربح: r.profit,
       }));
       exportToExcel(data, `أرباح-${dateFrom}-${dateTo}`, "الأرباح");
-    } else if (tab === "inventory" && inventory?.movements) {
-      const data = (inventory.movements as Array<{ item_name: string; quantity: number; movement_type: string; created_at: string }>).map((m) => ({
-        التاريخ: new Date(m.created_at).toLocaleString("ar-EG"),
-        الصنف: m.item_name,
-        الكمية: m.quantity,
-        النوع: MOVEMENT_LABELS[m.movement_type] || m.movement_type,
-      }));
-      exportToExcel(data, `حركة-مخزون-${dateFrom}-${dateTo}`, "حركة المخزون");
+    } else if (tab === "inventory" && (inventory?.movements || inventory?.valuation)) {
+      if (inventory?.valuation && (inventory.valuation as unknown[]).length > 0) {
+        const data = (inventory.valuation as Array<{ name: string; quantity: number; purchase_price: number; value: number }>).map((v) => ({
+          الصنف: v.name,
+          الكمية: v.quantity,
+          "سعر الشراء": v.purchase_price,
+          القيمة: v.value,
+        }));
+        exportToExcel(data, `قيمة-مخزون-${dateFrom}-${dateTo}`, "قيمة المخزون");
+      } else if (inventory?.movements) {
+        const data = (inventory.movements as Array<{ item_name: string; quantity: number; movement_type: string; created_at: string }>).map((m) => ({
+          التاريخ: new Date(m.created_at).toLocaleString("ar-EG"),
+          الصنف: m.item_name,
+          الكمية: m.quantity,
+          النوع: MOVEMENT_LABELS[m.movement_type] || m.movement_type,
+        }));
+        exportToExcel(data, `حركة-مخزون-${dateFrom}-${dateTo}`, "حركة المخزون");
+      }
     } else if (tab === "workshop" && workshop?.completed) {
       const data = (workshop.completed as Array<{ completed_at: string; order_number: string; vehicle_plate: string; total: number }>).map((o) => ({
         التاريخ: new Date(o.completed_at).toLocaleDateString("ar-EG"),
@@ -401,7 +411,15 @@ export function ReportsContent() {
       )}
 
       {tab === "inventory" && (
-        <div id="report-inventory" className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div id="report-inventory" className="space-y-6">
+          <div className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-sm border border-gray-100 dark:border-gray-700">
+            <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">قيمة المخزون الإجمالية</h3>
+            <p className="text-2xl font-bold text-emerald-600 dark:text-emerald-400">
+              {Number(inventory?.totalValue ?? 0).toFixed(2)} ج.م
+            </p>
+            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">(كمية × سعر الشراء لكل صنف)</p>
+          </div>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden">
             <div className="p-4 border-b border-gray-100 dark:border-gray-700">
               <h2 className="font-bold text-gray-900 dark:text-gray-100">أصناف تحت الحد الأدنى</h2>
@@ -445,6 +463,38 @@ export function ReportsContent() {
               )}
             </div>
           </div>
+          </div>
+          {inventory?.valuation && Array.isArray(inventory.valuation) && (inventory.valuation as unknown[]).length > 0 ? (
+            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden">
+              <div className="p-4 border-b border-gray-100 dark:border-gray-700">
+                <h2 className="font-bold text-gray-900 dark:text-gray-100">تفاصيل قيمة المخزون</h2>
+              </div>
+              <div className="overflow-x-auto max-h-96">
+                <table className="w-full">
+                  <thead>
+                    <tr className="bg-gray-50 dark:bg-gray-700/50">
+                      <th className="text-right px-4 py-3 text-sm font-medium text-gray-600 dark:text-gray-300">الصنف</th>
+                      <th className="text-right px-4 py-3 text-sm font-medium text-gray-600 dark:text-gray-300">الكمية</th>
+                      <th className="text-right px-4 py-3 text-sm font-medium text-gray-600 dark:text-gray-300">سعر الشراء</th>
+                      <th className="text-right px-4 py-3 text-sm font-medium text-gray-600 dark:text-gray-300">القيمة</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {(inventory.valuation as Array<{ id: string; name: string; quantity: number; purchase_price: number; value: number }>).map((v) => (
+                      <tr key={v.id} className="border-b border-gray-50 dark:border-gray-700">
+                        <td className="px-4 py-3 text-sm">
+                          <Link href={`/admin/inventory/${v.id}`} className="text-emerald-600 dark:text-emerald-400 hover:underline">{v.name}</Link>
+                        </td>
+                        <td className="px-4 py-3 text-sm text-gray-900 dark:text-gray-100">{v.quantity}</td>
+                        <td className="px-4 py-3 text-sm text-gray-900 dark:text-gray-100">{v.purchase_price?.toFixed(2)} ج.م</td>
+                        <td className="px-4 py-3 text-sm font-medium text-gray-900 dark:text-gray-100">{v.value?.toFixed(2)} ج.م</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          ) : null}
         </div>
       )}
 

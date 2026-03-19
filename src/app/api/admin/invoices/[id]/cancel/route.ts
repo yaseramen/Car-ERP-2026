@@ -109,14 +109,18 @@ export async function POST(
       const amt = Number(row.amount ?? 0);
       const tid = row.treasury_id as string | null;
       if (amt > 0 && tid) {
+        const isPurchaseRefund = invType === "purchase";
+        const balanceDelta = isPurchaseRefund ? amt : -amt;
+        const txAmount = isPurchaseRefund ? amt : -amt;
+        const txType = isPurchaseRefund ? "in" : "out";
         await db.execute({
-          sql: "UPDATE treasuries SET balance = balance - ?, updated_at = datetime('now') WHERE id = ?",
-          args: [amt, tid],
+          sql: "UPDATE treasuries SET balance = balance + ?, updated_at = datetime('now') WHERE id = ?",
+          args: [balanceDelta, tid],
         });
         await db.execute({
           sql: `INSERT INTO treasury_transactions (id, treasury_id, amount, type, description, reference_type, reference_id, performed_by)
-                VALUES (?, ?, ?, 'out', ?, 'invoice_cancel', ?, ?)`,
-          args: [randomUUID(), tid, -amt, `إلغاء فاتورة ${invNum}`, invoiceId, session.user.id],
+                VALUES (?, ?, ?, ?, ?, 'invoice_cancel', ?, ?)`,
+          args: [randomUUID(), tid, txAmount, txType, `إلغاء فاتورة ${invNum}`, invoiceId, session.user.id],
         });
       }
     }

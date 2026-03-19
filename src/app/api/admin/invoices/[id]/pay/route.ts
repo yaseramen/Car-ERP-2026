@@ -55,21 +55,44 @@ export async function POST(
     const status = newPaid >= total ? "paid" : "partial";
 
     let treasuryId: string | null = null;
-    if (invType === "sale" || invType === "maintenance") {
-      await ensureTreasuries(companyId);
-      treasuryId = invType === "sale" ? await getTreasuryIdByType(companyId, "sales") : await getTreasuryIdByType(companyId, "workshop");
-    }
+    await ensureTreasuries(companyId);
 
-    if (treasuryId) {
-      await db.execute({
-        sql: "UPDATE treasuries SET balance = balance + ?, updated_at = datetime('now') WHERE id = ?",
-        args: [amt, treasuryId],
-      });
-      await db.execute({
-        sql: `INSERT INTO treasury_transactions (id, treasury_id, amount, type, description, reference_type, reference_id, payment_method_id, performed_by)
-              VALUES (?, ?, ?, 'in', ?, 'invoice', ?, ?, ?)`,
-        args: [randomUUID(), treasuryId, amt, `دفعة فاتورة ${invNum}`, invoiceId, payment_method_id, session.user.id],
-      });
+    if (invType === "sale" || invType === "maintenance") {
+      treasuryId = invType === "sale" ? await getTreasuryIdByType(companyId, "sales") : await getTreasuryIdByType(companyId, "workshop");
+      if (treasuryId) {
+        await db.execute({
+          sql: "UPDATE treasuries SET balance = balance + ?, updated_at = datetime('now') WHERE id = ?",
+          args: [amt, treasuryId],
+        });
+        await db.execute({
+          sql: `INSERT INTO treasury_transactions (id, treasury_id, amount, type, description, reference_type, reference_id, payment_method_id, performed_by)
+                VALUES (?, ?, ?, 'in', ?, 'invoice', ?, ?, ?)`,
+          args: [randomUUID(), treasuryId, amt, `دفعة فاتورة ${invNum}`, invoiceId, payment_method_id, session.user.id],
+        });
+      }
+    } else if (invType === "purchase") {
+      treasuryId = await getTreasuryIdByType(companyId, "main");
+      if (treasuryId) {
+        const treasury = await db.execute({
+          sql: "SELECT balance FROM treasuries WHERE id = ? AND company_id = ?",
+          args: [treasuryId, companyId],
+        });
+        const balance = Number(treasury.rows[0]?.balance ?? 0);
+        if (balance < amt) {
+          return NextResponse.json({
+            error: `رصيد الخزينة الرئيسية غير كافٍ (متاح: ${balance.toFixed(2)} ج.م)`,
+          }, { status: 400 });
+        }
+        await db.execute({
+          sql: "UPDATE treasuries SET balance = balance - ?, updated_at = datetime('now') WHERE id = ?",
+          args: [amt, treasuryId],
+        });
+        await db.execute({
+          sql: `INSERT INTO treasury_transactions (id, treasury_id, amount, type, description, reference_type, reference_id, payment_method_id, performed_by)
+                VALUES (?, ?, ?, 'out', ?, 'invoice', ?, ?, ?)`,
+          args: [randomUUID(), treasuryId, -amt, `دفعة فاتورة شراء ${invNum}`, invoiceId, payment_method_id, session.user.id],
+        });
+      }
     }
 
     await db.execute({

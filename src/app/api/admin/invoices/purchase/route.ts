@@ -114,6 +114,11 @@ export async function POST(request: Request) {
         sql: "INSERT INTO invoice_items (id, invoice_id, item_id, quantity, unit_price, total, sort_order) VALUES (?, ?, ?, ?, ?, ?, ?)",
         args: [iiId, invoiceId, it.item_id, it.quantity, it.unit_price, it.total, i],
       });
+
+      await db.execute({
+        sql: "UPDATE items SET purchase_price = ?, updated_at = datetime('now') WHERE id = ? AND company_id = ?",
+        args: [it.unit_price, it.item_id, companyId],
+      });
     }
 
     return NextResponse.json({

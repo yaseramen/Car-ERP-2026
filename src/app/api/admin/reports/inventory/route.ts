@@ -46,6 +46,31 @@ export async function GET(request: Request) {
       args: movementsArgs,
     });
 
+    const valuationResult = await db.execute({
+      sql: `SELECT i.id, i.name, i.code, i.purchase_price,
+            COALESCE((SELECT SUM(quantity) FROM item_warehouse_stock WHERE item_id = i.id), 0) as quantity
+            FROM items i
+            WHERE i.company_id = ? AND i.is_active = 1
+            ORDER BY i.name`,
+      args: [companyId],
+    });
+
+    let totalValue = 0;
+    const valuation = valuationResult.rows.map((r) => {
+      const qty = Number(r.quantity ?? 0);
+      const cost = Number(r.purchase_price ?? 0);
+      const value = qty * cost;
+      totalValue += value;
+      return {
+        id: r.id,
+        name: r.name,
+        code: r.code,
+        quantity: qty,
+        purchase_price: cost,
+        value,
+      };
+    });
+
     const lowStock = lowStockResult.rows.map((r) => ({
       id: r.id,
       name: r.name,
@@ -63,7 +88,7 @@ export async function GET(request: Request) {
       created_at: r.created_at,
     }));
 
-    return NextResponse.json({ lowStock, movements });
+    return NextResponse.json({ lowStock, movements, valuation, totalValue });
   } catch (error) {
     console.error("Inventory report error:", error);
     return NextResponse.json({ error: "فشل في جلب البيانات" }, { status: 500 });
