@@ -151,8 +151,12 @@ export function WorkshopContent() {
 
   async function fetchInventoryItems() {
     try {
-      const res = await fetch("/api/admin/inventory/items");
-      if (res.ok) setInventoryItems(await res.json());
+      const res = await fetch("/api/admin/inventory/items?limit=500&offset=0");
+      if (res.ok) {
+        const d = await res.json();
+        const list = Array.isArray(d) ? d : (d.items ?? []);
+        setInventoryItems(list);
+      }
     } catch {
       setInventoryItems([]);
     }
@@ -160,10 +164,11 @@ export function WorkshopContent() {
 
   async function fetchCustomers() {
     try {
-      const res = await fetch("/api/admin/customers");
+      const res = await fetch("/api/admin/customers?limit=500&offset=0");
       if (res.ok) {
-        const data = await res.json();
-        setCustomers(data.map((c: { id: string; name: string; phone?: string | null }) => ({ id: c.id, name: c.name, phone: c.phone ?? null })));
+        const d = await res.json();
+        const list = Array.isArray(d) ? d : (d.customers ?? []);
+        setCustomers(list.map((c: { id: string; name: string; phone?: string | null }) => ({ id: c.id, name: c.name, phone: c.phone ?? null })));
       }
     } catch {}
   }

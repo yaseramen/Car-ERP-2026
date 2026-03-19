@@ -88,11 +88,17 @@ export function PurchasesContent({
   async function fetchData() {
     try {
       const [itemsRes, suppliersRes] = await Promise.all([
-        fetch("/api/admin/inventory/items"),
-        fetch("/api/admin/suppliers"),
+        fetch("/api/admin/inventory/items?limit=500&offset=0"),
+        fetch("/api/admin/suppliers?limit=500&offset=0"),
       ]);
-      if (itemsRes.ok) setItems(await itemsRes.json());
-      if (suppliersRes.ok) setSuppliers(await suppliersRes.json());
+      if (itemsRes.ok) {
+        const d = await itemsRes.json();
+        setItems(Array.isArray(d) ? d : (d.items ?? []));
+      }
+      if (suppliersRes.ok) {
+        const d = await suppliersRes.json();
+        setSuppliers(Array.isArray(d) ? d : (d.suppliers ?? []));
+      }
     } catch {}
   }
 

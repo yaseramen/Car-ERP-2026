@@ -35,10 +35,10 @@ export function TransferStock() {
       setLoadingWarehouses(true);
       Promise.all([
         fetch("/api/admin/warehouses").then((r) => r.ok ? r.json() : []),
-        fetch("/api/admin/inventory/items").then((r) => r.ok ? r.json() : []),
+        fetch("/api/admin/inventory/items?limit=500&offset=0").then((r) => r.ok ? r.json() : []),
       ]).then(([wh, it]) => {
         setWarehouses(Array.isArray(wh) ? wh : []);
-        setItems(Array.isArray(it) ? it : []);
+        setItems(Array.isArray(it) ? it : (it?.items ?? []));
         setLoadingWarehouses(false);
       }).catch(() => setLoadingWarehouses(false));
     }

@@ -114,13 +114,19 @@ export function CashierContent() {
   async function fetchData() {
     try {
       const [itemsRes, customersRes, methodsRes, feeRes] = await Promise.all([
-        fetch("/api/admin/inventory/items"),
-        fetch("/api/admin/customers"),
+        fetch("/api/admin/inventory/items?limit=500&offset=0"),
+        fetch("/api/admin/customers?limit=500&offset=0"),
         fetch("/api/admin/payment-methods"),
         fetch("/api/admin/digital-fee"),
       ]);
-      if (itemsRes.ok) setItems(await itemsRes.json());
-      if (customersRes.ok) setCustomers(await customersRes.json());
+      if (itemsRes.ok) {
+        const d = await itemsRes.json();
+        setItems(Array.isArray(d) ? d : (d.items ?? []));
+      }
+      if (customersRes.ok) {
+        const d = await customersRes.json();
+        setCustomers(Array.isArray(d) ? d : (d.customers ?? []));
+      }
       if (methodsRes.ok) setPaymentMethods(await methodsRes.json());
       if (feeRes.ok) {
         const d = await feeRes.json();
