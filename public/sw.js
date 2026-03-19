@@ -1,5 +1,5 @@
-const CACHE_NAME = "alameen-pwa-v3";
-const API_CACHE_NAME = "alameen-api-v3";
+const CACHE_NAME = "alameen-pwa-v4";
+const API_CACHE_NAME = "alameen-api-v4";
 
 const API_CACHE_PATHS = [
   '/api/admin/workshop/orders',
@@ -8,8 +8,12 @@ const API_CACHE_PATHS = [
   '/api/admin/invoices',
   '/api/admin/suppliers',
   '/api/admin/reports/summary',
+  '/api/admin/reports/expenses-income',
+  '/api/admin/reports/suppliers',
   '/api/admin/payment-methods',
-  '/api/admin/digital-fee'
+  '/api/admin/digital-fee',
+  '/api/admin/treasuries',
+  '/api/admin/inventory/categories'
 ];
 
 function shouldCacheApi(url) {

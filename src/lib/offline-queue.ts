@@ -30,7 +30,17 @@ export type QueuedOp =
       };
     }
   | { type: "add_customer"; data: { name: string; phone?: string; email?: string; address?: string; notes?: string } }
-  | { type: "add_supplier"; data: { name: string; phone?: string; email?: string } };
+  | { type: "add_supplier"; data: { name: string; phone?: string; email?: string; address?: string; notes?: string } }
+  | {
+      type: "treasury_transaction";
+      data: {
+        type: "expense" | "income";
+        treasury_id: string;
+        amount: number;
+        description?: string;
+        payment_method_id?: string;
+      };
+    };
 
 export interface QueuedItem {
   id: string;
@@ -124,6 +134,10 @@ export async function executeQueuedOpDefault(item: QueuedItem): Promise<boolean>
       break;
     case "add_supplier":
       url = "/api/admin/suppliers";
+      body = JSON.stringify(op.data);
+      break;
+    case "treasury_transaction":
+      url = "/api/admin/treasuries/transaction";
       body = JSON.stringify(op.data);
       break;
     default:

@@ -1,11 +1,19 @@
 import { auth } from "@/auth";
 import { redirect } from "next/navigation";
+import { getCompanyId } from "@/lib/company";
+import { canAccess } from "@/lib/permissions";
 import { TreasuriesContent } from "./treasuries-content";
 
 export default async function TreasuriesPage() {
   const session = await auth();
-  if (!session?.user || session.user.role !== "super_admin") {
+  if (!session?.user || !["super_admin", "tenant_owner", "employee"].includes(session.user.role ?? "")) {
     redirect("/login");
+  }
+  const companyId = getCompanyId(session);
+  if (!companyId) redirect("/login");
+  if (session.user.role === "employee") {
+    const allowed = await canAccess(session.user.id, "employee", companyId, "treasuries", "read");
+    if (!allowed) redirect("/admin");
   }
 
   return (

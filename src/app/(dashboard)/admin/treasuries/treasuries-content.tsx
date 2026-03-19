@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { addToQueue } from "@/lib/offline-queue";
 
 interface Treasury {
   id: string;
@@ -171,18 +172,31 @@ function ExpenseIncomeModal({
     const amt = Number(amount);
     if (!treasuryId || amt <= 0) return;
 
+    const payload = {
+      type,
+      treasury_id: treasuryId,
+      amount: amt,
+      description: description.trim() || undefined,
+      payment_method_id: paymentMethodId || undefined,
+    };
+
     setSaving(true);
     try {
+      if (!navigator.onLine) {
+        addToQueue({ type: "treasury_transaction", data: payload });
+        onClose();
+        setTreasuryId("");
+        setAmount("");
+        setDescription("");
+        setPaymentMethodId("");
+        alert("انقطع الاتصال. تم حفظ الحركة محلياً. سيتم إرسالها تلقائياً عند عودة الإنترنت.");
+        return;
+      }
+
       const res = await fetch("/api/admin/treasuries/transaction", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          type,
-          treasury_id: treasuryId,
-          amount: amt,
-          description: description.trim() || undefined,
-          payment_method_id: paymentMethodId || undefined,
-        }),
+        body: JSON.stringify(payload),
       });
 
       if (!res.ok) {
@@ -198,7 +212,17 @@ function ExpenseIncomeModal({
       setPaymentMethodId("");
       onSuccess();
     } catch {
-      alert("حدث خطأ");
+      if (!navigator.onLine) {
+        addToQueue({ type: "treasury_transaction", data: payload });
+        onClose();
+        setTreasuryId("");
+        setAmount("");
+        setDescription("");
+        setPaymentMethodId("");
+        alert("انقطع الاتصال. تم حفظ الحركة محلياً. سيتم إرسالها تلقائياً عند عودة الإنترنت.");
+      } else {
+        alert("حدث خطأ");
+      }
     } finally {
       setSaving(false);
     }
@@ -347,6 +371,16 @@ export function TreasuriesContent() {
     fetchTreasuries();
     fetchPaymentMethods();
   }, []);
+
+  useEffect(() => {
+    const handleOnline = () => {
+      fetchTreasuries();
+      fetchPaymentMethods();
+      if (selectedId) fetchTransactions(selectedId);
+    };
+    window.addEventListener("alameen-online", handleOnline);
+    return () => window.removeEventListener("alameen-online", handleOnline);
+  }, [selectedId]);
 
   useEffect(() => {
     if (selectedId) fetchTransactions(selectedId);
