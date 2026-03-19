@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useTheme } from "@/components/theme/theme-provider";
 
-export function DashboardHeader() {
+export function DashboardHeader({ onMenuClick }: { onMenuClick?: () => void }) {
   const { theme, toggleTheme } = useTheme();
   const [updating, setUpdating] = useState(false);
 
@@ -28,7 +28,21 @@ export function DashboardHeader() {
 
   return (
     <header className="h-14 px-4 flex items-center justify-between border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 shrink-0">
-      <div className="flex items-center gap-2" />
+      <div className="flex items-center gap-2">
+        {onMenuClick && (
+          <button
+            type="button"
+            onClick={onMenuClick}
+            className="md:hidden p-2 rounded-lg text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800"
+            title="القائمة"
+            aria-label="فتح القائمة"
+          >
+            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+            </svg>
+          </button>
+        )}
+      </div>
       <div className="flex items-center gap-2">
         <button
           type="button"

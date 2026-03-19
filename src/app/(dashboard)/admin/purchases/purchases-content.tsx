@@ -17,6 +17,7 @@ interface InventoryItem {
   name: string;
   code?: string | null;
   purchase_price: number;
+  sale_price: number;
 }
 
 interface Supplier {
