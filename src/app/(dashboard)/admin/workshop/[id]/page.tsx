@@ -127,7 +127,7 @@ export default async function RepairOrderReportPage({
         <div className="mb-6">
           <Link
             href="/admin/workshop"
-            className="text-sm text-emerald-600 hover:text-emerald-700"
+            className="text-sm text-emerald-600 dark:text-emerald-400 hover:text-emerald-700 dark:hover:text-emerald-300"
           >
             ← العودة للورشة
           </Link>
@@ -148,25 +148,25 @@ export default async function RepairOrderReportPage({
             <h2 className="font-bold text-gray-900 dark:text-gray-100 mb-4">بيانات السيارة</h2>
             <dl className="space-y-3 text-sm">
               <div className="flex justify-between">
-                <dt className="text-gray-500">رقم اللوحة</dt>
-                <dd className="text-gray-900 font-medium">{order.vehicle_plate}</dd>
+                <dt className="text-gray-500 dark:text-gray-400">رقم اللوحة</dt>
+                <dd className="text-gray-900 dark:text-gray-100 font-medium">{order.vehicle_plate}</dd>
               </div>
               <div className="flex justify-between">
-                <dt className="text-gray-500">الموديل</dt>
-                <dd className="text-gray-900">{order.vehicle_model || "—"}</dd>
+                <dt className="text-gray-500 dark:text-gray-400">الموديل</dt>
+                <dd className="text-gray-900 dark:text-gray-100">{order.vehicle_model || "—"}</dd>
               </div>
               <div className="flex justify-between">
-                <dt className="text-gray-500">سنة الصنع</dt>
-                <dd className="text-gray-900">{order.vehicle_year || "—"}</dd>
+                <dt className="text-gray-500 dark:text-gray-400">سنة الصنع</dt>
+                <dd className="text-gray-900 dark:text-gray-100">{order.vehicle_year || "—"}</dd>
               </div>
               <div className="flex justify-between">
-                <dt className="text-gray-500">الكمية (كم)</dt>
-                <dd className="text-gray-900">{order.mileage != null ? order.mileage.toLocaleString("ar-EG") : "—"}</dd>
+                <dt className="text-gray-500 dark:text-gray-400">الكمية (كم)</dt>
+                <dd className="text-gray-900 dark:text-gray-100">{order.mileage != null ? order.mileage.toLocaleString("ar-EG") : "—"}</dd>
               </div>
               {order.vin && (
                 <div className="flex justify-between">
-                  <dt className="text-gray-500">VIN</dt>
-                  <dd className="text-gray-900 font-mono text-xs">{order.vin}</dd>
+                  <dt className="text-gray-500 dark:text-gray-400">VIN</dt>
+                  <dd className="text-gray-900 dark:text-gray-100 font-mono text-xs">{order.vin}</dd>
                 </div>
               )}
             </dl>
@@ -176,7 +176,7 @@ export default async function RepairOrderReportPage({
             <h2 className="font-bold text-gray-900 dark:text-gray-100 mb-4">حالة الأمر</h2>
             <dl className="space-y-3 text-sm">
               <div className="flex justify-between">
-                <dt className="text-gray-500">المرحلة</dt>
+                <dt className="text-gray-500 dark:text-gray-400">المرحلة</dt>
                 <dd>
                   <span className="px-2 py-1 rounded text-xs font-medium bg-emerald-100 dark:bg-emerald-900/50 text-emerald-800 dark:text-emerald-200">
                     {STAGE_LABELS[order.stage] || order.stage}
@@ -291,44 +291,44 @@ export default async function RepairOrderReportPage({
             {items.length > 0 ? (
               <table className="w-full">
                 <thead>
-                  <tr className="bg-gray-50">
-                    <th className="text-right px-4 py-3 text-sm font-medium text-gray-600">الصنف</th>
-                    <th className="text-right px-4 py-3 text-sm font-medium text-gray-600">الكمية</th>
-                    <th className="text-right px-4 py-3 text-sm font-medium text-gray-600">سعر الوحدة</th>
-                    <th className="text-right px-4 py-3 text-sm font-medium text-gray-600">الإجمالي</th>
+                  <tr className="bg-gray-50 dark:bg-gray-700/50">
+                    <th className="text-right px-4 py-3 text-sm font-medium text-gray-600 dark:text-gray-300">الصنف</th>
+                    <th className="text-right px-4 py-3 text-sm font-medium text-gray-600 dark:text-gray-300">الكمية</th>
+                    <th className="text-right px-4 py-3 text-sm font-medium text-gray-600 dark:text-gray-300">سعر الوحدة</th>
+                    <th className="text-right px-4 py-3 text-sm font-medium text-gray-600 dark:text-gray-300">الإجمالي</th>
                   </tr>
                 </thead>
                 <tbody>
                   {items.map((item) => (
-                    <tr key={item.id} className="border-b border-gray-50">
-                      <td className="px-4 py-3 text-sm text-gray-900">{item.item_name}</td>
-                      <td className="px-4 py-3 text-sm">{item.quantity} {item.item_unit}</td>
-                      <td className="px-4 py-3 text-sm">{item.unit_price.toFixed(2)} ج.م</td>
-                      <td className="px-4 py-3 text-sm font-medium">{item.total.toFixed(2)} ج.م</td>
+                    <tr key={item.id} className="border-b border-gray-50 dark:border-gray-700">
+                      <td className="px-4 py-3 text-sm text-gray-900 dark:text-gray-100">{item.item_name}</td>
+                      <td className="px-4 py-3 text-sm text-gray-900 dark:text-gray-100">{item.quantity} {item.item_unit}</td>
+                      <td className="px-4 py-3 text-sm text-gray-900 dark:text-gray-100">{item.unit_price.toFixed(2)} ج.م</td>
+                      <td className="px-4 py-3 text-sm font-medium text-gray-900 dark:text-gray-100">{item.total.toFixed(2)} ج.م</td>
                     </tr>
                   ))}
                 </tbody>
                 <tfoot>
-                  <tr className="bg-gray-50 font-medium">
-                    <td colSpan={3} className="px-4 py-3 text-sm text-right">المجموع (القطع)</td>
-                    <td className="px-4 py-3 text-sm">{itemsTotal.toFixed(2)} ج.م</td>
+                  <tr className="bg-gray-50 dark:bg-gray-700/50 font-medium">
+                    <td colSpan={3} className="px-4 py-3 text-sm text-right text-gray-900 dark:text-gray-100">المجموع (القطع)</td>
+                    <td className="px-4 py-3 text-sm text-gray-900 dark:text-gray-100">{itemsTotal.toFixed(2)} ج.م</td>
                   </tr>
                   {order.invoice_digital_fee != null && order.invoice_digital_fee > 0 && (
-                    <tr className="bg-gray-50">
-                      <td colSpan={3} className="px-4 py-3 text-sm text-right">الخدمة الرقمية</td>
-                      <td className="px-4 py-3 text-sm">{order.invoice_digital_fee.toFixed(2)} ج.م</td>
+                    <tr className="bg-gray-50 dark:bg-gray-700/50">
+                      <td colSpan={3} className="px-4 py-3 text-sm text-right text-gray-900 dark:text-gray-100">الخدمة الرقمية</td>
+                      <td className="px-4 py-3 text-sm text-gray-900 dark:text-gray-100">{order.invoice_digital_fee.toFixed(2)} ج.م</td>
                     </tr>
                   )}
                   {order.invoice_total != null && (
-                    <tr className="bg-emerald-50 font-bold">
-                      <td colSpan={3} className="px-4 py-3 text-sm text-right">الإجمالي النهائي</td>
-                      <td className="px-4 py-3 text-sm text-emerald-700">{order.invoice_total.toFixed(2)} ج.م</td>
+                    <tr className="bg-emerald-50 dark:bg-emerald-900/50 font-bold">
+                      <td colSpan={3} className="px-4 py-3 text-sm text-right text-gray-900 dark:text-gray-100">الإجمالي النهائي</td>
+                      <td className="px-4 py-3 text-sm text-emerald-700 dark:text-emerald-200">{order.invoice_total.toFixed(2)} ج.م</td>
                     </tr>
                   )}
                 </tfoot>
               </table>
             ) : (
-              <div className="p-8 text-center text-gray-500">لم تُضف قطع حتى الآن</div>
+              <div className="p-8 text-center text-gray-500 dark:text-gray-400">لم تُضف قطع حتى الآن</div>
             )}
           </div>
         </div>

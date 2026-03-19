@@ -1,8 +1,10 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { SearchableSelect } from "@/components/ui/searchable-select";
+import { addToQueue, processQueue } from "@/lib/offline-queue";
+import type { QueuedItem } from "@/lib/offline-queue";
 
 const STAGES = [
   { id: "received", label: "استلام", color: "bg-blue-100 dark:bg-blue-900/50 text-blue-800 dark:text-blue-200" },
@@ -66,8 +68,24 @@ export function WorkshopContent() {
   const [orderItems, setOrderItems] = useState<OrderItem[]>([]);
   const [orderServices, setOrderServices] = useState<OrderService[]>([]);
   const [inventoryItems, setInventoryItems] = useState<InventoryItem[]>([]);
-  const [addForm, setAddForm] = useState({ item_id: "", quantity: "1" });
-  const [serviceForm, setServiceForm] = useState({ description: "", quantity: "1", unit_price: "" });
+  const [addForm, setAddForm] = useState(() => {
+    if (typeof window === "undefined") return { item_id: "", quantity: "1" };
+    try {
+      const raw = localStorage.getItem("alameen-workshop-part-draft");
+      return raw ? JSON.parse(raw) : { item_id: "", quantity: "1" };
+    } catch {
+      return { item_id: "", quantity: "1" };
+    }
+  });
+  const [serviceForm, setServiceForm] = useState(() => {
+    if (typeof window === "undefined") return { description: "", quantity: "1", unit_price: "" };
+    try {
+      const raw = localStorage.getItem("alameen-workshop-service-draft");
+      return raw ? JSON.parse(raw) : { description: "", quantity: "1", unit_price: "" };
+    } catch {
+      return { description: "", quantity: "1", unit_price: "" };
+    }
+  });
   const [saving, setSaving] = useState(false);
   const [customers, setCustomers] = useState<{ id: string; name: string; phone?: string | null }[]>([]);
   const [addCustomerOpen, setAddCustomerOpen] = useState(false);
@@ -206,7 +224,55 @@ export function WorkshopContent() {
   }, [inspectionNotesDrafts]);
 
   useEffect(() => {
-    const handleOnline = () => {
+    try {
+      if (serviceForm.description || serviceForm.quantity !== "1" || serviceForm.unit_price) {
+        localStorage.setItem("alameen-workshop-service-draft", JSON.stringify(serviceForm));
+      } else {
+        localStorage.removeItem("alameen-workshop-service-draft");
+      }
+    } catch {}
+  }, [serviceForm]);
+
+  useEffect(() => {
+    try {
+      if (addForm.item_id || addForm.quantity !== "1") {
+        localStorage.setItem("alameen-workshop-part-draft", JSON.stringify(addForm));
+      } else {
+        localStorage.removeItem("alameen-workshop-part-draft");
+      }
+    } catch {}
+  }, [addForm]);
+
+  async function executeQueuedOp(item: QueuedItem): Promise<boolean> {
+    const { op } = item;
+    if (op.type === "add_service") {
+      const res = await fetch(`/api/admin/workshop/orders/${op.orderId}/services`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(op.data),
+      });
+      return res.ok;
+    }
+    if (op.type === "add_part") {
+      const res = await fetch(`/api/admin/workshop/orders/${op.orderId}/items`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(op.data),
+      });
+      return res.ok;
+    }
+    return false;
+  }
+
+  useEffect(() => {
+    const handleOnline = async () => {
+      const { processed, failed } = await processQueue(executeQueuedOp);
+      if (processed > 0) {
+        const msg = failed > 0
+          ? `تم إرسال ${processed} عملية. فشل ${failed} عملية.`
+          : `تم إرسال ${processed} عملية معلقة بنجاح.`;
+        setTimeout(() => alert(msg), 300);
+      }
       fetchOrders();
       fetchCustomers();
     };
@@ -293,16 +359,27 @@ export function WorkshopContent() {
   async function handleAddService(e: React.FormEvent) {
     e.preventDefault();
     if (!selectedOrder) return;
+    const desc = serviceForm.description.trim();
+    const qty = Number(serviceForm.quantity) || 1;
+    const price = Number(serviceForm.unit_price) || 0;
+    if (!desc) {
+      alert("وصف الخدمة مطلوب");
+      return;
+    }
     setSaving(true);
     try {
+      if (!navigator.onLine) {
+        addToQueue({ type: "add_service", orderId: selectedOrder.id, data: { description: desc, quantity: qty, unit_price: price } });
+        setServiceForm({ description: "", quantity: "1", unit_price: "" });
+        alert("انقطع الاتصال. تم حفظ الخدمة محلياً. سيتم إرسالها تلقائياً عند عودة الإنترنت.");
+        setAddServicesOpen(false);
+        setSelectedOrder(null);
+        return;
+      }
       const res = await fetch(`/api/admin/workshop/orders/${selectedOrder.id}/services`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          description: serviceForm.description.trim(),
-          quantity: Number(serviceForm.quantity) || 1,
-          unit_price: Number(serviceForm.unit_price) || 0,
-        }),
+        body: JSON.stringify({ description: desc, quantity: qty, unit_price: price }),
       });
       if (!res.ok) {
         const err = await res.json();
@@ -313,7 +390,15 @@ export function WorkshopContent() {
       await fetchOrders();
       setServiceForm({ description: "", quantity: "1", unit_price: "" });
     } catch {
-      alert("حدث خطأ");
+      if (!navigator.onLine) {
+        addToQueue({ type: "add_service", orderId: selectedOrder.id, data: { description: desc, quantity: qty, unit_price: price } });
+        setServiceForm({ description: "", quantity: "1", unit_price: "" });
+        alert("انقطع الاتصال. تم حفظ الخدمة محلياً. سيتم إرسالها تلقائياً عند عودة الإنترنت.");
+        setAddServicesOpen(false);
+        setSelectedOrder(null);
+      } else {
+        alert("حدث خطأ. حاول مرة أخرى.");
+      }
     } finally {
       setSaving(false);
     }
@@ -322,28 +407,45 @@ export function WorkshopContent() {
   async function handleAddPart(e: React.FormEvent) {
     e.preventDefault();
     if (!selectedOrder) return;
+    const itemId = addForm.item_id;
+    const qty = Number(addForm.quantity) || 1;
+    if (!itemId) {
+      alert("اختر قطعة");
+      return;
+    }
     setSaving(true);
     try {
+      if (!navigator.onLine) {
+        addToQueue({ type: "add_part", orderId: selectedOrder.id, data: { item_id: itemId, quantity: qty } });
+        setAddForm({ item_id: "", quantity: "1" });
+        alert("انقطع الاتصال. تم حفظ القطعة محلياً. سيتم إرسالها تلقائياً عند عودة الإنترنت.");
+        setAddPartsOpen(false);
+        setSelectedOrder(null);
+        return;
+      }
       const res = await fetch(`/api/admin/workshop/orders/${selectedOrder.id}/items`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          item_id: addForm.item_id,
-          quantity: Number(addForm.quantity) || 1,
-        }),
+        body: JSON.stringify({ item_id: itemId, quantity: qty }),
       });
-
       if (!res.ok) {
         const err = await res.json();
         alert(err.error || "فشل في إضافة القطعة");
         return;
       }
-
       await fetchOrderItems(selectedOrder.id);
       await fetchOrders();
       setAddForm({ item_id: "", quantity: "1" });
     } catch {
-      alert("حدث خطأ");
+      if (!navigator.onLine) {
+        addToQueue({ type: "add_part", orderId: selectedOrder.id, data: { item_id: itemId, quantity: qty } });
+        setAddForm({ item_id: "", quantity: "1" });
+        alert("انقطع الاتصال. تم حفظ القطعة محلياً. سيتم إرسالها تلقائياً عند عودة الإنترنت.");
+        setAddPartsOpen(false);
+        setSelectedOrder(null);
+      } else {
+        alert("حدث خطأ. حاول مرة أخرى.");
+      }
     } finally {
       setSaving(false);
     }
@@ -458,8 +560,8 @@ export function WorkshopContent() {
 
   if (loading) {
     return (
-      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-12 text-center">
-        <p className="text-gray-500">جاري التحميل...</p>
+      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 p-12 text-center">
+        <p className="text-gray-500 dark:text-gray-400">جاري التحميل...</p>
       </div>
     );
   }
@@ -493,7 +595,7 @@ export function WorkshopContent() {
             <button
               type="button"
               onClick={() => setTypeFilter("maintenance")}
-              className={`px-3 py-1.5 text-sm rounded-md transition ${typeFilter === "maintenance" ? "bg-purple-100 text-purple-800 font-medium" : "text-gray-600 hover:bg-gray-50"}`}
+              className={`px-3 py-1.5 text-sm rounded-md transition ${typeFilter === "maintenance" ? "bg-purple-100 dark:bg-purple-900/50 text-purple-800 dark:text-purple-200 font-medium" : "text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700"}`}
             >
               صيانة
             </button>
@@ -579,14 +681,14 @@ export function WorkshopContent() {
                       )}
                       {order.stage === "inspection" && (
                         <div className="mt-2 space-y-1">
-                          <label className="text-xs font-medium text-gray-600 block">ملاحظات الفحص</label>
+                          <label className="text-xs font-medium text-gray-600 dark:text-gray-400 block">ملاحظات الفحص</label>
                           <textarea
                             value={inspectionNotesDrafts[order.id] ?? order.inspection_notes ?? ""}
                             onChange={(e) =>
                               setInspectionNotesDrafts((prev) => ({ ...prev, [order.id]: e.target.value }))
                             }
                             placeholder="أدخل نتائج الفحص والأعطال المكتشفة..."
-                            className="w-full px-2 py-1.5 text-xs rounded border border-gray-200 bg-white text-gray-900 placeholder-gray-400 focus:ring-1 focus:ring-amber-500 focus:border-amber-500 outline-none resize-none"
+                            className="w-full px-2 py-1.5 text-xs rounded border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 focus:ring-1 focus:ring-amber-500 focus:border-amber-500 outline-none resize-none"
                             rows={3}
                           />
                           <button
@@ -614,7 +716,7 @@ export function WorkshopContent() {
                         </div>
                       )}
                       {order.stage === "completed" && order.invoice_number && (
-                        <div className="text-xs text-gray-500 mt-1">فاتورة: {order.invoice_number}</div>
+                        <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">فاتورة: {order.invoice_number}</div>
                       )}
                       {order.order_type === "inspection" && (
                         <div className="text-xs text-amber-600 mt-1 font-medium">فحص قبل البيع/الشراء</div>
@@ -689,12 +791,12 @@ export function WorkshopContent() {
 
       {modalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50" dir="rtl">
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-md">
-            <div className="p-6 border-b border-gray-100">
-              <h3 className="text-lg font-bold text-gray-900">
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl w-full max-w-md">
+            <div className="p-6 border-b border-gray-100 dark:border-gray-700">
+              <h3 className="text-lg font-bold text-gray-900 dark:text-gray-100">
                 {modalOrderType === "inspection" ? "استلام سيارة للفحص" : "استلام سيارة للصيانة"}
               </h3>
-              <p className="text-sm text-gray-500 mt-1">
+              <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
                 {modalOrderType === "inspection"
                   ? "فحص قبل البيع/الشراء — المرحلة الأولى: استلام"
                   : "المرحلة الأولى: استلام"}
@@ -702,7 +804,7 @@ export function WorkshopContent() {
             </div>
             <form onSubmit={handleCreate} className="p-6 space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">العميل (ابحث بالاسم أو رقم الهاتف)</label>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">العميل (ابحث بالاسم أو رقم الهاتف)</label>
                 <SearchableSelect
                   options={[
                     { id: "", label: "بدون عميل" },
@@ -732,7 +834,7 @@ export function WorkshopContent() {
               </div>
               {form.customer_id && customerVehicles.length > 0 && (
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">اختر سيارة سابقة (يمكن تعديل البيانات)</label>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">اختر سيارة سابقة (يمكن تعديل البيانات)</label>
                   <select
                     value=""
                     onChange={(e) => {
@@ -760,11 +862,11 @@ export function WorkshopContent() {
                       </option>
                     ))}
                   </select>
-                  <p className="text-xs text-gray-500 mt-1">يمكنك تعديل اللوحة أو الموديل إذا بيعت السيارة أو اشتراها عميل آخر</p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">يمكنك تعديل اللوحة أو الموديل إذا بيعت السيارة أو اشتراها عميل آخر</p>
                 </div>
               )}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">رقم اللوحة *</label>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">رقم اللوحة *</label>
                 <input
                   type="text"
                   value={form.vehicle_plate}
@@ -775,7 +877,7 @@ export function WorkshopContent() {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">موديل السيارة</label>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">موديل السيارة</label>
                 <input
                   type="text"
                   value={form.vehicle_model}
@@ -786,7 +888,7 @@ export function WorkshopContent() {
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">سنة الصنع</label>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">سنة الصنع</label>
                   <input
                     type="number"
                     value={form.vehicle_year}
@@ -796,7 +898,7 @@ export function WorkshopContent() {
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">الكمية (كم)</label>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">الكمية (كم)</label>
                   <input
                     type="number"
                     value={form.mileage}
@@ -829,11 +931,11 @@ export function WorkshopContent() {
 
       {addCustomerOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50" dir="rtl">
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-sm p-6">
-            <h3 className="text-lg font-bold text-gray-900 mb-4">إضافة عميل جديد</h3>
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl w-full max-w-sm p-6">
+            <h3 className="text-lg font-bold text-gray-900 dark:text-gray-100 mb-4">إضافة عميل جديد</h3>
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">الاسم *</label>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">الاسم *</label>
                 <input
                   type="text"
                   value={newCustomerForm.name}
@@ -843,7 +945,7 @@ export function WorkshopContent() {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">الهاتف</label>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">الهاتف</label>
                 <input
                   type="text"
                   value={newCustomerForm.phone}
@@ -853,7 +955,7 @@ export function WorkshopContent() {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">البريد</label>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">البريد</label>
                 <input
                   type="email"
                   value={newCustomerForm.email}
@@ -889,16 +991,16 @@ export function WorkshopContent() {
 
       {addPartsOpen && selectedOrder && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50" dir="rtl">
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-md max-h-[90vh] overflow-y-auto">
-            <div className="p-6 border-b border-gray-100">
-              <h3 className="text-lg font-bold text-gray-900">إضافة قطعة - {selectedOrder.order_number}</h3>
-              <p className="text-sm text-gray-500 mt-1">{selectedOrder.vehicle_plate}</p>
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl w-full max-w-md max-h-[90vh] overflow-y-auto">
+            <div className="p-6 border-b border-gray-100 dark:border-gray-700">
+              <h3 className="text-lg font-bold text-gray-900 dark:text-gray-100">إضافة قطعة - {selectedOrder.order_number}</h3>
+              <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">{selectedOrder.vehicle_plate}</p>
             </div>
             <div className="p-6 space-y-4">
               {orderItems.length > 0 && (
                 <div>
-                  <h4 className="text-sm font-medium text-gray-700 mb-2">القطع المضافة</h4>
-                  <ul className="space-y-1 text-sm">
+                  <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">القطع المضافة</h4>
+                  <ul className="space-y-1 text-sm text-gray-900 dark:text-gray-100">
                     {orderItems.map((oi) => (
                       <li key={oi.id} className="flex justify-between">
                         <span>{oi.item_name} x {oi.quantity}</span>
@@ -910,10 +1012,10 @@ export function WorkshopContent() {
               )}
               <form onSubmit={handleAddPart} className="space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">الصنف</label>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">الصنف</label>
                   <select
                     value={addForm.item_id}
-                    onChange={(e) => setAddForm((f) => ({ ...f, item_id: e.target.value }))}
+                    onChange={(e) => setAddForm((f: { item_id: string; quantity: string }) => ({ ...f, item_id: e.target.value }))}
                     required
                     className={inputClass}
                   >
@@ -926,13 +1028,13 @@ export function WorkshopContent() {
                   </select>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">الكمية</label>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">الكمية</label>
                   <input
                     type="number"
                     min="0.01"
                     step="0.01"
                     value={addForm.quantity}
-                    onChange={(e) => setAddForm((f) => ({ ...f, quantity: e.target.value }))}
+                    onChange={(e) => setAddForm((f: { item_id: string; quantity: string }) => ({ ...f, quantity: e.target.value }))}
                     required
                     className={inputClass}
                   />
@@ -964,16 +1066,16 @@ export function WorkshopContent() {
 
       {addServicesOpen && selectedOrder && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50" dir="rtl">
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-md max-h-[90vh] overflow-y-auto">
-            <div className="p-6 border-b border-gray-100">
-              <h3 className="text-lg font-bold text-gray-900">إضافة خدمة - {selectedOrder.order_number}</h3>
-              <p className="text-sm text-gray-500 mt-1">{selectedOrder.vehicle_plate}</p>
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl w-full max-w-md max-h-[90vh] overflow-y-auto">
+            <div className="p-6 border-b border-gray-100 dark:border-gray-700">
+              <h3 className="text-lg font-bold text-gray-900 dark:text-gray-100">إضافة خدمة - {selectedOrder.order_number}</h3>
+              <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">{selectedOrder.vehicle_plate}</p>
             </div>
             <div className="p-6 space-y-4">
               {orderServices.length > 0 && (
                 <div>
-                  <h4 className="text-sm font-medium text-gray-700 mb-2">الخدمات المضافة</h4>
-                  <ul className="space-y-1 text-sm">
+                  <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">الخدمات المضافة</h4>
+                  <ul className="space-y-1 text-sm text-gray-900 dark:text-gray-100">
                     {orderServices.map((s) => (
                       <li key={s.id} className="flex justify-between">
                         <span>{s.description} x {s.quantity}</span>
@@ -985,11 +1087,11 @@ export function WorkshopContent() {
               )}
               <form onSubmit={handleAddService} className="space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">وصف الخدمة *</label>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">وصف الخدمة *</label>
                   <input
                     type="text"
                     value={serviceForm.description}
-                    onChange={(e) => setServiceForm((f) => ({ ...f, description: e.target.value }))}
+                    onChange={(e) => setServiceForm((f: { description: string; quantity: string; unit_price: string }) => ({ ...f, description: e.target.value }))}
                     required
                     className={inputClass}
                     placeholder="مثال: فحص المحرك، تغيير الزيت، إلخ"
@@ -997,24 +1099,24 @@ export function WorkshopContent() {
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">الكمية</label>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">الكمية</label>
                     <input
                       type="number"
                       min="0.01"
                       step="0.01"
                       value={serviceForm.quantity}
-                      onChange={(e) => setServiceForm((f) => ({ ...f, quantity: e.target.value }))}
+                      onChange={(e) => setServiceForm((f: { description: string; quantity: string; unit_price: string }) => ({ ...f, quantity: e.target.value }))}
                       className={inputClass}
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">السعر (ج.م)</label>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">السعر (ج.م)</label>
                     <input
                       type="number"
                       step="0.01"
                       min="0"
                       value={serviceForm.unit_price}
-                      onChange={(e) => setServiceForm((f) => ({ ...f, unit_price: e.target.value }))}
+                      onChange={(e) => setServiceForm((f: { description: string; quantity: string; unit_price: string }) => ({ ...f, unit_price: e.target.value }))}
                       className={inputClass}
                       placeholder="0"
                     />
@@ -1047,15 +1149,15 @@ export function WorkshopContent() {
 
       {inspectionChecklistOpen && selectedOrder && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50" dir="rtl">
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
-            <div className="p-6 border-b border-gray-100">
-              <h3 className="text-lg font-bold text-gray-900">قائمة الفحص - {selectedOrder.order_number}</h3>
-              <p className="text-sm text-gray-500 mt-1">{selectedOrder.vehicle_plate}</p>
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
+            <div className="p-6 border-b border-gray-100 dark:border-gray-700">
+              <h3 className="text-lg font-bold text-gray-900 dark:text-gray-100">قائمة الفحص - {selectedOrder.order_number}</h3>
+              <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">{selectedOrder.vehicle_plate}</p>
             </div>
             <div className="p-6 space-y-4">
               {checklistItems.map((item) => (
                 <div key={item.id} className="flex flex-col gap-1">
-                  <label className="text-sm font-medium text-gray-700">{item.name_ar}</label>
+                  <label className="text-sm font-medium text-gray-700 dark:text-gray-300">{item.name_ar}</label>
                   <div className="flex gap-2 items-center">
                     <select
                       value={checklistResults[item.id]?.status ?? "na"}
@@ -1065,7 +1167,7 @@ export function WorkshopContent() {
                           [item.id]: { ...(prev[item.id] ?? { status: "na", notes: "" }), status: e.target.value },
                         }))
                       }
-                      className="w-36 px-3 py-2 rounded-lg border border-gray-300 bg-white text-gray-900 text-sm"
+                      className="w-36 px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 text-sm"
                     >
                       <option value="na">غير مفحوص</option>
                       <option value="ok">سليم</option>
@@ -1082,19 +1184,19 @@ export function WorkshopContent() {
                         }))
                       }
                       placeholder="ملاحظات"
-                      className="flex-1 px-3 py-2 rounded-lg border border-gray-300 bg-white text-gray-900 text-sm placeholder-gray-400"
+                      className="flex-1 px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 text-sm placeholder-gray-400 dark:placeholder-gray-500"
                     />
                   </div>
                 </div>
               ))}
-              <div className="flex gap-2 items-center pt-2 border-t border-gray-200">
+              <div className="flex gap-2 items-center pt-2 border-t border-gray-200 dark:border-gray-700">
                 <input
                   type="text"
                   value={newItemName}
                   onChange={(e) => setNewItemName(e.target.value)}
                   onKeyDown={(e) => e.key === "Enter" && addChecklistItem()}
                   placeholder="إضافة بند جديد..."
-                  className="flex-1 px-3 py-2 rounded-lg border border-gray-300 bg-white text-gray-900 text-sm placeholder-gray-400"
+                  className="flex-1 px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 text-sm placeholder-gray-400 dark:placeholder-gray-500"
                 />
                 <button
                   type="button"
@@ -1106,13 +1208,13 @@ export function WorkshopContent() {
                 </button>
               </div>
               <div className="pt-4">
-                <label className="block text-sm font-medium text-gray-700 mb-2">ملاحظات عامة</label>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">ملاحظات عامة</label>
                 <textarea
                   value={generalNotes}
                   onChange={(e) => setGeneralNotes(e.target.value)}
                   placeholder="ملاحظات إضافية أو خلاصة التقرير..."
                   rows={4}
-                  className="w-full px-3 py-2 rounded-lg border border-gray-300 bg-white text-gray-900 text-sm placeholder-gray-400 resize-none"
+                  className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 text-sm placeholder-gray-400 dark:placeholder-gray-500 resize-none"
                 />
               </div>
               <div className="flex gap-3 pt-4">
