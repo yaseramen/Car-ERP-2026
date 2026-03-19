@@ -100,14 +100,13 @@ export function ReportsContent() {
       }));
       exportToExcel(data, `مبيعات-${dateFrom}-${dateTo}`, "المبيعات");
     } else if (tab === "profit" && profit?.rows) {
-      const data = (profit.rows as Array<{ created_at: string; invoice_number: string; type: string; item_name: string; quantity: number; sale_price: number; purchase_price: number; item_total: number; cost_total: number; profit: number }>).map((r) => ({
+      const data = (profit.rows as Array<{ created_at: string; invoice_number: string; type: string; item_name: string; quantity: number; sale_price: number; item_total: number; cost_total: number; profit: number }>).map((r) => ({
         التاريخ: new Date(r.created_at).toLocaleDateString("ar-EG"),
         "رقم الفاتورة": r.invoice_number,
         النوع: r.type === "maintenance" ? "صيانة" : "بيع",
         الصنف: r.item_name,
         الكمية: r.quantity,
         "سعر البيع": r.sale_price,
-        "سعر الشراء": r.purchase_price,
         "إجمالي البيع": r.item_total,
         "إجمالي التكلفة": r.cost_total,
         الربح: r.profit,

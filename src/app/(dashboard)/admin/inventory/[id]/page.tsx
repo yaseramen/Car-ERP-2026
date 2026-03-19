@@ -144,10 +144,6 @@ export default async function ItemReportPage({
                 <dd className="text-gray-900">{item.unit || "قطعة"}</dd>
               </div>
               <div className="flex justify-between">
-                <dt className="text-gray-500">سعر التكلفة</dt>
-                <dd className="text-gray-900">{item.purchase_price?.toFixed(2)} ج.م</dd>
-              </div>
-              <div className="flex justify-between">
                 <dt className="text-gray-500">سعر البيع</dt>
                 <dd className="text-gray-900">{item.sale_price?.toFixed(2)} ج.م</dd>
               </div>

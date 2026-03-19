@@ -35,7 +35,6 @@ export function InventoryTable() {
     barcode: "",
     category: "",
     unit: "قطعة",
-    purchase_price: "",
     sale_price: "",
     min_quantity_enabled: false,
     min_quantity: "",
@@ -75,7 +74,6 @@ export function InventoryTable() {
       barcode: "",
       category: "",
       unit: "قطعة",
-      purchase_price: "",
       sale_price: "",
       min_quantity_enabled: false,
       min_quantity: "",
@@ -93,7 +91,6 @@ export function InventoryTable() {
       barcode: item.barcode || "",
       category: item.category || "",
       unit: item.unit || "قطعة",
-      purchase_price: String(item.purchase_price),
       sale_price: String(item.sale_price),
       min_quantity_enabled: item.min_quantity > 0,
       min_quantity: item.min_quantity > 0 ? String(item.min_quantity) : "",
@@ -105,23 +102,24 @@ export function InventoryTable() {
     e.preventDefault();
     setSaving(true);
     try {
-      const payload = {
+      const payload: Record<string, unknown> = {
         name: form.name.trim(),
         code: form.code.trim() || undefined,
         barcode: form.barcode.trim() || undefined,
         category: (form.category === "__new__" ? newCategory : form.category)?.trim() || null,
         unit: (form.unit === "__new__" ? newUnit : form.unit)?.trim() || "قطعة",
-        purchase_price: Number(form.purchase_price) || 0,
         sale_price: Number(form.sale_price) || 0,
         min_quantity_enabled: form.min_quantity_enabled,
         min_quantity: form.min_quantity_enabled ? Number(form.min_quantity) || 0 : 0,
       };
 
       if (editItem) {
+        const patchPayload = { ...payload };
+        delete patchPayload.purchase_price;
         const res = await fetch(`/api/admin/inventory/items/${editItem.id}`, {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload),
+          body: JSON.stringify(patchPayload),
         });
         if (!res.ok) {
           const err = await res.json();
@@ -133,23 +131,23 @@ export function InventoryTable() {
             i.id === editItem.id
               ? {
                   ...i,
-                  name: payload.name,
-                  code: payload.code ?? null,
-                  barcode: payload.barcode ?? null,
-                  category: payload.category ?? null,
-                  unit: payload.unit,
-                  purchase_price: payload.purchase_price,
-                  sale_price: payload.sale_price,
-                  min_quantity: payload.min_quantity_enabled ? payload.min_quantity : 0,
+                  name: payload.name as string,
+                  code: (payload.code as string) ?? null,
+                  barcode: (payload.barcode as string) ?? null,
+                  category: (payload.category as string) ?? null,
+                  unit: payload.unit as string,
+                  sale_price: payload.sale_price as number,
+                  min_quantity: payload.min_quantity_enabled ? (payload.min_quantity as number) : 0,
                 }
               : i
           )
         );
       } else {
+        const postPayload = { ...payload, purchase_price: 0 };
         const res = await fetch("/api/admin/inventory/items", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload),
+          body: JSON.stringify(postPayload),
         });
         if (!res.ok) {
           const err = await res.json();
@@ -251,7 +249,6 @@ export function InventoryTable() {
                 <th className="text-right px-4 py-3 text-sm font-medium text-gray-600">القسم</th>
                 <th className="text-right px-4 py-3 text-sm font-medium text-gray-600">الكمية</th>
                 <th className="text-right px-4 py-3 text-sm font-medium text-gray-600">الحد الأدنى</th>
-                <th className="text-right px-4 py-3 text-sm font-medium text-gray-600">سعر التكلفة</th>
                 <th className="text-right px-4 py-3 text-sm font-medium text-gray-600">سعر البيع</th>
                 <th className="text-right px-4 py-3 text-sm font-medium text-gray-600">إجراءات</th>
               </tr>
@@ -259,7 +256,7 @@ export function InventoryTable() {
             <tbody>
               {items.length === 0 ? (
                 <tr>
-                  <td colSpan={9} className="px-4 py-12 text-center text-gray-500">
+                  <td colSpan={8} className="px-4 py-12 text-center text-gray-500">
                     لا توجد أصناف. اضغط "إضافة صنف جديد" للبدء.
                   </td>
                 </tr>
@@ -285,7 +282,6 @@ export function InventoryTable() {
                     <td className="px-4 py-3 text-sm text-gray-600">
                       {item.min_quantity > 0 ? item.min_quantity : "—"}
                     </td>
-                    <td className="px-4 py-3 text-sm text-gray-900">{item.purchase_price.toFixed(2)} ج.م</td>
                     <td className="px-4 py-3 text-sm text-gray-900">{item.sale_price.toFixed(2)} ج.م</td>
                     <td className="px-4 py-3">
                       <div className="flex gap-2 justify-end">
@@ -448,31 +444,17 @@ export function InventoryTable() {
                 </div>
               )}
 
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">سعر التكلفة (ج.م)</label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    value={form.purchase_price}
-                    onChange={(e) => setForm((f) => ({ ...f, purchase_price: e.target.value }))}
-                    className={inputClass}
-                    placeholder="0"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">سعر البيع (ج.م)</label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    value={form.sale_price}
-                    onChange={(e) => setForm((f) => ({ ...f, sale_price: e.target.value }))}
-                    className={inputClass}
-                    placeholder="0"
-                  />
-                </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">سعر البيع (ج.م)</label>
+                <input
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  value={form.sale_price}
+                  onChange={(e) => setForm((f) => ({ ...f, sale_price: e.target.value }))}
+                  className={inputClass}
+                  placeholder="0"
+                />
               </div>
 
               <div className="flex gap-3 pt-4">
