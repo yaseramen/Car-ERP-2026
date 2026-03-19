@@ -80,7 +80,20 @@ export function CustomersContent() {
     try {
       if (editCustomer) {
         if (!navigator.onLine) {
-          alert("انقطع الاتصال. يرجى المحاولة عند عودة الإنترنت لتحديث بيانات العميل.");
+          addToQueue({
+            type: "edit_customer",
+            customerId: editCustomer.id,
+            data: {
+              name: payload.name,
+              phone: payload.phone ?? null,
+              email: payload.email ?? null,
+              address: payload.address ?? null,
+              notes: payload.notes ?? null,
+            },
+          });
+          setModalOpen(false);
+          resetForm();
+          alert("انقطع الاتصال. تم حفظ التعديل محلياً. سيتم إرساله تلقائياً عند عودة الإنترنت.");
           return;
         }
         const res = await fetch(`/api/admin/customers/${editCustomer.id}`, {
@@ -132,7 +145,22 @@ export function CustomersContent() {
       setModalOpen(false);
       resetForm();
     } catch {
-      if (!editCustomer && !navigator.onLine) {
+      if (editCustomer && !navigator.onLine) {
+        addToQueue({
+          type: "edit_customer",
+          customerId: editCustomer.id,
+          data: {
+            name: payload.name,
+            phone: payload.phone ?? null,
+            email: payload.email ?? null,
+            address: payload.address ?? null,
+            notes: payload.notes ?? null,
+          },
+        });
+        setModalOpen(false);
+        resetForm();
+        alert("انقطع الاتصال. تم حفظ التعديل محلياً. سيتم إرساله تلقائياً عند عودة الإنترنت.");
+      } else if (!editCustomer && !navigator.onLine) {
         addToQueue({ type: "add_customer", data: payload });
         setModalOpen(false);
         resetForm();

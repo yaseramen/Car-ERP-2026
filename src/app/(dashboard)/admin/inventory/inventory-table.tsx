@@ -187,6 +187,41 @@ export function InventoryTable() {
       if (editItem) {
         const patchPayload = { ...payload };
         delete patchPayload.purchase_price;
+        const patchData = {
+          name: (patchPayload.name as string) || "",
+          code: (patchPayload.code as string) ?? null,
+          barcode: (patchPayload.barcode as string) ?? null,
+          category: (patchPayload.category as string) ?? null,
+          unit: (patchPayload.unit as string) || "قطعة",
+          sale_price: Number(patchPayload.sale_price) || 0,
+          min_quantity_enabled: Boolean(patchPayload.min_quantity_enabled),
+          min_quantity: patchPayload.min_quantity_enabled ? Number(patchPayload.min_quantity) || 0 : 0,
+        };
+
+        if (!navigator.onLine) {
+          addToQueue({ type: "inventory_item_full_patch", itemId: editItem.id, data: patchData });
+          setItems((prev) =>
+            prev.map((i) =>
+              i.id === editItem.id
+                ? {
+                    ...i,
+                    name: payload.name as string,
+                    code: (payload.code as string) ?? null,
+                    barcode: (payload.barcode as string) ?? null,
+                    category: (payload.category as string) ?? null,
+                    unit: payload.unit as string,
+                    sale_price: payload.sale_price as number,
+                    min_quantity: payload.min_quantity_enabled ? (payload.min_quantity as number) : 0,
+                  }
+                : i
+            )
+          );
+          setModalOpen(false);
+          resetForm();
+          alert("انقطع الاتصال. تم حفظ التعديل محلياً. سيتم إرساله تلقائياً عند عودة الإنترنت.");
+          return;
+        }
+
         const res = await fetch(`/api/admin/inventory/items/${editItem.id}`, {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
@@ -233,7 +268,24 @@ export function InventoryTable() {
       setModalOpen(false);
       resetForm();
     } catch {
-      alert("حدث خطأ. حاول مرة أخرى.");
+      if (editItem && !navigator.onLine) {
+        const patchData = {
+          name: form.name.trim(),
+          code: form.code.trim() || null,
+          barcode: form.barcode.trim() || null,
+          category: (form.category === "__new__" ? newCategory : form.category)?.trim() || null,
+          unit: (form.unit === "__new__" ? newUnit : form.unit)?.trim() || "قطعة",
+          sale_price: Number(form.sale_price) || 0,
+          min_quantity_enabled: form.min_quantity_enabled,
+          min_quantity: form.min_quantity_enabled ? Number(form.min_quantity) || 0 : 0,
+        } as const;
+        addToQueue({ type: "inventory_item_full_patch", itemId: editItem.id, data: { ...patchData } });
+        setModalOpen(false);
+        resetForm();
+        alert("انقطع الاتصال. تم حفظ التعديل محلياً. سيتم إرساله تلقائياً عند عودة الإنترنت.");
+      } else {
+        alert("حدث خطأ. حاول مرة أخرى.");
+      }
     } finally {
       setSaving(false);
     }

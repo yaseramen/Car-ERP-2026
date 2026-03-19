@@ -89,7 +89,26 @@ export type QueuedOp =
       type: "inventory_item_patch";
       itemId: string;
       data: { category?: string | null; min_quantity?: number; min_quantity_enabled?: boolean };
-    };
+    }
+  | {
+      type: "inventory_item_full_patch";
+      itemId: string;
+      data: {
+        name?: string;
+        code?: string | null;
+        barcode?: string | null;
+        category?: string | null;
+        unit?: string;
+        sale_price?: number;
+        min_quantity_enabled?: boolean;
+        min_quantity?: number;
+      };
+    }
+  | { type: "edit_customer"; customerId: string; data: { name: string; phone?: string | null; email?: string | null; address?: string | null; notes?: string | null } }
+  | { type: "edit_supplier"; supplierId: string; data: { name: string; phone?: string | null; email?: string | null; address?: string | null; notes?: string | null } }
+  | { type: "add_checklist_item"; data: { name_ar: string } }
+  | { type: "wallet_charge"; data: { company_id: string; amount: number; description?: string } }
+  | { type: "wallet_debit"; data: { company_id: string; amount: number; description?: string } };
 
 export interface QueuedItem {
   id: string;
@@ -231,6 +250,33 @@ export async function executeQueuedOpDefault(item: QueuedItem): Promise<boolean>
       url = `/api/admin/inventory/items/${op.itemId}`;
       body = JSON.stringify(op.data);
       method = "PATCH";
+      break;
+    case "inventory_item_full_patch":
+      url = `/api/admin/inventory/items/${op.itemId}`;
+      body = JSON.stringify(op.data);
+      method = "PATCH";
+      break;
+    case "edit_customer":
+      url = `/api/admin/customers/${op.customerId}`;
+      body = JSON.stringify(op.data);
+      method = "PATCH";
+      break;
+    case "edit_supplier":
+      url = `/api/admin/suppliers/${op.supplierId}`;
+      body = JSON.stringify(op.data);
+      method = "PATCH";
+      break;
+    case "add_checklist_item":
+      url = "/api/admin/workshop/inspection-checklist";
+      body = JSON.stringify(op.data);
+      break;
+    case "wallet_charge":
+      url = "/api/admin/wallets/charge";
+      body = JSON.stringify(op.data);
+      break;
+    case "wallet_debit":
+      url = "/api/admin/wallets/debit";
+      body = JSON.stringify(op.data);
       break;
     default:
       return false;

@@ -80,7 +80,20 @@ export function SuppliersContent() {
     try {
       if (editSupplier) {
         if (!navigator.onLine) {
-          alert("انقطع الاتصال. يرجى المحاولة عند عودة الإنترنت لتحديث بيانات المورد.");
+          addToQueue({
+            type: "edit_supplier",
+            supplierId: editSupplier.id,
+            data: {
+              name: payload.name,
+              phone: payload.phone ?? null,
+              email: payload.email ?? null,
+              address: payload.address ?? null,
+              notes: payload.notes ?? null,
+            },
+          });
+          setModalOpen(false);
+          resetForm();
+          alert("انقطع الاتصال. تم حفظ التعديل محلياً. سيتم إرساله تلقائياً عند عودة الإنترنت.");
           return;
         }
         const res = await fetch(`/api/admin/suppliers/${editSupplier.id}`, {
@@ -125,7 +138,22 @@ export function SuppliersContent() {
       setModalOpen(false);
       resetForm();
     } catch {
-      if (!editSupplier && !navigator.onLine) {
+      if (editSupplier && !navigator.onLine) {
+        addToQueue({
+          type: "edit_supplier",
+          supplierId: editSupplier.id,
+          data: {
+            name: payload.name,
+            phone: payload.phone ?? null,
+            email: payload.email ?? null,
+            address: payload.address ?? null,
+            notes: payload.notes ?? null,
+          },
+        });
+        setModalOpen(false);
+        resetForm();
+        alert("انقطع الاتصال. تم حفظ التعديل محلياً. سيتم إرساله تلقائياً عند عودة الإنترنت.");
+      } else if (!editSupplier && !navigator.onLine) {
         addToQueue({ type: "add_supplier", data: payload });
         setModalOpen(false);
         resetForm();

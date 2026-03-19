@@ -174,16 +174,24 @@ export function WorkshopContent() {
       alert("اسم العميل مطلوب");
       return;
     }
+    const payload = {
+      name: newCustomerForm.name.trim(),
+      phone: newCustomerForm.phone.trim() || undefined,
+      email: newCustomerForm.email.trim() || undefined,
+    };
     setSavingCustomer(true);
     try {
+      if (!navigator.onLine) {
+        addToQueue({ type: "add_customer", data: payload });
+        setAddCustomerOpen(false);
+        setNewCustomerForm({ name: "", phone: "", email: "" });
+        alert("انقطع الاتصال. تم حفظ العميل محلياً. سيتم إضافته تلقائياً عند عودة الإنترنت.");
+        return;
+      }
       const res = await fetch("/api/admin/customers", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          name: newCustomerForm.name.trim(),
-          phone: newCustomerForm.phone.trim() || undefined,
-          email: newCustomerForm.email.trim() || undefined,
-        }),
+        body: JSON.stringify(payload),
       });
       if (!res.ok) {
         const err = await res.json();
@@ -200,7 +208,14 @@ export function WorkshopContent() {
       setNewCustomerForm({ name: "", phone: "", email: "" });
       fetchCustomers();
     } catch {
-      alert("حدث خطأ");
+      if (!navigator.onLine) {
+        addToQueue({ type: "add_customer", data: payload });
+        setAddCustomerOpen(false);
+        setNewCustomerForm({ name: "", phone: "", email: "" });
+        alert("انقطع الاتصال. تم حفظ العميل محلياً. سيتم إضافته تلقائياً عند عودة الإنترنت.");
+      } else {
+        alert("حدث خطأ");
+      }
     } finally {
       setSavingCustomer(false);
     }
@@ -480,6 +495,12 @@ export function WorkshopContent() {
     if (!name) return;
     setAddingItem(true);
     try {
+      if (!navigator.onLine) {
+        addToQueue({ type: "add_checklist_item", data: { name_ar: name } });
+        setNewItemName("");
+        alert("انقطع الاتصال. تم حفظ البند محلياً. سيتم إضافته تلقائياً عند عودة الإنترنت.");
+        return;
+      }
       const res = await fetch("/api/admin/workshop/inspection-checklist", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -495,7 +516,13 @@ export function WorkshopContent() {
       setChecklistResults((prev) => ({ ...prev, [item.id]: { status: "na", notes: "" } }));
       setNewItemName("");
     } catch {
-      alert("حدث خطأ");
+      if (!navigator.onLine) {
+        addToQueue({ type: "add_checklist_item", data: { name_ar: name } });
+        setNewItemName("");
+        alert("انقطع الاتصال. تم حفظ البند محلياً. سيتم إضافته تلقائياً عند عودة الإنترنت.");
+      } else {
+        alert("حدث خطأ");
+      }
     } finally {
       setAddingItem(false);
     }
