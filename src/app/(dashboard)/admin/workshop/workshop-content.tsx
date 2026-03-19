@@ -3,8 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { SearchableSelect } from "@/components/ui/searchable-select";
-import { addToQueue, processQueue } from "@/lib/offline-queue";
-import type { QueuedItem } from "@/lib/offline-queue";
+import { addToQueue } from "@/lib/offline-queue";
 
 const STAGES = [
   { id: "received", label: "استلام", color: "bg-blue-100 dark:bg-blue-900/50 text-blue-800 dark:text-blue-200" },
@@ -243,36 +242,8 @@ export function WorkshopContent() {
     } catch {}
   }, [addForm]);
 
-  async function executeQueuedOp(item: QueuedItem): Promise<boolean> {
-    const { op } = item;
-    if (op.type === "add_service") {
-      const res = await fetch(`/api/admin/workshop/orders/${op.orderId}/services`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(op.data),
-      });
-      return res.ok;
-    }
-    if (op.type === "add_part") {
-      const res = await fetch(`/api/admin/workshop/orders/${op.orderId}/items`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(op.data),
-      });
-      return res.ok;
-    }
-    return false;
-  }
-
   useEffect(() => {
-    const handleOnline = async () => {
-      const { processed, failed } = await processQueue(executeQueuedOp);
-      if (processed > 0) {
-        const msg = failed > 0
-          ? `تم إرسال ${processed} عملية. فشل ${failed} عملية.`
-          : `تم إرسال ${processed} عملية معلقة بنجاح.`;
-        setTimeout(() => alert(msg), 300);
-      }
+    const handleOnline = () => {
       fetchOrders();
       fetchCustomers();
     };

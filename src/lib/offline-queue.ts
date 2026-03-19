@@ -6,7 +6,31 @@ const STORAGE_KEY = "alameen-offline-queue";
 
 export type QueuedOp =
   | { type: "add_service"; orderId: string; data: { description: string; quantity: number; unit_price: number } }
-  | { type: "add_part"; orderId: string; data: { item_id: string; quantity: number } };
+  | { type: "add_part"; orderId: string; data: { item_id: string; quantity: number } }
+  | {
+      type: "create_sale_invoice";
+      data: {
+        customer_id?: string;
+        items: { item_id: string; quantity: number }[];
+        payment_method_id?: string;
+        paid_amount?: number;
+        discount?: number;
+        tax?: number;
+        notes?: string;
+      };
+    }
+  | {
+      type: "create_purchase_invoice";
+      data: {
+        supplier_id?: string;
+        items: { item_id: string; quantity: number; unit_price: number }[];
+        notes?: string;
+        discount?: number;
+        tax?: number;
+      };
+    }
+  | { type: "add_customer"; data: { name: string; phone?: string; email?: string; address?: string; notes?: string } }
+  | { type: "add_supplier"; data: { name: string; phone?: string; email?: string } };
 
 export interface QueuedItem {
   id: string;
@@ -68,4 +92,48 @@ export async function processQueue(
     }
   }
   return { processed, failed };
+}
+
+/** تنفيذ افتراضي لجميع أنواع العمليات - يُستخدم في OfflineProvider */
+export async function executeQueuedOpDefault(item: QueuedItem): Promise<boolean> {
+  const { op } = item;
+  let url: string;
+  let body: string;
+  let method = "POST";
+
+  switch (op.type) {
+    case "add_service":
+      url = `/api/admin/workshop/orders/${op.orderId}/services`;
+      body = JSON.stringify(op.data);
+      break;
+    case "add_part":
+      url = `/api/admin/workshop/orders/${op.orderId}/items`;
+      body = JSON.stringify(op.data);
+      break;
+    case "create_sale_invoice":
+      url = "/api/admin/invoices/sale";
+      body = JSON.stringify(op.data);
+      break;
+    case "create_purchase_invoice":
+      url = "/api/admin/invoices/purchase";
+      body = JSON.stringify(op.data);
+      break;
+    case "add_customer":
+      url = "/api/admin/customers";
+      body = JSON.stringify(op.data);
+      break;
+    case "add_supplier":
+      url = "/api/admin/suppliers";
+      body = JSON.stringify(op.data);
+      break;
+    default:
+      return false;
+  }
+
+  const res = await fetch(url, {
+    method,
+    headers: { "Content-Type": "application/json" },
+    body,
+  });
+  return res.ok;
 }

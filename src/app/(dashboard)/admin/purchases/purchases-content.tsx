@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { SearchableSelect } from "@/components/ui/searchable-select";
 import { BarcodeScanner } from "@/components/inventory/barcode-scanner";
+import { addToQueue } from "@/lib/offline-queue";
 
 interface CartItem {
   item_id: string;
@@ -108,6 +109,12 @@ export function PurchasesContent({
 
   useEffect(() => {
     fetchData();
+  }, []);
+
+  useEffect(() => {
+    const handleOnline = () => fetchData();
+    window.addEventListener("alameen-online", handleOnline);
+    return () => window.removeEventListener("alameen-online", handleOnline);
   }, []);
 
   useEffect(() => {
@@ -250,22 +257,36 @@ export function PurchasesContent({
       return;
     }
 
+    const payload = {
+      supplier_id: supplierId || undefined,
+      items: cart.map((c) => ({
+        item_id: c.item_id,
+        quantity: c.quantity,
+        unit_price: c.unit_price,
+      })),
+      notes: notes.trim() || undefined,
+      discount: discountEnabled ? discountAmount : 0,
+      tax: taxEnabled ? taxAmount : 0,
+    };
+
     setSaving(true);
     try {
+      if (!navigator.onLine) {
+        addToQueue({ type: "create_purchase_invoice", data: payload });
+        setCart([]);
+        setSupplierId("");
+        setNotes("");
+        setTaxEnabled(false);
+        setDiscountEnabled(false);
+        setDiscountValue("");
+        alert("انقطع الاتصال. تم حفظ فاتورة الشراء محلياً. سيتم إرسالها تلقائياً عند عودة الإنترنت.");
+        return;
+      }
+
       const res = await fetch("/api/admin/invoices/purchase", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          supplier_id: supplierId || undefined,
-          items: cart.map((c) => ({
-            item_id: c.item_id,
-            quantity: c.quantity,
-            unit_price: c.unit_price,
-          })),
-          notes: notes.trim() || undefined,
-          discount: discountEnabled ? discountAmount : 0,
-          tax: taxEnabled ? taxAmount : 0,
-        }),
+        body: JSON.stringify(payload),
       });
 
       if (!res.ok) {
@@ -284,7 +305,18 @@ export function PurchasesContent({
       setDiscountValue("");
       fetchData();
     } catch {
-      alert("حدث خطأ. حاول مرة أخرى.");
+      if (!navigator.onLine) {
+        addToQueue({ type: "create_purchase_invoice", data: payload });
+        setCart([]);
+        setSupplierId("");
+        setNotes("");
+        setTaxEnabled(false);
+        setDiscountEnabled(false);
+        setDiscountValue("");
+        alert("انقطع الاتصال. تم حفظ فاتورة الشراء محلياً. سيتم إرسالها تلقائياً عند عودة الإنترنت.");
+      } else {
+        alert("حدث خطأ. حاول مرة أخرى.");
+      }
     } finally {
       setSaving(false);
     }
@@ -296,16 +328,24 @@ export function PurchasesContent({
       alert("اسم المورد مطلوب");
       return;
     }
+    const payload = {
+      name: newSupplierForm.name.trim(),
+      phone: newSupplierForm.phone.trim() || undefined,
+      email: newSupplierForm.email.trim() || undefined,
+    };
     setSavingSupplier(true);
     try {
+      if (!navigator.onLine) {
+        addToQueue({ type: "add_supplier", data: payload });
+        setAddSupplierOpen(false);
+        setNewSupplierForm({ name: "", phone: "", email: "" });
+        alert("انقطع الاتصال. تم حفظ المورد محلياً. سيتم إضافته تلقائياً عند عودة الإنترنت.");
+        return;
+      }
       const res = await fetch("/api/admin/suppliers", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          name: newSupplierForm.name.trim(),
-          phone: newSupplierForm.phone.trim() || undefined,
-          email: newSupplierForm.email.trim() || undefined,
-        }),
+        body: JSON.stringify(payload),
       });
       if (!res.ok) {
         const err = await res.json();
@@ -318,7 +358,14 @@ export function PurchasesContent({
       setAddSupplierOpen(false);
       setNewSupplierForm({ name: "", phone: "", email: "" });
     } catch {
-      alert("حدث خطأ");
+      if (!navigator.onLine) {
+        addToQueue({ type: "add_supplier", data: payload });
+        setAddSupplierOpen(false);
+        setNewSupplierForm({ name: "", phone: "", email: "" });
+        alert("انقطع الاتصال. تم حفظ المورد محلياً. سيتم إضافته تلقائياً عند عودة الإنترنت.");
+      } else {
+        alert("حدث خطأ");
+      }
     } finally {
       setSavingSupplier(false);
     }
