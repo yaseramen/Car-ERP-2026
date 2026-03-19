@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useTheme } from "@/components/theme/theme-provider";
+import { AlertsBadge } from "./alerts-badge";
 
 export function DashboardHeader({ onMenuClick }: { onMenuClick?: () => void }) {
   const { theme, toggleTheme } = useTheme();
@@ -44,6 +45,7 @@ export function DashboardHeader({ onMenuClick }: { onMenuClick?: () => void }) {
         )}
       </div>
       <div className="flex items-center gap-2">
+        <AlertsBadge />
         <button
           type="button"
           onClick={handleUpdate}
