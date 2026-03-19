@@ -28,6 +28,8 @@ const STATUS_COLORS: Record<string, string> = {
   cancelled: "bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400",
 };
 
+const ROWS_PER_PAGE = 50;
+
 interface Invoice {
   id: string;
   invoice_number: string;
@@ -51,16 +53,24 @@ export function InvoicesContent() {
   const [loading, setLoading] = useState(true);
   const [typeFilter, setTypeFilter] = useState<string>("all");
   const [statusFilter, setStatusFilter] = useState<string>(statusFromUrl || "all");
+  const [page, setPage] = useState(1);
 
   useEffect(() => {
     if (statusFromUrl) setStatusFilter(statusFromUrl);
   }, [statusFromUrl]);
+
+  useEffect(() => {
+    setPage(1);
+  }, [typeFilter, statusFilter]);
 
   const filteredInvoices = invoices.filter((inv) => {
     if (typeFilter !== "all" && inv.type !== typeFilter) return false;
     if (statusFilter !== "all" && inv.status !== statusFilter) return false;
     return true;
   });
+
+  const paginatedInvoices = filteredInvoices.slice((page - 1) * ROWS_PER_PAGE, page * ROWS_PER_PAGE);
+  const totalPages = Math.ceil(filteredInvoices.length / ROWS_PER_PAGE);
 
   async function fetchInvoices() {
     try {
@@ -156,7 +166,7 @@ export function InvoicesContent() {
                 </td>
               </tr>
             ) : (
-              filteredInvoices.map((inv) => (
+              paginatedInvoices.map((inv) => (
                 <tr key={inv.id} className="border-b border-gray-50 dark:border-gray-700 hover:bg-gray-50/50 dark:hover:bg-gray-700/30">
                   <td className="px-4 py-3">
                     <Link
@@ -192,6 +202,29 @@ export function InvoicesContent() {
             )}
           </tbody>
         </table>
+        {totalPages > 1 && (
+          <div className="flex items-center justify-center gap-2 py-3 border-t border-gray-100 dark:border-gray-700">
+            <button
+              type="button"
+              onClick={() => setPage((p) => Math.max(1, p - 1))}
+              disabled={page <= 1}
+              className="px-3 py-1 rounded border border-gray-300 dark:border-gray-600 text-sm disabled:opacity-50 text-gray-700 dark:text-gray-300"
+            >
+              السابق
+            </button>
+            <span className="text-sm text-gray-600 dark:text-gray-400">
+              صفحة {page} من {totalPages}
+            </span>
+            <button
+              type="button"
+              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+              disabled={page >= totalPages}
+              className="px-3 py-1 rounded border border-gray-300 dark:border-gray-600 text-sm disabled:opacity-50 text-gray-700 dark:text-gray-300"
+            >
+              التالي
+            </button>
+          </div>
+        )}
       </div>
       </div>
     </div>

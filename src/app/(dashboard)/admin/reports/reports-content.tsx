@@ -21,7 +21,41 @@ const MOVEMENT_LABELS: Record<string, string> = {
   return: "مرتجع",
 };
 
+const ROWS_PER_PAGE = 50;
+
 type Tab = "summary" | "sales" | "profit" | "inventory" | "workshop" | "expenses" | "suppliers";
+
+function PaginationControls({
+  page,
+  totalItems,
+  onPageChange,
+}: { page: number; totalItems: number; onPageChange: (p: number) => void }) {
+  const totalPages = Math.ceil(totalItems / ROWS_PER_PAGE);
+  if (totalPages <= 1) return null;
+  return (
+    <div className="flex items-center justify-center gap-2 py-3 border-t border-gray-100 dark:border-gray-700">
+      <button
+        type="button"
+        onClick={() => onPageChange(page - 1)}
+        disabled={page <= 1}
+        className="px-3 py-1 rounded border border-gray-300 dark:border-gray-600 text-sm disabled:opacity-50 disabled:cursor-not-allowed text-gray-700 dark:text-gray-300"
+      >
+        السابق
+      </button>
+      <span className="text-sm text-gray-600 dark:text-gray-400">
+        صفحة {page} من {totalPages} — عرض {Math.min((page - 1) * ROWS_PER_PAGE + 1, totalItems)} إلى {Math.min(page * ROWS_PER_PAGE, totalItems)} من {totalItems}
+      </span>
+      <button
+        type="button"
+        onClick={() => onPageChange(page + 1)}
+        disabled={page >= totalPages}
+        className="px-3 py-1 rounded border border-gray-300 dark:border-gray-600 text-sm disabled:opacity-50 disabled:cursor-not-allowed text-gray-700 dark:text-gray-300"
+      >
+        التالي
+      </button>
+    </div>
+  );
+}
 
 export function ReportsContent() {
   const [tab, setTab] = useState<Tab>("summary");
@@ -37,6 +71,11 @@ export function ReportsContent() {
   const [dateFrom, setDateFrom] = useState(() => new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10));
   const [dateTo, setDateTo] = useState(() => new Date().toISOString().slice(0, 10));
   const [searchQuery, setSearchQuery] = useState("");
+  const [page, setPage] = useState(1);
+
+  useEffect(() => {
+    setPage(1);
+  }, [tab, dateFrom, dateTo, searchQuery]);
 
   function setDateRange(days: number) {
     const to = new Date();
@@ -380,6 +419,14 @@ export function ReportsContent() {
           </div>
           <div className="overflow-x-auto max-h-96">
             {sales?.invoices && (sales.invoices as unknown[]).length > 0 ? (
+              (() => {
+                const salesFiltered = filterBySearch(
+                  (sales.invoices as Array<{ id: string; invoice_number: string; type: string; customer_name: string | null; vehicle_plate: string | null; total: number; created_at: string }>),
+                  (inv) => `${inv.invoice_number} ${inv.customer_name || ""} ${inv.vehicle_plate || ""} ${inv.type === "maintenance" ? "صيانة" : "بيع"}`
+                );
+                const salesPaginated = salesFiltered.slice((page - 1) * ROWS_PER_PAGE, page * ROWS_PER_PAGE);
+                return (
+              <>
               <table className="w-full">
                 <thead>
                   <tr className="bg-gray-50 dark:bg-gray-700/50">
@@ -391,10 +438,7 @@ export function ReportsContent() {
                   </tr>
                 </thead>
                 <tbody>
-                  {filterBySearch(
-                    (sales.invoices as Array<{ id: string; invoice_number: string; type: string; customer_name: string | null; vehicle_plate: string | null; total: number; created_at: string }>),
-                    (inv) => `${inv.invoice_number} ${inv.customer_name || ""} ${inv.vehicle_plate || ""} ${inv.type === "maintenance" ? "صيانة" : "بيع"}`
-                  ).map((inv) => (
+                  {salesPaginated.map((inv) => (
                     <tr key={inv.invoice_number} className="border-b border-gray-50 dark:border-gray-700">
                       <td className="px-4 py-3 text-sm text-gray-900 dark:text-gray-100">{new Date(inv.created_at).toLocaleDateString("ar-EG")}</td>
                       <td className="px-4 py-3">
@@ -409,8 +453,15 @@ export function ReportsContent() {
                   ))}
                 </tbody>
               </table>
+              <PaginationControls page={page} totalItems={salesFiltered.length} onPageChange={setPage} />
+              </>
+                );
+              })()
             ) : (
-              <div className="p-12 text-center text-gray-500 dark:text-gray-400">لا توجد فواتير في الفترة المحددة</div>
+              <div className="p-12 text-center">
+                <p className="text-gray-500 dark:text-gray-400 mb-2">لا توجد فواتير في الفترة المحددة</p>
+                <p className="text-sm text-gray-400 dark:text-gray-500">جرّب تغيير الفترة أو إزالة فلتر البحث</p>
+              </div>
             )}
           </div>
         </div>
@@ -430,6 +481,14 @@ export function ReportsContent() {
           </div>
           <div className="overflow-x-auto max-h-96">
             {profit?.rows && (profit.rows as unknown[]).length > 0 ? (
+              (() => {
+                const profitFiltered = filterBySearch(
+                  (profit.rows as Array<{ invoice_number: string; item_name: string; quantity: number; sale_price: number; cost_total: number; profit: number; created_at: string }>),
+                  (r) => `${r.invoice_number} ${r.item_name}`
+                );
+                const profitPaginated = profitFiltered.slice((page - 1) * ROWS_PER_PAGE, page * ROWS_PER_PAGE);
+                return (
+              <>
               <table className="w-full">
                 <thead>
                   <tr className="bg-gray-50 dark:bg-gray-700/50">
@@ -443,10 +502,7 @@ export function ReportsContent() {
                   </tr>
                 </thead>
                 <tbody>
-                  {filterBySearch(
-                    (profit.rows as Array<{ invoice_number: string; item_name: string; quantity: number; sale_price: number; cost_total: number; profit: number; created_at: string }>),
-                    (r) => `${r.invoice_number} ${r.item_name}`
-                  ).map((r, i) => (
+                  {profitPaginated.map((r, i) => (
                     <tr key={i} className="border-b border-gray-50 dark:border-gray-700">
                       <td className="px-4 py-3 text-sm text-gray-900 dark:text-gray-100">{new Date(r.created_at).toLocaleDateString("ar-EG")}</td>
                       <td className="px-4 py-3 text-sm text-gray-900 dark:text-gray-100">{r.invoice_number}</td>
@@ -461,8 +517,15 @@ export function ReportsContent() {
                   ))}
                 </tbody>
               </table>
+              <PaginationControls page={page} totalItems={profitFiltered.length} onPageChange={setPage} />
+              </>
+                );
+              })()
             ) : (
-              <div className="p-12 text-center text-gray-500 dark:text-gray-400">لا توجد بيانات في الفترة المحددة</div>
+              <div className="p-12 text-center">
+                <p className="text-gray-500 dark:text-gray-400 mb-2">لا توجد بيانات في الفترة المحددة</p>
+                <p className="text-sm text-gray-400 dark:text-gray-500">جرّب تغيير الفترة أو إزالة فلتر البحث</p>
+              </div>
             )}
           </div>
         </div>
@@ -498,7 +561,10 @@ export function ReportsContent() {
                   ))}
                 </ul>
               ) : (
-                <div className="p-8 text-center text-gray-500 dark:text-gray-400">لا توجد أصناف تحت الحد الأدنى</div>
+                <div className="p-8 text-center">
+                  <p className="text-gray-500 dark:text-gray-400">لا توجد أصناف تحت الحد الأدنى</p>
+                  <p className="text-sm text-gray-400 dark:text-gray-500 mt-1">جميع الأصناف ضمن المستوى المطلوب</p>
+                </div>
               )}
             </div>
           </div>
@@ -523,12 +589,22 @@ export function ReportsContent() {
                   ))}
                 </ul>
               ) : (
-                <div className="p-8 text-center text-gray-500 dark:text-gray-400">لا توجد حركات</div>
+                <div className="p-8 text-center">
+                  <p className="text-gray-500 dark:text-gray-400">لا توجد حركات مخزون</p>
+                  <p className="text-sm text-gray-400 dark:text-gray-500 mt-1">في الفترة المحددة</p>
+                </div>
               )}
             </div>
           </div>
           </div>
           {inventory?.valuation && Array.isArray(inventory.valuation) && (inventory.valuation as unknown[]).length > 0 ? (
+            (() => {
+              const valFiltered = filterBySearch(
+                (inventory.valuation as Array<{ id: string; name: string; quantity: number; purchase_price: number; value: number }>),
+                (v) => v.name
+              );
+              const valPaginated = valFiltered.slice((page - 1) * ROWS_PER_PAGE, page * ROWS_PER_PAGE);
+              return (
             <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden">
               <div className="p-4 border-b border-gray-100 dark:border-gray-700">
                 <h2 className="font-bold text-gray-900 dark:text-gray-100">تفاصيل قيمة المخزون</h2>
@@ -544,10 +620,7 @@ export function ReportsContent() {
                     </tr>
                   </thead>
                   <tbody>
-                    {filterBySearch(
-                      (inventory.valuation as Array<{ id: string; name: string; quantity: number; purchase_price: number; value: number }>),
-                      (v) => v.name
-                    ).map((v) => (
+                    {valPaginated.map((v) => (
                       <tr key={v.id} className="border-b border-gray-50 dark:border-gray-700">
                         <td className="px-4 py-3 text-sm">
                           <Link href={`/admin/inventory/${v.id}`} className="text-emerald-600 dark:text-emerald-400 hover:underline">{v.name}</Link>
@@ -559,9 +632,17 @@ export function ReportsContent() {
                     ))}
                   </tbody>
                 </table>
+                <PaginationControls page={page} totalItems={valFiltered.length} onPageChange={setPage} />
               </div>
             </div>
-          ) : null}
+              );
+            })()
+          ) : (
+            <div className="bg-white dark:bg-gray-800 rounded-xl p-8 shadow-sm border border-gray-100 dark:border-gray-700 text-center">
+              <p className="text-gray-500 dark:text-gray-400">لا توجد أصناف في المخزون</p>
+              <p className="text-sm text-gray-400 dark:text-gray-500 mt-1">أضف أصنافاً من المخزون أو فواتير الشراء</p>
+            </div>
+          )}
         </div>
       )}
 
@@ -591,6 +672,14 @@ export function ReportsContent() {
             </div>
             <div className="overflow-x-auto max-h-96">
               {workshop?.completed && (workshop.completed as unknown[]).length > 0 ? (
+                (() => {
+                  const workshopFiltered = filterBySearch(
+                    (workshop.completed as Array<{ id: string; order_number: string; vehicle_plate: string; completed_at: string; total: number }>),
+                    (o) => `${o.order_number} ${o.vehicle_plate}`
+                  );
+                  const workshopPaginated = workshopFiltered.slice((page - 1) * ROWS_PER_PAGE, page * ROWS_PER_PAGE);
+                  return (
+                <>
                 <table className="w-full">
                   <thead>
                   <tr className="bg-gray-50 dark:bg-gray-700/50">
@@ -601,10 +690,7 @@ export function ReportsContent() {
                   </tr>
                 </thead>
                 <tbody>
-                    {filterBySearch(
-                      (workshop.completed as Array<{ id: string; order_number: string; vehicle_plate: string; completed_at: string; total: number }>),
-                      (o) => `${o.order_number} ${o.vehicle_plate}`
-                    ).map((o) => (
+                    {workshopPaginated.map((o) => (
                       <tr key={o.id} className="border-b border-gray-50 dark:border-gray-700">
                         <td className="px-4 py-3 text-sm text-gray-900 dark:text-gray-100">{new Date(o.completed_at).toLocaleDateString("ar-EG")}</td>
                         <td className="px-4 py-3">
@@ -618,8 +704,15 @@ export function ReportsContent() {
                     ))}
                   </tbody>
                 </table>
+                <PaginationControls page={page} totalItems={workshopFiltered.length} onPageChange={setPage} />
+                </>
+                  );
+                })()
               ) : (
-                <div className="p-12 text-center text-gray-500 dark:text-gray-400">لا توجد أوامر مكتملة في الفترة</div>
+                <div className="p-12 text-center">
+                  <p className="text-gray-500 dark:text-gray-400">لا توجد أوامر مكتملة في الفترة</p>
+                  <p className="text-sm text-gray-400 dark:text-gray-500 mt-1">جرّب تغيير الفترة</p>
+                </div>
               )}
             </div>
           </div>
@@ -654,6 +747,14 @@ export function ReportsContent() {
             </div>
             <div className="overflow-x-auto max-h-96">
               {expensesIncome?.rows && (expensesIncome.rows as unknown[]).length > 0 ? (
+                (() => {
+                  const expFiltered = filterBySearch(
+                    (expensesIncome.rows as Array<{ id: string; type: string; amount: number; description: string; treasury_name: string; created_at: string }>),
+                    (r) => `${r.description || ""} ${r.treasury_name || ""} ${r.type === "expense" ? "مصروف" : "إيراد"}`
+                  );
+                  const expPaginated = expFiltered.slice((page - 1) * ROWS_PER_PAGE, page * ROWS_PER_PAGE);
+                  return (
+                <>
                 <table className="w-full">
                   <thead>
                     <tr className="bg-gray-50 dark:bg-gray-700/50">
@@ -665,10 +766,7 @@ export function ReportsContent() {
                     </tr>
                   </thead>
                   <tbody>
-                    {filterBySearch(
-                      (expensesIncome.rows as Array<{ id: string; type: string; amount: number; description: string; treasury_name: string; created_at: string }>),
-                      (r) => `${r.description || ""} ${r.treasury_name || ""} ${r.type === "expense" ? "مصروف" : "إيراد"}`
-                    ).map((r) => (
+                    {expPaginated.map((r) => (
                       <tr key={r.id} className="border-b border-gray-50 dark:border-gray-700">
                         <td className="px-4 py-3 text-sm text-gray-900 dark:text-gray-100">{new Date(r.created_at).toLocaleString("ar-EG")}</td>
                         <td className="px-4 py-3 text-sm">{r.type === "expense" ? "مصروف" : "إيراد"}</td>
@@ -681,8 +779,15 @@ export function ReportsContent() {
                     ))}
                   </tbody>
                 </table>
+                <PaginationControls page={page} totalItems={expFiltered.length} onPageChange={setPage} />
+                </>
+                  );
+                })()
               ) : (
-                <div className="p-12 text-center text-gray-500 dark:text-gray-400">لا توجد مصروفات أو إيرادات في الفترة</div>
+                <div className="p-12 text-center">
+                  <p className="text-gray-500 dark:text-gray-400">لا توجد مصروفات أو إيرادات في الفترة</p>
+                  <p className="text-sm text-gray-400 dark:text-gray-500 mt-1">جرّب تغيير الفترة أو إزالة فلتر البحث</p>
+                </div>
               )}
             </div>
           </div>
@@ -696,6 +801,14 @@ export function ReportsContent() {
           </div>
           <div className="overflow-x-auto">
             {suppliersReport?.rows && (suppliersReport.rows as unknown[]).length > 0 ? (
+              (() => {
+                const supFiltered = filterBySearch(
+                  (suppliersReport.rows as Array<{ supplier_name: string; invoice_count: number; total_quantity: number; total_amount: number; avg_price: number }>),
+                  (r) => r.supplier_name
+                );
+                const supPaginated = supFiltered.slice((page - 1) * ROWS_PER_PAGE, page * ROWS_PER_PAGE);
+                return (
+              <>
               <table className="w-full">
                 <thead>
                   <tr className="bg-gray-50 dark:bg-gray-700/50">
@@ -707,10 +820,7 @@ export function ReportsContent() {
                   </tr>
                 </thead>
                 <tbody>
-                  {filterBySearch(
-                    (suppliersReport.rows as Array<{ supplier_name: string; invoice_count: number; total_quantity: number; total_amount: number; avg_price: number }>),
-                    (r) => r.supplier_name
-                  ).map((r) => (
+                  {supPaginated.map((r) => (
                     <tr key={r.supplier_name} className="border-b border-gray-50 dark:border-gray-700">
                       <td className="px-4 py-3 text-sm font-medium text-gray-900 dark:text-gray-100">{r.supplier_name}</td>
                       <td className="px-4 py-3 text-sm text-gray-900 dark:text-gray-100">{r.invoice_count}</td>
@@ -721,8 +831,15 @@ export function ReportsContent() {
                   ))}
                 </tbody>
               </table>
+              <PaginationControls page={page} totalItems={supFiltered.length} onPageChange={setPage} />
+              </>
+                );
+              })()
             ) : (
-              <div className="p-12 text-center text-gray-500 dark:text-gray-400">لا توجد بيانات مشتريات في الفترة</div>
+              <div className="p-12 text-center">
+                <p className="text-gray-500 dark:text-gray-400">لا توجد بيانات مشتريات في الفترة</p>
+                <p className="text-sm text-gray-400 dark:text-gray-500 mt-1">سجّل فواتير شراء من الموردين أولاً</p>
+              </div>
             )}
           </div>
         </div>
