@@ -54,6 +54,10 @@ export function InvoicesContent() {
   const [typeFilter, setTypeFilter] = useState<string>("all");
   const [statusFilter, setStatusFilter] = useState<string>(statusFromUrl || "all");
   const [page, setPage] = useState(1);
+  const [totalInvoices, setTotalInvoices] = useState(0);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
 
   useEffect(() => {
     if (statusFromUrl) setStatusFilter(statusFromUrl);
@@ -61,31 +65,42 @@ export function InvoicesContent() {
 
   useEffect(() => {
     setPage(1);
-  }, [typeFilter, statusFilter]);
+  }, [typeFilter, statusFilter, searchQuery, dateFrom, dateTo]);
 
-  const filteredInvoices = invoices.filter((inv) => {
-    if (typeFilter !== "all" && inv.type !== typeFilter) return false;
-    if (statusFilter !== "all" && inv.status !== statusFilter) return false;
-    return true;
-  });
+  const totalPages = Math.max(1, Math.ceil(totalInvoices / ROWS_PER_PAGE));
 
-  const paginatedInvoices = filteredInvoices.slice((page - 1) * ROWS_PER_PAGE, page * ROWS_PER_PAGE);
-  const totalPages = Math.ceil(filteredInvoices.length / ROWS_PER_PAGE);
-
-  async function fetchInvoices() {
+  async function fetchInvoices(opts?: { page?: number }) {
+    setLoading(true);
     try {
-      const res = await fetch("/api/admin/invoices");
-      if (res.ok) setInvoices(await res.json());
+      const p = opts?.page ?? page;
+      const params = new URLSearchParams();
+      params.set("limit", String(ROWS_PER_PAGE));
+      params.set("offset", String((p - 1) * ROWS_PER_PAGE));
+      if (typeFilter !== "all") params.set("type", typeFilter);
+      if (statusFilter !== "all") params.set("status", statusFilter);
+      if (searchQuery.trim()) params.set("search", searchQuery.trim());
+      if (dateFrom) params.set("from", dateFrom);
+      if (dateTo) params.set("to", dateTo);
+      const res = await fetch(`/api/admin/invoices?${params}`);
+      if (res.ok) {
+        const data = await res.json();
+        setInvoices(data.invoices ?? []);
+        setTotalInvoices(data.total ?? 0);
+      } else {
+        setInvoices([]);
+        setTotalInvoices(0);
+      }
     } catch {
       setInvoices([]);
+      setTotalInvoices(0);
     } finally {
       setLoading(false);
     }
   }
 
   useEffect(() => {
-    fetchInvoices();
-  }, []);
+    fetchInvoices({ page });
+  }, [page, typeFilter, statusFilter, searchQuery, dateFrom, dateTo]);
 
   if (loading) {
     return (
@@ -97,7 +112,26 @@ export function InvoicesContent() {
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap gap-2">
+      <div className="flex flex-wrap gap-2 items-center">
+        <input
+          type="text"
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          placeholder="بحث برقم الفاتورة، العميل، اللوحة..."
+          className="px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100 text-sm w-56 placeholder-gray-400"
+        />
+        <input
+          type="date"
+          value={dateFrom}
+          onChange={(e) => setDateFrom(e.target.value)}
+          className="px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100 text-sm"
+        />
+        <input
+          type="date"
+          value={dateTo}
+          onChange={(e) => setDateTo(e.target.value)}
+          className="px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100 text-sm"
+        />
         <span className="text-sm text-gray-500 dark:text-gray-400 py-2">النوع:</span>
         {[
           { value: "all", label: "الكل" },
@@ -157,16 +191,16 @@ export function InvoicesContent() {
             </tr>
           </thead>
           <tbody>
-            {filteredInvoices.length === 0 ? (
+            {invoices.length === 0 ? (
               <tr>
                 <td colSpan={6} className="px-4 py-12 text-center text-gray-500 dark:text-gray-400">
-                  {invoices.length === 0
+                  {totalInvoices === 0
                     ? "لا توجد فواتير حتى الآن"
                     : "لا توجد فواتير تطابق الفلتر المحدد"}
                 </td>
               </tr>
             ) : (
-              paginatedInvoices.map((inv) => (
+                invoices.map((inv) => (
                 <tr key={inv.id} className="border-b border-gray-50 dark:border-gray-700 hover:bg-gray-50/50 dark:hover:bg-gray-700/30">
                   <td className="px-4 py-3">
                     <Link
@@ -213,7 +247,7 @@ export function InvoicesContent() {
               السابق
             </button>
             <span className="text-sm text-gray-600 dark:text-gray-400">
-              صفحة {page} من {totalPages}
+              صفحة {page} من {totalPages} — {totalInvoices} فاتورة
             </span>
             <button
               type="button"

@@ -5,24 +5,63 @@ import { getCompanyId } from "@/lib/company";
 
 const ALLOWED_ROLES = ["super_admin", "tenant_owner", "employee"] as const;
 
-export async function GET() {
+export async function GET(request: Request) {
   const session = await auth();
   const companyId = getCompanyId(session);
   if (!session?.user || !companyId || !ALLOWED_ROLES.includes(session.user.role as (typeof ALLOWED_ROLES)[number])) {
     return NextResponse.json({ error: "غير مصرح" }, { status: 401 });
   }
 
+  const { searchParams } = new URL(request.url);
+  const limit = Math.min(200, Math.max(1, Number(searchParams.get("limit")) || 50));
+  const offset = Math.max(0, Number(searchParams.get("offset")) || 0);
+  const type = searchParams.get("type")?.trim() || "";
+  const status = searchParams.get("status")?.trim() || "";
+  const search = searchParams.get("search")?.trim() || "";
+  const dateFrom = searchParams.get("from")?.trim() || "";
+  const dateTo = searchParams.get("to")?.trim() || "";
+
   try {
-    const result = await db.execute({
-      sql: `SELECT inv.*, c.name as customer_name, ro.order_number, ro.vehicle_plate
+    let sql = `SELECT inv.*, c.name as customer_name, ro.order_number, ro.vehicle_plate
             FROM invoices inv
             LEFT JOIN customers c ON inv.customer_id = c.id
             LEFT JOIN repair_orders ro ON inv.repair_order_id = ro.id
-            WHERE inv.company_id = ?
-            ORDER BY inv.created_at DESC
-            LIMIT 200`,
-      args: [companyId],
-    });
+            WHERE inv.company_id = ?`;
+    const args: (string | number)[] = [companyId];
+
+    if (type && ["sale", "purchase", "maintenance"].includes(type)) {
+      sql += ` AND inv.type = ?`;
+      args.push(type);
+    }
+    if (status && ["draft", "pending", "paid", "partial", "returned", "cancelled"].includes(status)) {
+      sql += ` AND inv.status = ?`;
+      args.push(status);
+    }
+    if (dateFrom) {
+      sql += ` AND inv.created_at >= ?`;
+      args.push(dateFrom + " 00:00:00");
+    }
+    if (dateTo) {
+      sql += ` AND inv.created_at <= ?`;
+      args.push(dateTo + " 23:59:59");
+    }
+    if (search) {
+      sql += ` AND (inv.invoice_number LIKE ? OR c.name LIKE ? OR ro.vehicle_plate LIKE ?)`;
+      const q = `%${search}%`;
+      args.push(q, q, q);
+    }
+
+    const countSql = `SELECT COUNT(*) as cnt FROM invoices inv
+            LEFT JOIN customers c ON inv.customer_id = c.id
+            LEFT JOIN repair_orders ro ON inv.repair_order_id = ro.id
+            WHERE inv.company_id = ?${type && ["sale", "purchase", "maintenance"].includes(type) ? " AND inv.type = ?" : ""}${status && ["draft", "pending", "paid", "partial", "returned", "cancelled"].includes(status) ? " AND inv.status = ?" : ""}${dateFrom ? " AND inv.created_at >= ?" : ""}${dateTo ? " AND inv.created_at <= ?" : ""}${search ? " AND (inv.invoice_number LIKE ? OR c.name LIKE ? OR ro.vehicle_plate LIKE ?)" : ""}`;
+    const countResult = await db.execute({ sql: countSql, args });
+    const total = Number(countResult.rows[0]?.cnt ?? 0);
+
+    sql += ` ORDER BY inv.created_at DESC LIMIT ? OFFSET ?`;
+    args.push(limit, offset);
+
+    const result = await db.execute({ sql, args });
 
     const invoices = result.rows.map((row) => ({
       id: row.id,
@@ -40,7 +79,7 @@ export async function GET() {
       created_at: row.created_at,
     }));
 
-    return NextResponse.json(invoices);
+    return NextResponse.json({ invoices, total });
   } catch (error) {
     console.error("Invoices GET error:", error);
     return NextResponse.json({ error: "فشل في جلب البيانات" }, { status: 500 });
