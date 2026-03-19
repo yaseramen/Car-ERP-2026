@@ -462,7 +462,7 @@ export function CashierContent() {
             <button
               type="button"
               onClick={() => setShowBarcodeScanner(true)}
-              className="px-4 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg shrink-0"
+              className="px-4 py-2.5 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 rounded-lg shrink-0"
               title="مسح الباركود"
             >
               📷
@@ -612,7 +612,7 @@ export function CashierContent() {
               <button
                 type="button"
                 onClick={() => setAddCustomerOpen(true)}
-                className="px-4 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg shrink-0"
+                className="px-4 py-2.5 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 rounded-lg shrink-0"
               >
                 +
               </button>
@@ -783,7 +783,7 @@ export function CashierContent() {
                     setAddCustomerOpen(false);
                     setNewCustomerForm({ name: "", phone: "", email: "" });
                   }}
-                  className="flex-1 px-4 py-2.5 text-gray-600 hover:bg-gray-100 rounded-lg transition"
+                  className="flex-1 px-4 py-2.5 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition"
                 >
                   إلغاء
                 </button>

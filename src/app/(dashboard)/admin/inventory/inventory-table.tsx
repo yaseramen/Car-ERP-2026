@@ -213,7 +213,7 @@ export function InventoryTable() {
               <Link
                 key={item.id}
                 href={`/admin/inventory/${item.id}`}
-                className="inline-flex items-center gap-2 px-3 py-1.5 bg-white rounded-lg border border-amber-200 text-sm text-amber-800 hover:bg-amber-100 transition"
+                className="inline-flex items-center gap-2 px-3 py-1.5 bg-white dark:bg-gray-800 rounded-lg border border-amber-200 dark:border-amber-800 text-sm text-amber-800 dark:text-amber-200 hover:bg-amber-100 dark:hover:bg-amber-900/50 transition"
               >
                 <span>{item.name}</span>
                 <span className="text-amber-600">
@@ -355,7 +355,7 @@ export function InventoryTable() {
                   <button
                     type="button"
                     onClick={() => setShowScanner(true)}
-                    className="px-4 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg transition shrink-0"
+                    className="px-4 py-2.5 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 rounded-lg transition shrink-0"
                     title="مسح بالكاميرا"
                   >
                     مسح
@@ -464,7 +464,7 @@ export function InventoryTable() {
                     setModalOpen(false);
                     resetForm();
                   }}
-                  className="flex-1 px-4 py-2.5 text-gray-600 hover:bg-gray-100 rounded-lg transition"
+                  className="flex-1 px-4 py-2.5 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition"
                 >
                   إلغاء
                 </button>
@@ -497,7 +497,7 @@ export function InventoryTable() {
               <button
                 type="button"
                 onClick={() => setDeleteConfirm(null)}
-                className="flex-1 px-4 py-2.5 text-gray-600 hover:bg-gray-100 rounded-lg transition"
+                className="flex-1 px-4 py-2.5 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition"
               >
                 إلغاء
               </button>

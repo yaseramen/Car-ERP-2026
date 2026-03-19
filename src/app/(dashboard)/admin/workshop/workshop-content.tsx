@@ -5,11 +5,11 @@ import Link from "next/link";
 import { SearchableSelect } from "@/components/ui/searchable-select";
 
 const STAGES = [
-  { id: "received", label: "استلام", color: "bg-blue-100 text-blue-800" },
-  { id: "inspection", label: "فحص", color: "bg-amber-100 text-amber-800" },
-  { id: "maintenance", label: "صيانة", color: "bg-purple-100 text-purple-800" },
-  { id: "ready", label: "جاهزة", color: "bg-emerald-100 text-emerald-800" },
-  { id: "completed", label: "مكتمل", color: "bg-gray-100 text-gray-800" },
+  { id: "received", label: "استلام", color: "bg-blue-100 dark:bg-blue-900/50 text-blue-800 dark:text-blue-200" },
+  { id: "inspection", label: "فحص", color: "bg-amber-100 dark:bg-amber-900/50 text-amber-800 dark:text-amber-200" },
+  { id: "maintenance", label: "صيانة", color: "bg-purple-100 dark:bg-purple-900/50 text-purple-800 dark:text-purple-200" },
+  { id: "ready", label: "جاهزة", color: "bg-emerald-100 dark:bg-emerald-900/50 text-emerald-800 dark:text-emerald-200" },
+  { id: "completed", label: "مكتمل", color: "bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200" },
 ];
 
 interface RepairOrder {
@@ -446,7 +446,7 @@ export function WorkshopContent() {
             <button
               type="button"
               onClick={() => setTypeFilter("")}
-              className={`px-3 py-1.5 text-sm rounded-md transition ${typeFilter === "" ? "bg-gray-100 text-gray-900 font-medium" : "text-gray-600 hover:bg-gray-50"}`}
+              className={`px-3 py-1.5 text-sm rounded-md transition ${typeFilter === "" ? "bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-gray-100 font-medium" : "text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700"}`}
             >
               الكل
             </button>
@@ -460,7 +460,7 @@ export function WorkshopContent() {
             <button
               type="button"
               onClick={() => setTypeFilter("inspection")}
-              className={`px-3 py-1.5 text-sm rounded-md transition ${typeFilter === "inspection" ? "bg-amber-100 text-amber-800 font-medium" : "text-gray-600 hover:bg-gray-50"}`}
+              className={`px-3 py-1.5 text-sm rounded-md transition ${typeFilter === "inspection" ? "bg-amber-100 dark:bg-amber-900/50 text-amber-800 dark:text-amber-200 font-medium" : "text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700"}`}
             >
               فحص قبل البيع/الشراء
             </button>
@@ -546,7 +546,7 @@ export function WorkshopContent() {
                                 return next;
                               });
                             }}
-                            className="w-full py-1 text-xs bg-amber-100 hover:bg-amber-200 text-amber-800 rounded transition"
+                            className="w-full py-1 text-xs bg-amber-100 dark:bg-amber-900/50 hover:bg-amber-200 dark:hover:bg-amber-800/70 text-amber-800 dark:text-amber-200 rounded transition"
                           >
                             حفظ الملاحظات
                           </button>
@@ -756,7 +756,7 @@ export function WorkshopContent() {
                 <button
                   type="button"
                   onClick={() => setModalOpen(false)}
-                  className="flex-1 px-4 py-2.5 text-gray-600 hover:bg-gray-100 rounded-lg transition"
+                  className="flex-1 px-4 py-2.5 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition"
                 >
                   إلغاء
                 </button>
@@ -815,7 +815,7 @@ export function WorkshopContent() {
                     setAddCustomerOpen(false);
                     setNewCustomerForm({ name: "", phone: "", email: "" });
                   }}
-                  className="flex-1 px-4 py-2.5 text-gray-600 hover:bg-gray-100 rounded-lg transition"
+                  className="flex-1 px-4 py-2.5 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition"
                 >
                   إلغاء
                 </button>
@@ -890,7 +890,7 @@ export function WorkshopContent() {
                       setAddPartsOpen(false);
                       setSelectedOrder(null);
                     }}
-                    className="flex-1 px-4 py-2.5 text-gray-600 hover:bg-gray-100 rounded-lg transition"
+                    className="flex-1 px-4 py-2.5 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition"
                   >
                     إغلاق
                   </button>
@@ -973,7 +973,7 @@ export function WorkshopContent() {
                       setAddServicesOpen(false);
                       setSelectedOrder(null);
                     }}
-                    className="flex-1 px-4 py-2.5 text-gray-600 hover:bg-gray-100 rounded-lg transition"
+                    className="flex-1 px-4 py-2.5 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition"
                   >
                     إغلاق
                   </button>
@@ -1068,7 +1068,7 @@ export function WorkshopContent() {
                     setInspectionChecklistOpen(false);
                     setSelectedOrder(null);
                   }}
-                  className="flex-1 px-4 py-2.5 text-gray-600 hover:bg-gray-100 rounded-lg transition"
+                  className="flex-1 px-4 py-2.5 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition"
                 >
                   إغلاق
                 </button>

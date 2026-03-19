@@ -162,7 +162,7 @@ export function InvoiceActions(props: InvoiceActionsProps) {
       <button
         type="button"
         onClick={handlePrint}
-        className="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium rounded-lg transition-colors"
+        className="px-4 py-2 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 font-medium rounded-lg transition-colors"
       >
         طباعة
       </button>
@@ -170,14 +170,14 @@ export function InvoiceActions(props: InvoiceActionsProps) {
         type="button"
         onClick={handleDownloadPdf}
         disabled={pdfLoading}
-        className="px-4 py-2 bg-emerald-100 hover:bg-emerald-200 text-emerald-800 font-medium rounded-lg transition-colors disabled:opacity-70 disabled:cursor-not-allowed"
+        className="px-4 py-2 bg-emerald-100 dark:bg-emerald-900/50 hover:bg-emerald-200 dark:hover:bg-emerald-800/70 text-emerald-800 dark:text-emerald-200 font-medium rounded-lg transition-colors disabled:opacity-70 disabled:cursor-not-allowed"
       >
         {pdfLoading ? "جاري التحميل..." : "تحميل PDF"}
       </button>
       <button
         type="button"
         onClick={handleShareWhatsApp}
-        className="px-4 py-2 bg-green-100 hover:bg-green-200 text-green-800 font-medium rounded-lg transition-colors flex items-center gap-2"
+        className="px-4 py-2 bg-green-100 dark:bg-green-900/50 hover:bg-green-200 dark:hover:bg-green-800/70 text-green-800 dark:text-green-200 font-medium rounded-lg transition-colors flex items-center gap-2"
       >
         <span>إرسال واتساب</span>
       </button>

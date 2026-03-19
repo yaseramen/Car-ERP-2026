@@ -143,7 +143,7 @@ export default async function RepairOrderReportPage({
               <div className="flex justify-between">
                 <dt className="text-gray-500">المرحلة</dt>
                 <dd>
-                  <span className="px-2 py-1 rounded text-xs font-medium bg-emerald-100 text-emerald-800">
+                  <span className="px-2 py-1 rounded text-xs font-medium bg-emerald-100 dark:bg-emerald-900/50 text-emerald-800 dark:text-emerald-200">
                     {STAGE_LABELS[order.stage] || order.stage}
                   </span>
                 </dd>
