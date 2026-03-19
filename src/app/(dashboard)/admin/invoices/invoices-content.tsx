@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 
 const TYPE_LABELS: Record<string, string> = {
   sale: "بيع",
@@ -44,14 +45,22 @@ interface Invoice {
 }
 
 export function InvoicesContent() {
+  const searchParams = useSearchParams();
+  const statusFromUrl = searchParams.get("status");
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [loading, setLoading] = useState(true);
   const [typeFilter, setTypeFilter] = useState<string>("all");
+  const [statusFilter, setStatusFilter] = useState<string>(statusFromUrl || "all");
 
-  const filteredInvoices =
-    typeFilter === "all"
-      ? invoices
-      : invoices.filter((inv) => inv.type === typeFilter);
+  useEffect(() => {
+    if (statusFromUrl) setStatusFilter(statusFromUrl);
+  }, [statusFromUrl]);
+
+  const filteredInvoices = invoices.filter((inv) => {
+    if (typeFilter !== "all" && inv.type !== typeFilter) return false;
+    if (statusFilter !== "all" && inv.status !== statusFilter) return false;
+    return true;
+  });
 
   async function fetchInvoices() {
     try {
@@ -79,6 +88,7 @@ export function InvoicesContent() {
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap gap-2">
+        <span className="text-sm text-gray-500 dark:text-gray-400 py-2">النوع:</span>
         {[
           { value: "all", label: "الكل" },
           { value: "sale", label: "بيع" },
@@ -91,6 +101,29 @@ export function InvoicesContent() {
             onClick={() => setTypeFilter(opt.value)}
             className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
               typeFilter === opt.value
+                ? "bg-emerald-600 text-white"
+                : "bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600"
+            }`}
+          >
+            {opt.label}
+          </button>
+        ))}
+        <span className="text-sm text-gray-500 dark:text-gray-400 py-2 mr-4">الحالة:</span>
+        {[
+          { value: "all", label: "الكل" },
+          { value: "pending", label: "معلقة" },
+          { value: "partial", label: "جزئية" },
+          { value: "paid", label: "مدفوعة" },
+          { value: "draft", label: "مسودة" },
+          { value: "returned", label: "مرتجع" },
+          { value: "cancelled", label: "ملغاة" },
+        ].map((opt) => (
+          <button
+            key={opt.value}
+            type="button"
+            onClick={() => setStatusFilter(opt.value)}
+            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+              statusFilter === opt.value
                 ? "bg-emerald-600 text-white"
                 : "bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600"
             }`}
@@ -117,7 +150,9 @@ export function InvoicesContent() {
             {filteredInvoices.length === 0 ? (
               <tr>
                 <td colSpan={6} className="px-4 py-12 text-center text-gray-500 dark:text-gray-400">
-                  {invoices.length === 0 ? "لا توجد فواتير حتى الآن" : "لا توجد فواتير بهذا النوع"}
+                  {invoices.length === 0
+                    ? "لا توجد فواتير حتى الآن"
+                    : "لا توجد فواتير تطابق الفلتر المحدد"}
                 </td>
               </tr>
             ) : (

@@ -79,7 +79,7 @@ export function AlertsBadge() {
           )}
           {pendingCount > 0 && (
             <Link
-              href="/admin/invoices"
+              href="/admin/invoices?status=pending"
               onClick={() => setOpen(false)}
               className="flex items-center gap-3 px-4 py-2.5 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-900 dark:text-gray-100"
             >
