@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
+import { useKeyboardShortcut } from "@/hooks/use-keyboard-shortcut";
 import { BarcodeScanner } from "@/components/inventory/barcode-scanner";
 import { addToQueue } from "@/lib/offline-queue";
 
@@ -434,6 +435,13 @@ export function InventoryTable() {
     setPage(newPage);
   }
 
+  const inventoryFormRef = useRef<HTMLFormElement>(null);
+  useKeyboardShortcut({
+    onSave: () => modalOpen && !saving && inventoryFormRef.current?.requestSubmit(),
+    onEscape: () => modalOpen && setModalOpen(false),
+    enabled: modalOpen,
+  });
+
   return (
     <>
       {lowStockItems.length > 0 && (
@@ -679,7 +687,7 @@ export function InventoryTable() {
               </h3>
             </div>
 
-            <form onSubmit={handleSubmit} className="p-6 space-y-4">
+            <form ref={inventoryFormRef} onSubmit={handleSubmit} className="p-6 space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">اسم القطعة *</label>
                 <input

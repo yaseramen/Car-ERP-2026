@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { addToQueue } from "@/lib/offline-queue";
+import { useKeyboardShortcut } from "@/hooks/use-keyboard-shortcut";
 import { exportToExcel } from "@/lib/export-reports";
 
 interface Supplier {
@@ -235,6 +236,13 @@ export function SuppliersContent() {
     if (page > totalPages && totalPages > 0) setPage(totalPages);
   }, [suppliers.length, page, totalPages]);
 
+  const supplierFormRef = useRef<HTMLFormElement>(null);
+  useKeyboardShortcut({
+    onSave: () => modalOpen && !saving && supplierFormRef.current?.requestSubmit(),
+    onEscape: () => modalOpen && (setModalOpen(false), resetForm()),
+    enabled: modalOpen,
+  });
+
   const inputClass =
     "w-full px-4 py-2.5 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none";
 
@@ -371,7 +379,7 @@ export function SuppliersContent() {
               </h3>
             </div>
 
-            <form onSubmit={handleSubmit} className="p-6 space-y-4">
+            <form ref={supplierFormRef} onSubmit={handleSubmit} className="p-6 space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">الاسم *</label>
                 <input
