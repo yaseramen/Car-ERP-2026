@@ -23,6 +23,7 @@ export function SuppliersContent() {
   const [saving, setSaving] = useState(false);
   const [page, setPage] = useState(1);
   const [totalSuppliers, setTotalSuppliers] = useState(0);
+  const [searchQuery, setSearchQuery] = useState("");
   const [form, setForm] = useState({
     name: "",
     phone: "",
@@ -36,7 +37,9 @@ export function SuppliersContent() {
       const p = opts?.page ?? page;
       const limit = 50;
       const offset = (p - 1) * limit;
-      const res = await fetch(`/api/admin/suppliers?limit=${limit}&offset=${offset}`);
+      const params = new URLSearchParams({ limit: String(limit), offset: String(offset) });
+      if (searchQuery.trim()) params.set("search", searchQuery.trim());
+      const res = await fetch(`/api/admin/suppliers?${params}`);
       if (res.ok) {
         const data = await res.json();
         if (Array.isArray(data)) {
@@ -59,12 +62,12 @@ export function SuppliersContent() {
   }
 
   useEffect(() => {
-    fetchSuppliers({ page: 1 });
-  }, []);
+    setPage(1);
+  }, [searchQuery]);
 
   useEffect(() => {
-    if (page > 1) fetchSuppliers({ page });
-  }, [page]);
+    fetchSuppliers({ page });
+  }, [page, searchQuery]);
 
   useEffect(() => {
     const handleOnline = () => fetchSuppliers();
@@ -248,7 +251,14 @@ export function SuppliersContent() {
       <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden">
         <div className="p-4 border-b border-gray-100 dark:border-gray-700 flex flex-wrap gap-2 justify-between items-center">
           <h2 className="font-medium text-gray-900 dark:text-gray-100">قائمة الموردين</h2>
-          <div className="flex gap-2">
+          <div className="flex gap-2 items-center">
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="بحث بالاسم، الهاتف، البريد..."
+              className="px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 text-sm w-48 placeholder-gray-400"
+            />
             <button
               type="button"
               onClick={async () => {

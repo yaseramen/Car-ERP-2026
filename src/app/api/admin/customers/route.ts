@@ -15,16 +15,25 @@ export async function GET(request: Request) {
   }
 
   const { searchParams } = new URL(request.url);
-  const usePagination = searchParams.has("limit") || searchParams.has("offset");
+  const usePagination = searchParams.has("limit") || searchParams.has("offset") || searchParams.get("search");
   const limit = usePagination ? Math.min(200, Math.max(1, Number(searchParams.get("limit")) || 50)) : 10000;
   const offset = usePagination ? Math.max(0, Number(searchParams.get("offset")) || 0) : 0;
+  const search = searchParams.get("search")?.trim() || "";
 
   try {
+    let whereClause = "WHERE company_id = ? AND is_active = 1";
+    const args: (string | number)[] = [companyId];
+    if (search) {
+      whereClause += " AND (LOWER(name) LIKE ? OR LOWER(COALESCE(phone,'')) LIKE ? OR LOWER(COALESCE(email,'')) LIKE ?)";
+      const q = `%${search.toLowerCase()}%`;
+      args.push(q, q, q);
+    }
+
     let total = 0;
     if (usePagination) {
       const countRes = await db.execute({
-        sql: "SELECT COUNT(*) as cnt FROM customers WHERE company_id = ? AND is_active = 1",
-        args: [companyId],
+        sql: `SELECT COUNT(*) as cnt FROM customers ${whereClause}`,
+        args,
       });
       total = Number(countRes.rows[0]?.cnt ?? 0);
     }
@@ -32,10 +41,10 @@ export async function GET(request: Request) {
     const result = await db.execute({
       sql: `SELECT id, name, phone, email, address, notes, created_at
             FROM customers
-            WHERE company_id = ? AND is_active = 1
+            ${whereClause}
             ORDER BY name
             LIMIT ? OFFSET ?`,
-      args: [companyId, limit, offset],
+      args: [...args, limit, offset],
     });
 
     const customers = result.rows.map((row) => ({
