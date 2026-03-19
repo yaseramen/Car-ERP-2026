@@ -3,6 +3,9 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 
+const DASHBOARD_SECTIONS = ["alerts", "backup", "sales", "treasuries", "workshop", "inventory", "chart"] as const;
+const STORAGE_KEY = "alameen-dashboard-hidden";
+
 type Summary = {
   canSee?: { sales: boolean; treasuries: boolean; workshop: boolean; inventory: boolean };
   sales: { today: { total: number; count: number }; week: { total: number; count: number }; month: { total: number; count: number } };
@@ -33,12 +36,27 @@ export function DashboardContent() {
   const [data, setData] = useState<Summary | null>(null);
   const [loading, setLoading] = useState(true);
   const [lastBackup, setLastBackup] = useState<string | null>(null);
+  const [hiddenSections, setHiddenSections] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     try {
       setLastBackup(localStorage.getItem("alameen-last-backup"));
+      const stored = localStorage.getItem(STORAGE_KEY);
+      if (stored) setHiddenSections(new Set(JSON.parse(stored)));
     } catch {}
   }, []);
+
+  function toggleSection(id: string) {
+    setHiddenSections((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify([...next]));
+      } catch {}
+      return next;
+    });
+  }
 
   const needsBackupReminder = (() => {
     if (!lastBackup) return true;
@@ -73,6 +91,7 @@ export function DashboardContent() {
   const maxDaily = data.dailySales.length > 0 ? Math.max(...data.dailySales.map((d) => d.total), 1) : 1;
   const c = data.canSee ?? { sales: true, treasuries: true, workshop: true, inventory: true };
   const hasAny = c.sales || c.treasuries || c.workshop || c.inventory;
+  const hasAlerts = (c.inventory && data.lowStockCount > 0) || (c.sales && data.pendingInvoices.count > 0);
 
   if (!hasAny) {
     return (
@@ -85,7 +104,50 @@ export function DashboardContent() {
 
   return (
     <div className="space-y-8">
-      {needsBackupReminder && (
+      <div className="flex justify-end">
+        <details className="relative">
+          <summary className="text-sm text-gray-500 dark:text-gray-400 cursor-pointer hover:text-gray-700 dark:hover:text-gray-300">
+            تخصيص العرض
+          </summary>
+          <div className="absolute left-0 top-full mt-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg p-3 z-10 min-w-[180px]">
+            {DASHBOARD_SECTIONS.map((id) => (
+              <label key={id} className="flex items-center gap-2 cursor-pointer py-1 text-sm text-gray-700 dark:text-gray-300">
+                <input
+                  type="checkbox"
+                  checked={!hiddenSections.has(id)}
+                  onChange={() => toggleSection(id)}
+                  className="rounded"
+                />
+                {id === "alerts" && "التنبيهات"}
+                {id === "backup" && "تذكير النسخ الاحتياطي"}
+                {id === "sales" && "المبيعات"}
+                {id === "treasuries" && "الخزائن"}
+                {id === "workshop" && "الورشة"}
+                {id === "inventory" && "المخزون"}
+                {id === "chart" && "رسم المبيعات"}
+              </label>
+            ))}
+          </div>
+        </details>
+      </div>
+      {hasAlerts && !hiddenSections.has("alerts") && (
+        <div className="bg-amber-50 dark:bg-amber-900/30 border border-amber-200 dark:border-amber-700 rounded-xl p-4 flex items-center gap-4">
+          <span className="text-2xl">🔔</span>
+          <div className="flex-1">
+            <p className="font-medium text-amber-800 dark:text-amber-200">
+              {c.inventory && data.lowStockCount > 0 && `${data.lowStockCount} صنف تحت الحد الأدنى`}
+              {c.inventory && data.lowStockCount > 0 && c.sales && data.pendingInvoices.count > 0 && " • "}
+              {c.sales && data.pendingInvoices.count > 0 && `${data.pendingInvoices.count} فاتورة معلقة`}
+            </p>
+            <p className="text-sm text-amber-700 dark:text-amber-300 mt-0.5">
+              <Link href="/admin/inventory" className="hover:underline">{c.inventory && data.lowStockCount > 0 ? "عرض المخزون" : ""}</Link>
+              {c.inventory && data.lowStockCount > 0 && c.sales && data.pendingInvoices.count > 0 && " | "}
+              <Link href="/admin/invoices?status=pending" className="hover:underline">{c.sales && data.pendingInvoices.count > 0 ? "عرض الفواتير المعلقة" : ""}</Link>
+            </p>
+          </div>
+        </div>
+      )}
+      {needsBackupReminder && !hiddenSections.has("backup") && (
         <div className="bg-amber-50 dark:bg-amber-900/30 border border-amber-200 dark:border-amber-700 rounded-xl p-4 flex items-center justify-between gap-4">
           <p className="text-amber-800 dark:text-amber-200 text-sm">
             {lastBackup ? `لم تقم بنسخ احتياطي منذ ${Math.floor((Date.now() - new Date(lastBackup).getTime()) / (1000 * 60 * 60 * 24))} يوم.` : "لم تقم بنسخ احتياطي بعد."} يُنصح بعمل نسخة احتياطية دورياً.
@@ -98,7 +160,7 @@ export function DashboardContent() {
           </Link>
         </div>
       )}
-      {c.sales && (
+      {c.sales && !hiddenSections.has("sales") && (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           <div className="bg-emerald-50 dark:bg-emerald-900/30 rounded-xl p-5 border border-emerald-100 dark:border-emerald-800">
             <p className="text-sm text-emerald-700 dark:text-emerald-300">مبيعات اليوم</p>
@@ -132,7 +194,7 @@ export function DashboardContent() {
       )}
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {c.treasuries && (
+        {c.treasuries && !hiddenSections.has("treasuries") && (
         <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 p-6">
           <h3 className="font-bold text-gray-900 dark:text-gray-100 mb-4">الخزائن</h3>
           <div className="space-y-3">
@@ -152,7 +214,7 @@ export function DashboardContent() {
         </div>
         )}
 
-        {c.workshop && (
+        {c.workshop && !hiddenSections.has("workshop") && (
         <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 p-6">
           <h3 className="font-bold text-gray-900 dark:text-gray-100 mb-4">الورشة</h3>
           <div className="space-y-2">
@@ -174,7 +236,7 @@ export function DashboardContent() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {c.sales && (
+        {c.sales && !hiddenSections.has("chart") && (
         <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 p-6">
           <h3 className="font-bold text-gray-900 dark:text-gray-100 mb-4">مبيعات آخر 7 أيام</h3>
           <div className="flex gap-2 h-36">
@@ -197,6 +259,7 @@ export function DashboardContent() {
         </div>
         )}
 
+        {!hiddenSections.has("inventory") && (
         <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 p-6">
           <h3 className="font-bold text-gray-900 dark:text-gray-100 mb-4">تنبيهات</h3>
           <div className="space-y-2">
@@ -223,6 +286,7 @@ export function DashboardContent() {
             )}
           </div>
         </div>
+        )}
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
