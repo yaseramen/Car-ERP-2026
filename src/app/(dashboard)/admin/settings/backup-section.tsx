@@ -23,6 +23,9 @@ export function BackupSection() {
   const [restoreMsg, setRestoreMsg] = useState<{ type: "success" | "error"; text: string } | null>(null);
 
   const handleExport = (format: "json" | "excel") => {
+    try {
+      localStorage.setItem("alameen-last-backup", new Date().toISOString());
+    } catch {}
     window.open(`/api/admin/backup/export?format=${format}`, "_blank");
   };
 

@@ -27,9 +27,24 @@ const TREASURY_LABELS: Record<string, string> = {
   main: "الخزينة الرئيسية",
 };
 
+const BACKUP_REMINDER_DAYS = 7;
+
 export function DashboardContent() {
   const [data, setData] = useState<Summary | null>(null);
   const [loading, setLoading] = useState(true);
+  const [lastBackup, setLastBackup] = useState<string | null>(null);
+
+  useEffect(() => {
+    try {
+      setLastBackup(localStorage.getItem("alameen-last-backup"));
+    } catch {}
+  }, []);
+
+  const needsBackupReminder = (() => {
+    if (!lastBackup) return true;
+    const diff = (Date.now() - new Date(lastBackup).getTime()) / (1000 * 60 * 60 * 24);
+    return diff >= BACKUP_REMINDER_DAYS;
+  })();
 
   useEffect(() => {
     fetch("/api/admin/reports/summary")
@@ -70,6 +85,19 @@ export function DashboardContent() {
 
   return (
     <div className="space-y-8">
+      {needsBackupReminder && (
+        <div className="bg-amber-50 dark:bg-amber-900/30 border border-amber-200 dark:border-amber-700 rounded-xl p-4 flex items-center justify-between gap-4">
+          <p className="text-amber-800 dark:text-amber-200 text-sm">
+            {lastBackup ? `لم تقم بنسخ احتياطي منذ ${Math.floor((Date.now() - new Date(lastBackup).getTime()) / (1000 * 60 * 60 * 24))} يوم.` : "لم تقم بنسخ احتياطي بعد."} يُنصح بعمل نسخة احتياطية دورياً.
+          </p>
+          <Link
+            href="/admin/settings"
+            className="shrink-0 px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-sm font-medium"
+          >
+            نسخ احتياطي
+          </Link>
+        </div>
+      )}
       {c.sales && (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           <div className="bg-emerald-50 dark:bg-emerald-900/30 rounded-xl p-5 border border-emerald-100 dark:border-emerald-800">
