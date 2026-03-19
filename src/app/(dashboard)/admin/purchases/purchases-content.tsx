@@ -367,6 +367,13 @@ export function PurchasesContent({
         min_quantity_enabled: newProductForm.min_quantity_enabled,
         min_quantity: newProductForm.min_quantity_enabled ? Number(newProductForm.min_quantity) || 0 : 0,
       };
+      if (!navigator.onLine) {
+        addToQueue({ type: "create_inventory_item", data: payload });
+        setAddProductOpen(false);
+        resetProductForm();
+        alert("انقطع الاتصال. تم حفظ طلب إضافة الصنف. سيتم إنشاؤه تلقائياً عند عودة الإنترنت. أضفه لفاتورة الشراء بعد العودة.");
+        return;
+      }
       const res = await fetch("/api/admin/inventory/items", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -398,7 +405,27 @@ export function PurchasesContent({
         return [...prev, { item_id: newItem.id, name: newItem.name, quantity: qty, unit_price: price, total: qty * price }];
       });
     } catch {
-      alert("حدث خطأ");
+      if (!navigator.onLine) {
+        addToQueue({
+          type: "create_inventory_item",
+          data: {
+            name: newProductForm.name.trim(),
+            code: newProductForm.code.trim() || undefined,
+            barcode: newProductForm.barcode.trim() || undefined,
+            category: (newProductForm.category === "__new__" ? newCategory : newProductForm.category)?.trim() || undefined,
+            unit: (newProductForm.unit === "__new__" ? newUnit : newProductForm.unit)?.trim() || "قطعة",
+            purchase_price: Number(newProductForm.purchase_price) || 0,
+            sale_price: Number(newProductForm.sale_price) || Number(newProductForm.purchase_price) || 0,
+            min_quantity_enabled: newProductForm.min_quantity_enabled,
+            min_quantity: newProductForm.min_quantity_enabled ? Number(newProductForm.min_quantity) || 0 : 0,
+          },
+        });
+        setAddProductOpen(false);
+        resetProductForm();
+        alert("انقطع الاتصال. تم حفظ طلب إضافة الصنف. سيتم إنشاؤه تلقائياً عند عودة الإنترنت.");
+      } else {
+        alert("حدث خطأ");
+      }
     } finally {
       setSavingProduct(false);
     }

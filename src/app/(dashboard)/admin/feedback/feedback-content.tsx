@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { addToQueue } from "@/lib/offline-queue";
 
 export function FeedbackContent({ isSuperAdmin }: { isSuperAdmin?: boolean }) {
   const [type, setType] = useState<string>("suggestion");
@@ -14,10 +15,19 @@ export function FeedbackContent({ isSuperAdmin }: { isSuperAdmin?: boolean }) {
     if (!subject.trim() || !message.trim()) return;
     setSending(true);
     try {
+      const payload = { type, subject: subject.trim(), message: message.trim() };
+      if (!navigator.onLine) {
+        addToQueue({ type: "submit_feedback", data: payload });
+        setSent(true);
+        setSubject("");
+        setMessage("");
+        alert("انقطع الاتصال. تم حفظ الملاحظة. سيتم إرسالها تلقائياً عند عودة الإنترنت.");
+        return;
+      }
       const res = await fetch("/api/feedback", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ type, subject: subject.trim(), message: message.trim() }),
+        body: JSON.stringify(payload),
       });
       if (res.ok) {
         setSent(true);
@@ -28,7 +38,15 @@ export function FeedbackContent({ isSuperAdmin }: { isSuperAdmin?: boolean }) {
         alert(err.error || "فشل في الإرسال");
       }
     } catch {
-      alert("حدث خطأ. حاول مرة أخرى.");
+      if (!navigator.onLine) {
+        addToQueue({ type: "submit_feedback", data: { type, subject: subject.trim(), message: message.trim() } });
+        setSent(true);
+        setSubject("");
+        setMessage("");
+        alert("انقطع الاتصال. تم حفظ الملاحظة. سيتم إرسالها تلقائياً عند عودة الإنترنت.");
+      } else {
+        alert("حدث خطأ. حاول مرة أخرى.");
+      }
     } finally {
       setSending(false);
     }

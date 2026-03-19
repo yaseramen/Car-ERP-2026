@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { processQueue, executeQueuedOpDefault } from "@/lib/offline-queue";
 
 export function OfflineProvider({ children }: { children: React.ReactNode }) {
   const [isOnline, setIsOnline] = useState(true);
@@ -8,7 +9,14 @@ export function OfflineProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     setIsOnline(navigator.onLine);
-    const handleOnline = () => {
+    const handleOnline = async () => {
+      const { processed, failed } = await processQueue(executeQueuedOpDefault);
+      if (processed > 0) {
+        const msg = failed > 0
+          ? `تم إرسال ${processed} عملية. فشل ${failed} عملية.`
+          : `تم إرسال ${processed} عملية معلقة بنجاح.`;
+        setTimeout(() => alert(msg), 300);
+      }
       setIsOnline(true);
       setShowBanner(true);
       setTimeout(() => setShowBanner(false), 5000);
