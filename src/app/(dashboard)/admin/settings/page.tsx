@@ -3,6 +3,8 @@ import { redirect } from "next/navigation";
 import { getCompanyId } from "@/lib/company";
 import { CompanySettingsContent } from "./company-settings-content";
 import { BackupSection } from "./backup-section";
+import { WarehousesSection } from "./warehouses-section";
+import { AuditSection } from "./audit-section";
 
 export default async function SettingsPage() {
   const session = await auth();
@@ -22,6 +24,15 @@ export default async function SettingsPage() {
       <div className="mt-12 pt-8 border-t border-gray-200 dark:border-gray-700">
         <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100 mb-4">النسخ الاحتياطي والاستعادة</h2>
         <BackupSection />
+      </div>
+
+      <div className="mt-12 pt-8 border-t border-gray-200 dark:border-gray-700">
+        <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100 mb-4">إدارة المخازن</h2>
+        <WarehousesSection />
+      </div>
+
+      <div className="mt-12 pt-8 border-t border-gray-200 dark:border-gray-700">
+        <AuditSection />
       </div>
     </div>
   );

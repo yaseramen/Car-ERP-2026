@@ -33,8 +33,48 @@ export function ReportsContent() {
   const [expensesIncome, setExpensesIncome] = useState<Record<string, unknown> | null>(null);
   const [suppliersReport, setSuppliersReport] = useState<Record<string, unknown> | null>(null);
   const [loading, setLoading] = useState(true);
-  const [dateFrom, setDateFrom] = useState(() => new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10));
-  const [dateTo, setDateTo] = useState(() => new Date().toISOString().slice(0, 10));
+  const [tabLoading, setTabLoading] = useState(false);
+  const [dateFrom, setDateFrom] = useState(() => {
+    try {
+      const s = localStorage.getItem("alameen-reports-dateFrom");
+      if (s) return s;
+    } catch {}
+    return new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+  });
+  const [dateTo, setDateTo] = useState(() => {
+    try {
+      const s = localStorage.getItem("alameen-reports-dateTo");
+      if (s) return s;
+    } catch {}
+    return new Date().toISOString().slice(0, 10);
+  });
+  const [searchQuery, setSearchQuery] = useState("");
+
+  useEffect(() => {
+    try {
+      localStorage.setItem("alameen-reports-dateFrom", dateFrom);
+      localStorage.setItem("alameen-reports-dateTo", dateTo);
+    } catch {}
+  }, [dateFrom, dateTo]);
+  const [page, setPage] = useState(1);
+
+  useEffect(() => {
+    setPage(1);
+  }, [tab, dateFrom, dateTo, searchQuery]);
+
+  function setDateRange(days: number) {
+    const to = new Date();
+    const from = new Date();
+    from.setDate(from.getDate() - days);
+    setDateFrom(from.toISOString().slice(0, 10));
+    setDateTo(to.toISOString().slice(0, 10));
+  }
+
+  function filterBySearch<T>(items: T[], getSearchText: (item: T) => string): T[] {
+    if (!searchQuery.trim()) return items;
+    const q = searchQuery.trim().toLowerCase();
+    return items.filter((item) => getSearchText(item).toLowerCase().includes(q));
+  }
 
   async function fetchSummary() {
     try {

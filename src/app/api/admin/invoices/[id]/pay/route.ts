@@ -3,6 +3,7 @@ import { auth } from "@/auth";
 import { db } from "@/lib/db/client";
 import { getCompanyId } from "@/lib/company";
 import { ensureTreasuries, getTreasuryIdByType } from "@/lib/treasuries";
+import { logAudit } from "@/lib/audit";
 import { randomUUID } from "crypto";
 
 const ALLOWED_ROLES = ["super_admin", "tenant_owner", "employee"] as const;
@@ -89,6 +90,16 @@ export async function POST(
     await db.execute({
       sql: "UPDATE invoices SET paid_amount = ?, status = ?, updated_at = datetime('now') WHERE id = ? AND company_id = ?",
       args: [newPaid, status, invoiceId, companyId],
+    });
+
+    await logAudit({
+      companyId,
+      userId: session.user.id,
+      userName: session.user.name ?? session.user.email ?? undefined,
+      action: "invoice_pay",
+      entityType: "invoice",
+      entityId: invoiceId,
+      details: `دفع ${amt} ج.م — فاتورة ${invNum}`,
     });
 
     return NextResponse.json({ success: true, paid_amount: newPaid, status });
