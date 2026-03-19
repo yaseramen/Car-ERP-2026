@@ -29,6 +29,7 @@ export function InventoryTable() {
   const [units, setUnits] = useState<string[]>([]);
   const [newCategory, setNewCategory] = useState("");
   const [newUnit, setNewUnit] = useState("");
+  const [editingCell, setEditingCell] = useState<{ itemId: string; field: "category" | "min_quantity" } | null>(null);
   const [form, setForm] = useState({
     name: "",
     code: "",
@@ -81,6 +82,39 @@ export function InventoryTable() {
     setNewCategory("");
     setNewUnit("");
     setEditItem(null);
+  }
+
+  async function saveInlineEdit(itemId: string, field: "category" | "min_quantity", value: string | number) {
+    try {
+      const payload: Record<string, unknown> = {};
+      if (field === "category") {
+        payload.category = (value as string)?.trim() || null;
+      } else {
+        const num = Number(value);
+        payload.min_quantity = num > 0 ? num : 0;
+        payload.min_quantity_enabled = num > 0;
+      }
+      const res = await fetch(`/api/admin/inventory/items/${itemId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      if (!res.ok) {
+        const err = await res.json();
+        alert(err.error || "فشل في التحديث");
+        return;
+      }
+      setItems((prev) =>
+        prev.map((i) => {
+          if (i.id !== itemId) return i;
+          if (field === "category") return { ...i, category: (value as string)?.trim() || null };
+          return { ...i, min_quantity: value ? Number(value) : 0 };
+        })
+      );
+      setEditingCell(null);
+    } catch {
+      alert("حدث خطأ");
+    }
   }
 
   function openEditModal(item: Item) {
@@ -242,15 +276,15 @@ export function InventoryTable() {
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead>
-              <tr className="bg-gray-50 border-b border-gray-100">
-                <th className="text-right px-4 py-3 text-sm font-medium text-gray-600">اسم القطعة</th>
-                <th className="text-right px-4 py-3 text-sm font-medium text-gray-600">الكود</th>
-                <th className="text-right px-4 py-3 text-sm font-medium text-gray-600">الباركود</th>
-                <th className="text-right px-4 py-3 text-sm font-medium text-gray-600">القسم</th>
-                <th className="text-right px-4 py-3 text-sm font-medium text-gray-600">الكمية</th>
-                <th className="text-right px-4 py-3 text-sm font-medium text-gray-600">الحد الأدنى</th>
-                <th className="text-right px-4 py-3 text-sm font-medium text-gray-600">سعر البيع</th>
-                <th className="text-right px-4 py-3 text-sm font-medium text-gray-600">إجراءات</th>
+              <tr className="bg-gray-50 dark:bg-gray-700/50 border-b border-gray-100 dark:border-gray-700">
+                <th className="text-right px-4 py-3 text-sm font-medium text-gray-600 dark:text-gray-300">اسم القطعة</th>
+                <th className="text-right px-4 py-3 text-sm font-medium text-gray-600 dark:text-gray-300">الكود</th>
+                <th className="text-right px-4 py-3 text-sm font-medium text-gray-600 dark:text-gray-300">الباركود</th>
+                <th className="text-right px-4 py-3 text-sm font-medium text-gray-600 dark:text-gray-300">القسم</th>
+                <th className="text-right px-4 py-3 text-sm font-medium text-gray-600 dark:text-gray-300">الكمية</th>
+                <th className="text-right px-4 py-3 text-sm font-medium text-gray-600 dark:text-gray-300">الحد الأدنى</th>
+                <th className="text-right px-4 py-3 text-sm font-medium text-gray-600 dark:text-gray-300">سعر البيع</th>
+                <th className="text-right px-4 py-3 text-sm font-medium text-gray-600 dark:text-gray-300">إجراءات</th>
               </tr>
             </thead>
             <tbody>
@@ -262,7 +296,7 @@ export function InventoryTable() {
                 </tr>
               ) : (
                 items.map((item) => (
-                  <tr key={item.id} className="border-b border-gray-50 hover:bg-gray-50/50">
+                  <tr key={item.id} className="border-b border-gray-50 dark:border-gray-700 hover:bg-gray-50/50 dark:hover:bg-gray-700/30">
                     <td className="px-4 py-3">
                       <Link
                         href={`/admin/inventory/${item.id}`}
@@ -271,18 +305,81 @@ export function InventoryTable() {
                         {item.name}
                       </Link>
                     </td>
-                    <td className="px-4 py-3 text-sm text-gray-600">{item.code || "—"}</td>
-                    <td className="px-4 py-3 text-sm text-gray-600 font-mono">{item.barcode || "—"}</td>
-                    <td className="px-4 py-3 text-sm text-gray-600">{item.category || "—"}</td>
+                    <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-400">{item.code || "—"}</td>
+                    <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-400 font-mono">{item.barcode || "—"}</td>
                     <td className="px-4 py-3 text-sm">
-                      <span className={item.min_quantity > 0 && item.quantity < item.min_quantity ? "text-amber-600 font-medium" : "text-gray-900"}>
+                      {editingCell?.itemId === item.id && editingCell?.field === "category" ? (
+                        <select
+                          autoFocus
+                          value={item.category || ""}
+                          onChange={(e) => {
+                            const v = e.target.value;
+                            saveInlineEdit(item.id, "category", v);
+                          }}
+                          onBlur={(e) => {
+                            const v = e.target.value;
+                            saveInlineEdit(item.id, "category", v);
+                            setEditingCell(null);
+                          }}
+                          className="w-full min-w-[100px] px-2 py-1 text-sm rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-emerald-500 outline-none"
+                        >
+                          <option value="">—</option>
+                          {[...new Set([...(item.category ? [item.category] : []), ...categories])].sort().map((c) => (
+                            <option key={c} value={c}>{c}</option>
+                          ))}
+                        </select>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => setEditingCell({ itemId: item.id, field: "category" })}
+                          className="text-right w-full block px-2 py-1 -mx-2 -my-1 rounded hover:bg-gray-100 dark:hover:bg-gray-700/50 text-gray-600 dark:text-gray-300 min-h-[28px]"
+                          title="اضغط للتعديل"
+                        >
+                          {item.category || "—"}
+                        </button>
+                      )}
+                    </td>
+                    <td className="px-4 py-3 text-sm">
+                      <span className={item.min_quantity > 0 && item.quantity < item.min_quantity ? "text-amber-600 dark:text-amber-400 font-medium" : "text-gray-900 dark:text-gray-100"}>
                         {item.quantity}
                       </span>
                     </td>
-                    <td className="px-4 py-3 text-sm text-gray-600">
-                      {item.min_quantity > 0 ? item.min_quantity : "—"}
+                    <td className="px-4 py-3 text-sm">
+                      {editingCell?.itemId === item.id && editingCell?.field === "min_quantity" ? (
+                        <input
+                          type="number"
+                          min="0"
+                          step="0.01"
+                          autoFocus
+                          defaultValue={item.min_quantity > 0 ? item.min_quantity : ""}
+                          placeholder="—"
+                          onBlur={(e) => {
+                            const v = e.target.value;
+                            saveInlineEdit(item.id, "min_quantity", v ? Number(v) : 0);
+                            setEditingCell(null);
+                          }}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter") {
+                              const v = (e.target as HTMLInputElement).value;
+                              saveInlineEdit(item.id, "min_quantity", v ? Number(v) : 0);
+                              setEditingCell(null);
+                            }
+                            if (e.key === "Escape") setEditingCell(null);
+                          }}
+                          className="w-20 px-2 py-1 text-sm rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-emerald-500 outline-none"
+                        />
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => setEditingCell({ itemId: item.id, field: "min_quantity" })}
+                          className="text-right w-full block px-2 py-1 -mx-2 -my-1 rounded hover:bg-gray-100 dark:hover:bg-gray-700/50 text-gray-600 dark:text-gray-300 min-h-[28px]"
+                          title="اضغط للتعديل"
+                        >
+                          {item.min_quantity > 0 ? item.min_quantity : "—"}
+                        </button>
+                      )}
                     </td>
-                    <td className="px-4 py-3 text-sm text-gray-900">{item.sale_price.toFixed(2)} ج.م</td>
+                    <td className="px-4 py-3 text-sm text-gray-900 dark:text-gray-100">{item.sale_price.toFixed(2)} ج.م</td>
                     <td className="px-4 py-3">
                       <div className="flex gap-2 justify-end">
                         <button
