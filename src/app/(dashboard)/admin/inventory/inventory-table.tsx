@@ -32,6 +32,7 @@ export function InventoryTable() {
   const [newUnit, setNewUnit] = useState("");
   const [editingCell, setEditingCell] = useState<{ itemId: string; field: "category" | "min_quantity" } | null>(null);
   const [page, setPage] = useState(1);
+  const [searchQuery, setSearchQuery] = useState("");
   const [form, setForm] = useState({
     name: "",
     code: "",
@@ -376,12 +377,25 @@ export function InventoryTable() {
   }
 
   const ROWS_PER_PAGE = 50;
-  const paginatedItems = items.slice((page - 1) * ROWS_PER_PAGE, page * ROWS_PER_PAGE);
-  const totalPages = Math.max(1, Math.ceil(items.length / ROWS_PER_PAGE));
+  const filteredItems = searchQuery.trim()
+    ? items.filter(
+        (i) =>
+          i.name.toLowerCase().includes(searchQuery.trim().toLowerCase()) ||
+          (i.code?.toLowerCase().includes(searchQuery.trim().toLowerCase()) ?? false) ||
+          (i.barcode?.toLowerCase().includes(searchQuery.trim().toLowerCase()) ?? false) ||
+          (i.category?.toLowerCase().includes(searchQuery.trim().toLowerCase()) ?? false)
+      )
+    : items;
+  const paginatedItems = filteredItems.slice((page - 1) * ROWS_PER_PAGE, page * ROWS_PER_PAGE);
+  const totalPages = Math.max(1, Math.ceil(filteredItems.length / ROWS_PER_PAGE));
+
+  useEffect(() => {
+    setPage(1);
+  }, [searchQuery]);
 
   useEffect(() => {
     if (page > totalPages && totalPages > 0) setPage(totalPages);
-  }, [items.length, page, totalPages]);
+  }, [filteredItems.length, page, totalPages]);
 
   const lowStockItems = items.filter((i) => i.min_quantity > 0 && i.quantity < i.min_quantity * 0.8);
   const approachingLimitItems = items.filter((i) => i.min_quantity > 0 && i.quantity >= i.min_quantity * 0.8 && i.quantity < i.min_quantity);
@@ -434,9 +448,17 @@ export function InventoryTable() {
       )}
 
       <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden">
-        <div className="p-4 border-b border-gray-100 dark:border-gray-700 flex justify-between items-center">
+        <div className="p-4 border-b border-gray-100 dark:border-gray-700 flex flex-wrap gap-3 justify-between items-center">
           <h2 className="font-medium text-gray-900 dark:text-gray-100">الأصناف</h2>
-          <button
+          <div className="flex gap-2 items-center">
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="بحث بالاسم، الكود، الباركود، القسم..."
+              className="px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 text-sm w-64 placeholder-gray-400"
+            />
+            <button
             onClick={() => {
               resetForm();
               setModalOpen(true);
@@ -445,6 +467,7 @@ export function InventoryTable() {
           >
             إضافة صنف جديد
           </button>
+          </div>
         </div>
 
         <div className="overflow-x-auto">
@@ -466,6 +489,12 @@ export function InventoryTable() {
                 <tr>
                   <td colSpan={8} className="px-4 py-12 text-center text-gray-500 dark:text-gray-400">
                     لا توجد أصناف. اضغط "إضافة صنف جديد" للبدء.
+                  </td>
+                </tr>
+              ) : filteredItems.length === 0 ? (
+                <tr>
+                  <td colSpan={8} className="px-4 py-12 text-center text-gray-500 dark:text-gray-400">
+                    لا توجد نتائج للبحث. جرّب كلمات أخرى.
                   </td>
                 </tr>
               ) : (
@@ -598,7 +627,7 @@ export function InventoryTable() {
                 السابق
               </button>
               <span className="text-sm text-gray-600 dark:text-gray-400">
-                صفحة {page} من {totalPages} — عرض {items.length} صنف
+                صفحة {page} من {totalPages} — {filteredItems.length} من {items.length} صنف
               </span>
               <button
                 type="button"
