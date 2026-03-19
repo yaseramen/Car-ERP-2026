@@ -33,6 +33,7 @@ export function ReportsContent() {
   const [expensesIncome, setExpensesIncome] = useState<Record<string, unknown> | null>(null);
   const [suppliersReport, setSuppliersReport] = useState<Record<string, unknown> | null>(null);
   const [loading, setLoading] = useState(true);
+  const [tabLoading, setTabLoading] = useState(false);
   const [dateFrom, setDateFrom] = useState(() => new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10));
   const [dateTo, setDateTo] = useState(() => new Date().toISOString().slice(0, 10));
   const [searchQuery, setSearchQuery] = useState("");
@@ -106,12 +107,16 @@ export function ReportsContent() {
   }, []);
 
   useEffect(() => {
-    if (tab === "sales") fetchSales();
-    else if (tab === "profit") fetchProfit();
-    else if (tab === "inventory") fetchInventory();
-    else if (tab === "workshop") fetchWorkshop();
-    else if (tab === "expenses") fetchExpensesIncome();
-    else if (tab === "suppliers") fetchSuppliersReport();
+    if (tab === "summary") return;
+    setTabLoading(true);
+    const p =
+      tab === "sales" ? fetchSales() :
+      tab === "profit" ? fetchProfit() :
+      tab === "inventory" ? fetchInventory() :
+      tab === "workshop" ? fetchWorkshop() :
+      tab === "expenses" ? fetchExpensesIncome() :
+      fetchSuppliersReport();
+    p.finally(() => setTabLoading(false));
   }, [tab, dateFrom, dateTo]);
 
   const tabs = [
@@ -240,6 +245,12 @@ export function ReportsContent() {
         ))}
       </div>
 
+      {tabLoading && tab !== "summary" && (
+        <div className="bg-white dark:bg-gray-800 rounded-xl p-12 text-center border border-gray-100 dark:border-gray-700">
+          <p className="text-gray-500 dark:text-gray-400">جاري تحميل التقرير...</p>
+        </div>
+      )}
+
       {(tab === "sales" || tab === "profit" || tab === "inventory" || tab === "workshop" || tab === "expenses" || tab === "suppliers") && (
         <div className="flex flex-wrap gap-4 items-center">
           <div className="flex gap-2">
@@ -357,7 +368,7 @@ export function ReportsContent() {
         </div>
       )}
 
-      {tab === "sales" && (
+      {tab === "sales" && !tabLoading && (
         <div id="report-sales" className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden">
           <div className="p-4 border-b border-gray-100 dark:border-gray-700">
             <h2 className="font-bold text-gray-900 dark:text-gray-100">تقرير المبيعات</h2>
@@ -371,12 +382,12 @@ export function ReportsContent() {
             {sales?.invoices && (sales.invoices as unknown[]).length > 0 ? (
               <table className="w-full">
                 <thead>
-                  <tr className="bg-gray-50">
-                    <th className="text-right px-4 py-3 text-sm font-medium text-gray-600">التاريخ</th>
-                    <th className="text-right px-4 py-3 text-sm font-medium text-gray-600">رقم الفاتورة</th>
-                    <th className="text-right px-4 py-3 text-sm font-medium text-gray-600">النوع</th>
-                    <th className="text-right px-4 py-3 text-sm font-medium text-gray-600">العميل / اللوحة</th>
-                    <th className="text-right px-4 py-3 text-sm font-medium text-gray-600">الإجمالي</th>
+                  <tr className="bg-gray-50 dark:bg-gray-700/50">
+                    <th className="text-right px-4 py-3 text-sm font-medium text-gray-600 dark:text-gray-300">التاريخ</th>
+                    <th className="text-right px-4 py-3 text-sm font-medium text-gray-600 dark:text-gray-300">رقم الفاتورة</th>
+                    <th className="text-right px-4 py-3 text-sm font-medium text-gray-600 dark:text-gray-300">النوع</th>
+                    <th className="text-right px-4 py-3 text-sm font-medium text-gray-600 dark:text-gray-300">العميل / اللوحة</th>
+                    <th className="text-right px-4 py-3 text-sm font-medium text-gray-600 dark:text-gray-300">الإجمالي</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -384,16 +395,16 @@ export function ReportsContent() {
                     (sales.invoices as Array<{ id: string; invoice_number: string; type: string; customer_name: string | null; vehicle_plate: string | null; total: number; created_at: string }>),
                     (inv) => `${inv.invoice_number} ${inv.customer_name || ""} ${inv.vehicle_plate || ""} ${inv.type === "maintenance" ? "صيانة" : "بيع"}`
                   ).map((inv) => (
-                    <tr key={inv.invoice_number} className="border-b border-gray-50">
-                      <td className="px-4 py-3 text-sm">{new Date(inv.created_at).toLocaleDateString("ar-EG")}</td>
+                    <tr key={inv.invoice_number} className="border-b border-gray-50 dark:border-gray-700">
+                      <td className="px-4 py-3 text-sm text-gray-900 dark:text-gray-100">{new Date(inv.created_at).toLocaleDateString("ar-EG")}</td>
                       <td className="px-4 py-3">
-                        <Link href={`/admin/invoices/${inv.id}`} className="text-emerald-600 hover:underline">
+                        <Link href={`/admin/invoices/${inv.id}`} className="text-emerald-600 dark:text-emerald-400 hover:underline">
                           {inv.invoice_number}
                         </Link>
                       </td>
-                      <td className="px-4 py-3 text-sm">{inv.type === "maintenance" ? "صيانة" : "بيع"}</td>
-                      <td className="px-4 py-3 text-sm">{inv.customer_name || inv.vehicle_plate || "—"}</td>
-                      <td className="px-4 py-3 text-sm font-medium">{inv.total?.toFixed(2)} ج.م</td>
+                      <td className="px-4 py-3 text-sm text-gray-900 dark:text-gray-100">{inv.type === "maintenance" ? "صيانة" : "بيع"}</td>
+                      <td className="px-4 py-3 text-sm text-gray-900 dark:text-gray-100">{inv.customer_name || inv.vehicle_plate || "—"}</td>
+                      <td className="px-4 py-3 text-sm font-medium text-gray-900 dark:text-gray-100">{inv.total?.toFixed(2)} ج.م</td>
                     </tr>
                   ))}
                 </tbody>
@@ -405,7 +416,7 @@ export function ReportsContent() {
         </div>
       )}
 
-      {tab === "profit" && (
+      {tab === "profit" && !tabLoading && (
         <div id="report-profit" className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden">
           <div className="p-4 border-b border-gray-100 dark:border-gray-700">
             <h2 className="font-bold text-gray-900 dark:text-gray-100">تقرير الأرباح</h2>
@@ -421,14 +432,14 @@ export function ReportsContent() {
             {profit?.rows && (profit.rows as unknown[]).length > 0 ? (
               <table className="w-full">
                 <thead>
-                  <tr className="bg-gray-50">
-                    <th className="text-right px-4 py-3 text-sm font-medium text-gray-600">التاريخ</th>
-                    <th className="text-right px-4 py-3 text-sm font-medium text-gray-600">الفاتورة</th>
-                    <th className="text-right px-4 py-3 text-sm font-medium text-gray-600">الصنف</th>
-                    <th className="text-right px-4 py-3 text-sm font-medium text-gray-600">الكمية</th>
-                    <th className="text-right px-4 py-3 text-sm font-medium text-gray-600">سعر البيع</th>
-                    <th className="text-right px-4 py-3 text-sm font-medium text-gray-600">التكلفة</th>
-                    <th className="text-right px-4 py-3 text-sm font-medium text-gray-600">الربح</th>
+                  <tr className="bg-gray-50 dark:bg-gray-700/50">
+                    <th className="text-right px-4 py-3 text-sm font-medium text-gray-600 dark:text-gray-300">التاريخ</th>
+                    <th className="text-right px-4 py-3 text-sm font-medium text-gray-600 dark:text-gray-300">الفاتورة</th>
+                    <th className="text-right px-4 py-3 text-sm font-medium text-gray-600 dark:text-gray-300">الصنف</th>
+                    <th className="text-right px-4 py-3 text-sm font-medium text-gray-600 dark:text-gray-300">الكمية</th>
+                    <th className="text-right px-4 py-3 text-sm font-medium text-gray-600 dark:text-gray-300">سعر البيع</th>
+                    <th className="text-right px-4 py-3 text-sm font-medium text-gray-600 dark:text-gray-300">التكلفة</th>
+                    <th className="text-right px-4 py-3 text-sm font-medium text-gray-600 dark:text-gray-300">الربح</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -436,14 +447,14 @@ export function ReportsContent() {
                     (profit.rows as Array<{ invoice_number: string; item_name: string; quantity: number; sale_price: number; cost_total: number; profit: number; created_at: string }>),
                     (r) => `${r.invoice_number} ${r.item_name}`
                   ).map((r, i) => (
-                    <tr key={i} className="border-b border-gray-50">
-                      <td className="px-4 py-3 text-sm">{new Date(r.created_at).toLocaleDateString("ar-EG")}</td>
-                      <td className="px-4 py-3 text-sm">{r.invoice_number}</td>
-                      <td className="px-4 py-3 text-sm">{r.item_name}</td>
-                      <td className="px-4 py-3 text-sm">{r.quantity}</td>
-                      <td className="px-4 py-3 text-sm">{r.sale_price?.toFixed(2)} ج.م</td>
-                      <td className="px-4 py-3 text-sm">{r.cost_total?.toFixed(2)} ج.م</td>
-                      <td className={`px-4 py-3 text-sm font-medium ${r.profit >= 0 ? "text-emerald-600" : "text-red-600"}`}>
+                    <tr key={i} className="border-b border-gray-50 dark:border-gray-700">
+                      <td className="px-4 py-3 text-sm text-gray-900 dark:text-gray-100">{new Date(r.created_at).toLocaleDateString("ar-EG")}</td>
+                      <td className="px-4 py-3 text-sm text-gray-900 dark:text-gray-100">{r.invoice_number}</td>
+                      <td className="px-4 py-3 text-sm text-gray-900 dark:text-gray-100">{r.item_name}</td>
+                      <td className="px-4 py-3 text-sm text-gray-900 dark:text-gray-100">{r.quantity}</td>
+                      <td className="px-4 py-3 text-sm text-gray-900 dark:text-gray-100">{r.sale_price?.toFixed(2)} ج.م</td>
+                      <td className="px-4 py-3 text-sm text-gray-900 dark:text-gray-100">{r.cost_total?.toFixed(2)} ج.م</td>
+                      <td className={`px-4 py-3 text-sm font-medium ${r.profit >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-red-600 dark:text-red-400"}`}>
                         {r.profit?.toFixed(2)} ج.م
                       </td>
                     </tr>
@@ -457,7 +468,7 @@ export function ReportsContent() {
         </div>
       )}
 
-      {tab === "inventory" && (
+      {tab === "inventory" && !tabLoading && (
         <div id="report-inventory" className="space-y-6">
           <div className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-sm border border-gray-100 dark:border-gray-700">
             <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">قيمة المخزون الإجمالية</h3>
@@ -554,7 +565,7 @@ export function ReportsContent() {
         </div>
       )}
 
-      {tab === "workshop" && (
+      {tab === "workshop" && !tabLoading && (
         <div id="report-workshop" className="space-y-6">
           <div className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-sm border border-gray-100 dark:border-gray-700">
             <h2 className="font-bold text-gray-900 dark:text-gray-100 mb-4">المراحل</h2>
@@ -582,27 +593,27 @@ export function ReportsContent() {
               {workshop?.completed && (workshop.completed as unknown[]).length > 0 ? (
                 <table className="w-full">
                   <thead>
-                    <tr className="bg-gray-50">
-                      <th className="text-right px-4 py-3 text-sm font-medium text-gray-600">التاريخ</th>
-                      <th className="text-right px-4 py-3 text-sm font-medium text-gray-600">رقم الأمر</th>
-                      <th className="text-right px-4 py-3 text-sm font-medium text-gray-600">اللوحة</th>
-                      <th className="text-right px-4 py-3 text-sm font-medium text-gray-600">الإجمالي</th>
-                    </tr>
-                  </thead>
-                  <tbody>
+                  <tr className="bg-gray-50 dark:bg-gray-700/50">
+                    <th className="text-right px-4 py-3 text-sm font-medium text-gray-600 dark:text-gray-300">التاريخ</th>
+                    <th className="text-right px-4 py-3 text-sm font-medium text-gray-600 dark:text-gray-300">رقم الأمر</th>
+                    <th className="text-right px-4 py-3 text-sm font-medium text-gray-600 dark:text-gray-300">اللوحة</th>
+                    <th className="text-right px-4 py-3 text-sm font-medium text-gray-600 dark:text-gray-300">الإجمالي</th>
+                  </tr>
+                </thead>
+                <tbody>
                     {filterBySearch(
                       (workshop.completed as Array<{ id: string; order_number: string; vehicle_plate: string; completed_at: string; total: number }>),
                       (o) => `${o.order_number} ${o.vehicle_plate}`
                     ).map((o) => (
                       <tr key={o.id} className="border-b border-gray-50 dark:border-gray-700">
-                        <td className="px-4 py-3 text-sm">{new Date(o.completed_at).toLocaleDateString("ar-EG")}</td>
+                        <td className="px-4 py-3 text-sm text-gray-900 dark:text-gray-100">{new Date(o.completed_at).toLocaleDateString("ar-EG")}</td>
                         <td className="px-4 py-3">
-                          <Link href={`/admin/workshop/${o.id}`} className="text-emerald-600 hover:underline">
+                          <Link href={`/admin/workshop/${o.id}`} className="text-emerald-600 dark:text-emerald-400 hover:underline">
                             {o.order_number}
                           </Link>
                         </td>
-                        <td className="px-4 py-3 text-sm">{o.vehicle_plate}</td>
-                        <td className="px-4 py-3 text-sm font-medium">{o.total?.toFixed(2)} ج.م</td>
+                        <td className="px-4 py-3 text-sm text-gray-900 dark:text-gray-100">{o.vehicle_plate}</td>
+                        <td className="px-4 py-3 text-sm font-medium text-gray-900 dark:text-gray-100">{o.total?.toFixed(2)} ج.م</td>
                       </tr>
                     ))}
                   </tbody>
@@ -615,7 +626,7 @@ export function ReportsContent() {
         </div>
       )}
 
-      {tab === "expenses" && (
+      {tab === "expenses" && !tabLoading && (
         <div id="report-expenses" className="space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-sm border border-gray-100 dark:border-gray-700">
@@ -678,7 +689,7 @@ export function ReportsContent() {
         </div>
       )}
 
-      {tab === "suppliers" && (
+      {tab === "suppliers" && !tabLoading && (
         <div id="report-suppliers" className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden">
           <div className="p-4 border-b border-gray-100 dark:border-gray-700">
             <h2 className="font-bold text-gray-900 dark:text-gray-100">مقارنة الموردين (فواتير الشراء)</h2>
