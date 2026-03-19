@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { addToQueue } from "@/lib/offline-queue";
 
 interface InvoiceItem {
   id: string;
@@ -27,6 +28,12 @@ export function PartialReturnButton({ invoiceId, type, status, items }: PartialR
 
   const canReturn = ["sale", "maintenance", "purchase"].includes(type) && status !== "returned" && status !== "cancelled";
   const returnableItems = items.filter((i) => i.item_id);
+
+  useEffect(() => {
+    const handleOnline = () => router.refresh();
+    window.addEventListener("alameen-online", handleOnline);
+    return () => window.removeEventListener("alameen-online", handleOnline);
+  }, [router]);
 
   if (!canReturn || returnableItems.length === 0) return null;
 
@@ -58,12 +65,20 @@ export function PartialReturnButton({ invoiceId, type, status, items }: PartialR
       }
     }
 
+    const payload = { items: toReturn };
+
     setLoading(true);
     try {
+      if (!navigator.onLine) {
+        addToQueue({ type: "invoice_return_partial", invoiceId, data: payload });
+        setOpen(false);
+        alert("انقطع الاتصال. تم حفظ الإرجاع الجزئي محلياً. سيتم تنفيذه تلقائياً عند عودة الإنترنت.");
+        return;
+      }
       const res = await fetch(`/api/admin/invoices/${invoiceId}/return-partial`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ items: toReturn }),
+        body: JSON.stringify(payload),
       });
       const data = await res.json();
       if (!res.ok) {
@@ -77,7 +92,13 @@ export function PartialReturnButton({ invoiceId, type, status, items }: PartialR
         router.refresh();
       }
     } catch {
-      alert("حدث خطأ");
+      if (!navigator.onLine) {
+        addToQueue({ type: "invoice_return_partial", invoiceId, data: payload });
+        setOpen(false);
+        alert("انقطع الاتصال. تم حفظ الإرجاع الجزئي محلياً. سيتم تنفيذه تلقائياً عند عودة الإنترنت.");
+      } else {
+        alert("حدث خطأ");
+      }
     } finally {
       setLoading(false);
     }

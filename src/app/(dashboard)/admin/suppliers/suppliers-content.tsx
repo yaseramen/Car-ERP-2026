@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { addToQueue } from "@/lib/offline-queue";
 
 interface Supplier {
   id: string;
@@ -42,6 +43,12 @@ export function SuppliersContent() {
     fetchSuppliers();
   }, []);
 
+  useEffect(() => {
+    const handleOnline = () => fetchSuppliers();
+    window.addEventListener("alameen-online", handleOnline);
+    return () => window.removeEventListener("alameen-online", handleOnline);
+  }, []);
+
   function resetForm() {
     setForm({ name: "", phone: "", email: "", address: "", notes: "" });
     setEditSupplier(null);
@@ -61,17 +68,34 @@ export function SuppliersContent() {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    const payload = {
+      name: form.name.trim(),
+      phone: form.phone.trim() || undefined,
+      email: form.email.trim() || undefined,
+      address: form.address.trim() || undefined,
+      notes: form.notes.trim() || undefined,
+    };
+
     setSaving(true);
     try {
-      const payload = {
-        name: form.name.trim(),
-        phone: form.phone.trim() || null,
-        email: form.email.trim() || null,
-        address: form.address.trim() || null,
-        notes: form.notes.trim() || null,
-      };
-
       if (editSupplier) {
+        if (!navigator.onLine) {
+          addToQueue({
+            type: "edit_supplier",
+            supplierId: editSupplier.id,
+            data: {
+              name: payload.name,
+              phone: payload.phone ?? null,
+              email: payload.email ?? null,
+              address: payload.address ?? null,
+              notes: payload.notes ?? null,
+            },
+          });
+          setModalOpen(false);
+          resetForm();
+          alert("انقطع الاتصال. تم حفظ التعديل محلياً. سيتم إرساله تلقائياً عند عودة الإنترنت.");
+          return;
+        }
         const res = await fetch(`/api/admin/suppliers/${editSupplier.id}`, {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
@@ -83,9 +107,20 @@ export function SuppliersContent() {
           return;
         }
         setSuppliers((prev) =>
-          prev.map((s) => (s.id === editSupplier.id ? { ...s, ...payload } : s))
+          prev.map((s) =>
+            s.id === editSupplier.id
+              ? { ...s, name: payload.name, phone: payload.phone ?? null, email: payload.email ?? null, address: payload.address ?? null, notes: payload.notes ?? null }
+              : s
+          )
         );
       } else {
+        if (!navigator.onLine) {
+          addToQueue({ type: "add_supplier", data: payload });
+          setModalOpen(false);
+          resetForm();
+          alert("انقطع الاتصال. تم حفظ المورد محلياً. سيتم إضافته تلقائياً عند عودة الإنترنت.");
+          return;
+        }
         const res = await fetch("/api/admin/suppliers", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -103,7 +138,29 @@ export function SuppliersContent() {
       setModalOpen(false);
       resetForm();
     } catch {
-      alert("حدث خطأ. حاول مرة أخرى.");
+      if (editSupplier && !navigator.onLine) {
+        addToQueue({
+          type: "edit_supplier",
+          supplierId: editSupplier.id,
+          data: {
+            name: payload.name,
+            phone: payload.phone ?? null,
+            email: payload.email ?? null,
+            address: payload.address ?? null,
+            notes: payload.notes ?? null,
+          },
+        });
+        setModalOpen(false);
+        resetForm();
+        alert("انقطع الاتصال. تم حفظ التعديل محلياً. سيتم إرساله تلقائياً عند عودة الإنترنت.");
+      } else if (!editSupplier && !navigator.onLine) {
+        addToQueue({ type: "add_supplier", data: payload });
+        setModalOpen(false);
+        resetForm();
+        alert("انقطع الاتصال. تم حفظ المورد محلياً. سيتم إضافته تلقائياً عند عودة الإنترنت.");
+      } else {
+        alert("حدث خطأ. حاول مرة أخرى.");
+      }
     } finally {
       setSaving(false);
     }
@@ -112,6 +169,13 @@ export function SuppliersContent() {
   async function handleDelete(s: Supplier) {
     setSaving(true);
     try {
+      if (!navigator.onLine) {
+        addToQueue({ type: "delete_supplier", supplierId: s.id });
+        setSuppliers((prev) => prev.filter((x) => x.id !== s.id));
+        setDeleteConfirm(null);
+        alert("انقطع الاتصال. تم حفظ الحذف محلياً. سيتم تنفيذه تلقائياً عند عودة الإنترنت.");
+        return;
+      }
       const res = await fetch(`/api/admin/suppliers/${s.id}`, { method: "DELETE" });
       if (!res.ok) {
         const err = await res.json();
@@ -123,7 +187,14 @@ export function SuppliersContent() {
       setDeleteConfirm(null);
       if (data.message) alert(data.message);
     } catch {
-      alert("حدث خطأ. حاول مرة أخرى.");
+      if (!navigator.onLine) {
+        addToQueue({ type: "delete_supplier", supplierId: s.id });
+        setSuppliers((prev) => prev.filter((x) => x.id !== s.id));
+        setDeleteConfirm(null);
+        alert("انقطع الاتصال. تم حفظ الحذف محلياً. سيتم تنفيذه تلقائياً عند عودة الإنترنت.");
+      } else {
+        alert("حدث خطأ. حاول مرة أخرى.");
+      }
     } finally {
       setSaving(false);
     }

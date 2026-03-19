@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { addToQueue } from "@/lib/offline-queue";
 
 interface Company {
   id: string;
@@ -75,20 +76,43 @@ export function WalletsContent() {
     fetchFeeSettings();
   }, []);
 
+  useEffect(() => {
+    const handleOnline = () => {
+      fetchCompanies();
+      fetchTransactions();
+      fetchFeeSettings();
+    };
+    window.addEventListener("alameen-online", handleOnline);
+    return () => window.removeEventListener("alameen-online", handleOnline);
+  }, []);
+
   async function handleWalletAction(e: React.FormEvent) {
     e.preventDefault();
     if (!selectedCompany) return;
+
+    const payload = {
+      company_id: selectedCompany.id,
+      amount: Number(chargeAmount),
+      description: chargeDesc.trim() || undefined,
+    };
+
     setSaving(true);
     try {
+      if (!navigator.onLine) {
+        addToQueue(modalType === "charge" ? { type: "wallet_charge", data: payload } : { type: "wallet_debit", data: payload });
+        setModalOpen(false);
+        setSelectedCompany(null);
+        setChargeAmount("");
+        setChargeDesc("");
+        alert("انقطع الاتصال. تم حفظ العملية محلياً. سيتم تنفيذها تلقائياً عند عودة الإنترنت.");
+        return;
+      }
+
       const endpoint = modalType === "charge" ? "/api/admin/wallets/charge" : "/api/admin/wallets/debit";
       const res = await fetch(endpoint, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          company_id: selectedCompany.id,
-          amount: Number(chargeAmount),
-          description: chargeDesc.trim() || undefined,
-        }),
+        body: JSON.stringify(payload),
       });
 
       if (!res.ok) {
@@ -104,7 +128,16 @@ export function WalletsContent() {
       fetchCompanies();
       fetchTransactions();
     } catch {
-      alert("حدث خطأ");
+      if (!navigator.onLine) {
+        addToQueue(modalType === "charge" ? { type: "wallet_charge", data: payload } : { type: "wallet_debit", data: payload });
+        setModalOpen(false);
+        setSelectedCompany(null);
+        setChargeAmount("");
+        setChargeDesc("");
+        alert("انقطع الاتصال. تم حفظ العملية محلياً. سيتم تنفيذها تلقائياً عند عودة الإنترنت.");
+      } else {
+        alert("حدث خطأ");
+      }
     } finally {
       setSaving(false);
     }
@@ -112,12 +145,24 @@ export function WalletsContent() {
 
   async function handleAddCompany(e: React.FormEvent) {
     e.preventDefault();
+    const payload = {
+      name: newCompany.name.trim(),
+      phone: newCompany.phone.trim() || undefined,
+      address: newCompany.address.trim() || undefined,
+    };
     setSaving(true);
     try {
+      if (!navigator.onLine) {
+        addToQueue({ type: "add_company", data: payload });
+        setAddCompanyOpen(false);
+        setNewCompany({ name: "", phone: "", address: "" });
+        alert("انقطع الاتصال. تم حفظ الشركة محلياً. سيتم إضافتها تلقائياً عند عودة الإنترنت.");
+        return;
+      }
       const res = await fetch("/api/admin/wallets/companies", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(newCompany),
+        body: JSON.stringify(payload),
       });
 
       if (!res.ok) {
@@ -131,7 +176,14 @@ export function WalletsContent() {
       setAddCompanyOpen(false);
       setNewCompany({ name: "", phone: "", address: "" });
     } catch {
-      alert("حدث خطأ");
+      if (!navigator.onLine) {
+        addToQueue({ type: "add_company", data: payload });
+        setAddCompanyOpen(false);
+        setNewCompany({ name: "", phone: "", address: "" });
+        alert("انقطع الاتصال. تم حفظ الشركة محلياً. سيتم إضافتها تلقائياً عند عودة الإنترنت.");
+      } else {
+        alert("حدث خطأ");
+      }
     } finally {
       setSaving(false);
     }

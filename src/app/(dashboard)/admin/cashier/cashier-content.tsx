@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { SearchableSelect } from "@/components/ui/searchable-select";
 import { BarcodeScanner } from "@/components/inventory/barcode-scanner";
+import { addToQueue } from "@/lib/offline-queue";
 
 interface CartItem {
   item_id: string;
@@ -130,6 +131,12 @@ export function CashierContent() {
 
   useEffect(() => {
     fetchData();
+  }, []);
+
+  useEffect(() => {
+    const handleOnline = () => fetchData();
+    window.addEventListener("alameen-online", handleOnline);
+    return () => window.removeEventListener("alameen-online", handleOnline);
   }, []);
 
   const [draftLoaded, setDraftLoaded] = useState(false);
@@ -352,20 +359,37 @@ export function CashierContent() {
       return;
     }
 
+    const payload = {
+      customer_id: customerId || undefined,
+      items: cart.map((c) => ({ item_id: c.item_id, quantity: c.quantity })),
+      payment_method_id: paymentMethodId || undefined,
+      paid_amount: paid > 0 ? paid : undefined,
+      discount: discountEnabled ? discountAmount : 0,
+      tax: taxEnabled ? taxAmount : 0,
+      notes: notes.trim() || undefined,
+    };
+
     setSaving(true);
     try {
+      if (!navigator.onLine) {
+        addToQueue({ type: "create_sale_invoice", data: payload });
+        setCart([]);
+        setCustomerId("");
+        setPaymentMethodId("");
+        setPaidAmount("");
+        setNotes("");
+        setTaxEnabled(false);
+        setDiscountEnabled(false);
+        setDiscountValue("");
+        clearCashierDraft();
+        alert("انقطع الاتصال. تم حفظ الفاتورة محلياً. سيتم إرسالها تلقائياً عند عودة الإنترنت.");
+        return;
+      }
+
       const res = await fetch("/api/admin/invoices/sale", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          customer_id: customerId || undefined,
-          items: cart.map((c) => ({ item_id: c.item_id, quantity: c.quantity })),
-          payment_method_id: paymentMethodId || undefined,
-          paid_amount: paid > 0 ? paid : undefined,
-          discount: discountEnabled ? discountAmount : 0,
-          tax: taxEnabled ? taxAmount : 0,
-          notes: notes.trim() || undefined,
-        }),
+        body: JSON.stringify(payload),
       });
 
       if (!res.ok) {
@@ -387,7 +411,21 @@ export function CashierContent() {
       clearCashierDraft();
       fetchData();
     } catch {
-      alert("حدث خطأ. حاول مرة أخرى.");
+      if (!navigator.onLine) {
+        addToQueue({ type: "create_sale_invoice", data: payload });
+        setCart([]);
+        setCustomerId("");
+        setPaymentMethodId("");
+        setPaidAmount("");
+        setNotes("");
+        setTaxEnabled(false);
+        setDiscountEnabled(false);
+        setDiscountValue("");
+        clearCashierDraft();
+        alert("انقطع الاتصال. تم حفظ الفاتورة محلياً. سيتم إرسالها تلقائياً عند عودة الإنترنت.");
+      } else {
+        alert("حدث خطأ. حاول مرة أخرى.");
+      }
     } finally {
       setSaving(false);
     }
@@ -399,16 +437,24 @@ export function CashierContent() {
       alert("اسم العميل مطلوب");
       return;
     }
+    const payload = {
+      name: newCustomerForm.name.trim(),
+      phone: newCustomerForm.phone.trim() || undefined,
+      email: newCustomerForm.email.trim() || undefined,
+    };
     setSavingCustomer(true);
     try {
+      if (!navigator.onLine) {
+        addToQueue({ type: "add_customer", data: payload });
+        setAddCustomerOpen(false);
+        setNewCustomerForm({ name: "", phone: "", email: "" });
+        alert("انقطع الاتصال. تم حفظ العميل محلياً. سيتم إضافته تلقائياً عند عودة الإنترنت.");
+        return;
+      }
       const res = await fetch("/api/admin/customers", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          name: newCustomerForm.name.trim(),
-          phone: newCustomerForm.phone.trim() || undefined,
-          email: newCustomerForm.email.trim() || undefined,
-        }),
+        body: JSON.stringify(payload),
       });
       if (!res.ok) {
         const err = await res.json();
@@ -425,7 +471,14 @@ export function CashierContent() {
       setNewCustomerForm({ name: "", phone: "", email: "" });
       fetchData();
     } catch {
-      alert("حدث خطأ");
+      if (!navigator.onLine) {
+        addToQueue({ type: "add_customer", data: payload });
+        setAddCustomerOpen(false);
+        setNewCustomerForm({ name: "", phone: "", email: "" });
+        alert("انقطع الاتصال. تم حفظ العميل محلياً. سيتم إضافته تلقائياً عند عودة الإنترنت.");
+      } else {
+        alert("حدث خطأ");
+      }
     } finally {
       setSavingCustomer(false);
     }

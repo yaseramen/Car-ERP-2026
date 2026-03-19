@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { addToQueue } from "@/lib/offline-queue";
 
 interface Customer {
   id: string;
@@ -42,6 +43,12 @@ export function CustomersContent() {
     fetchCustomers();
   }, []);
 
+  useEffect(() => {
+    const handleOnline = () => fetchCustomers();
+    window.addEventListener("alameen-online", handleOnline);
+    return () => window.removeEventListener("alameen-online", handleOnline);
+  }, []);
+
   function resetForm() {
     setForm({ name: "", phone: "", email: "", address: "", notes: "" });
     setEditCustomer(null);
@@ -61,17 +68,34 @@ export function CustomersContent() {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    const payload = {
+      name: form.name.trim(),
+      phone: form.phone.trim() || undefined,
+      email: form.email.trim() || undefined,
+      address: form.address.trim() || undefined,
+      notes: form.notes.trim() || undefined,
+    };
+
     setSaving(true);
     try {
-      const payload = {
-        name: form.name.trim(),
-        phone: form.phone.trim() || null,
-        email: form.email.trim() || null,
-        address: form.address.trim() || null,
-        notes: form.notes.trim() || null,
-      };
-
       if (editCustomer) {
+        if (!navigator.onLine) {
+          addToQueue({
+            type: "edit_customer",
+            customerId: editCustomer.id,
+            data: {
+              name: payload.name,
+              phone: payload.phone ?? null,
+              email: payload.email ?? null,
+              address: payload.address ?? null,
+              notes: payload.notes ?? null,
+            },
+          });
+          setModalOpen(false);
+          resetForm();
+          alert("انقطع الاتصال. تم حفظ التعديل محلياً. سيتم إرساله تلقائياً عند عودة الإنترنت.");
+          return;
+        }
         const res = await fetch(`/api/admin/customers/${editCustomer.id}`, {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
@@ -83,9 +107,27 @@ export function CustomersContent() {
           return;
         }
         setCustomers((prev) =>
-          prev.map((c) => (c.id === editCustomer.id ? { ...c, ...payload } : c))
+          prev.map((c) =>
+            c.id === editCustomer.id
+              ? {
+                  ...c,
+                  name: payload.name,
+                  phone: payload.phone ?? null,
+                  email: payload.email ?? null,
+                  address: payload.address ?? null,
+                  notes: payload.notes ?? null,
+                }
+              : c
+          )
         );
       } else {
+        if (!navigator.onLine) {
+          addToQueue({ type: "add_customer", data: payload });
+          setModalOpen(false);
+          resetForm();
+          alert("انقطع الاتصال. تم حفظ العميل محلياً. سيتم إضافته تلقائياً عند عودة الإنترنت.");
+          return;
+        }
         const res = await fetch("/api/admin/customers", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -103,7 +145,29 @@ export function CustomersContent() {
       setModalOpen(false);
       resetForm();
     } catch {
-      alert("حدث خطأ. حاول مرة أخرى.");
+      if (editCustomer && !navigator.onLine) {
+        addToQueue({
+          type: "edit_customer",
+          customerId: editCustomer.id,
+          data: {
+            name: payload.name,
+            phone: payload.phone ?? null,
+            email: payload.email ?? null,
+            address: payload.address ?? null,
+            notes: payload.notes ?? null,
+          },
+        });
+        setModalOpen(false);
+        resetForm();
+        alert("انقطع الاتصال. تم حفظ التعديل محلياً. سيتم إرساله تلقائياً عند عودة الإنترنت.");
+      } else if (!editCustomer && !navigator.onLine) {
+        addToQueue({ type: "add_customer", data: payload });
+        setModalOpen(false);
+        resetForm();
+        alert("انقطع الاتصال. تم حفظ العميل محلياً. سيتم إضافته تلقائياً عند عودة الإنترنت.");
+      } else {
+        alert("حدث خطأ. حاول مرة أخرى.");
+      }
     } finally {
       setSaving(false);
     }
@@ -112,6 +176,13 @@ export function CustomersContent() {
   async function handleDelete(c: Customer) {
     setSaving(true);
     try {
+      if (!navigator.onLine) {
+        addToQueue({ type: "delete_customer", customerId: c.id });
+        setCustomers((prev) => prev.filter((x) => x.id !== c.id));
+        setDeleteConfirm(null);
+        alert("انقطع الاتصال. تم حفظ الحذف محلياً. سيتم تنفيذه تلقائياً عند عودة الإنترنت.");
+        return;
+      }
       const res = await fetch(`/api/admin/customers/${c.id}`, { method: "DELETE" });
       if (!res.ok) {
         const err = await res.json();
@@ -123,7 +194,14 @@ export function CustomersContent() {
       setDeleteConfirm(null);
       if (data.message) alert(data.message);
     } catch {
-      alert("حدث خطأ. حاول مرة أخرى.");
+      if (!navigator.onLine) {
+        addToQueue({ type: "delete_customer", customerId: c.id });
+        setCustomers((prev) => prev.filter((x) => x.id !== c.id));
+        setDeleteConfirm(null);
+        alert("انقطع الاتصال. تم حفظ الحذف محلياً. سيتم تنفيذه تلقائياً عند عودة الإنترنت.");
+      } else {
+        alert("حدث خطأ. حاول مرة أخرى.");
+      }
     } finally {
       setSaving(false);
     }

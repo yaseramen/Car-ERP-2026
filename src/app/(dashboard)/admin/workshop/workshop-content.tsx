@@ -3,8 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { SearchableSelect } from "@/components/ui/searchable-select";
-import { addToQueue, processQueue } from "@/lib/offline-queue";
-import type { QueuedItem } from "@/lib/offline-queue";
+import { addToQueue } from "@/lib/offline-queue";
 
 const STAGES = [
   { id: "received", label: "استلام", color: "bg-blue-100 dark:bg-blue-900/50 text-blue-800 dark:text-blue-200" },
@@ -175,16 +174,24 @@ export function WorkshopContent() {
       alert("اسم العميل مطلوب");
       return;
     }
+    const payload = {
+      name: newCustomerForm.name.trim(),
+      phone: newCustomerForm.phone.trim() || undefined,
+      email: newCustomerForm.email.trim() || undefined,
+    };
     setSavingCustomer(true);
     try {
+      if (!navigator.onLine) {
+        addToQueue({ type: "add_customer", data: payload });
+        setAddCustomerOpen(false);
+        setNewCustomerForm({ name: "", phone: "", email: "" });
+        alert("انقطع الاتصال. تم حفظ العميل محلياً. سيتم إضافته تلقائياً عند عودة الإنترنت.");
+        return;
+      }
       const res = await fetch("/api/admin/customers", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          name: newCustomerForm.name.trim(),
-          phone: newCustomerForm.phone.trim() || undefined,
-          email: newCustomerForm.email.trim() || undefined,
-        }),
+        body: JSON.stringify(payload),
       });
       if (!res.ok) {
         const err = await res.json();
@@ -201,7 +208,14 @@ export function WorkshopContent() {
       setNewCustomerForm({ name: "", phone: "", email: "" });
       fetchCustomers();
     } catch {
-      alert("حدث خطأ");
+      if (!navigator.onLine) {
+        addToQueue({ type: "add_customer", data: payload });
+        setAddCustomerOpen(false);
+        setNewCustomerForm({ name: "", phone: "", email: "" });
+        alert("انقطع الاتصال. تم حفظ العميل محلياً. سيتم إضافته تلقائياً عند عودة الإنترنت.");
+      } else {
+        alert("حدث خطأ");
+      }
     } finally {
       setSavingCustomer(false);
     }
@@ -243,36 +257,8 @@ export function WorkshopContent() {
     } catch {}
   }, [addForm]);
 
-  async function executeQueuedOp(item: QueuedItem): Promise<boolean> {
-    const { op } = item;
-    if (op.type === "add_service") {
-      const res = await fetch(`/api/admin/workshop/orders/${op.orderId}/services`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(op.data),
-      });
-      return res.ok;
-    }
-    if (op.type === "add_part") {
-      const res = await fetch(`/api/admin/workshop/orders/${op.orderId}/items`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(op.data),
-      });
-      return res.ok;
-    }
-    return false;
-  }
-
   useEffect(() => {
-    const handleOnline = async () => {
-      const { processed, failed } = await processQueue(executeQueuedOp);
-      if (processed > 0) {
-        const msg = failed > 0
-          ? `تم إرسال ${processed} عملية. فشل ${failed} عملية.`
-          : `تم إرسال ${processed} عملية معلقة بنجاح.`;
-        setTimeout(() => alert(msg), 300);
-      }
+    const handleOnline = () => {
       fetchOrders();
       fetchCustomers();
     };
@@ -324,19 +310,30 @@ export function WorkshopContent() {
 
   async function handleCreate(e: React.FormEvent) {
     e.preventDefault();
+    const payload = {
+      vehicle_plate: form.vehicle_plate.trim(),
+      vehicle_model: form.vehicle_model.trim() || undefined,
+      vehicle_year: form.vehicle_year ? Number(form.vehicle_year) : undefined,
+      mileage: form.mileage ? Number(form.mileage) : undefined,
+      customer_id: form.customer_id || undefined,
+      order_type: modalOrderType,
+    };
+
     setSaving(true);
     try {
+      if (!navigator.onLine) {
+        addToQueue({ type: "create_repair_order", data: payload });
+        setModalOpen(false);
+        setForm({ vehicle_plate: "", vehicle_model: "", vehicle_year: "", mileage: "", customer_id: "" });
+        setModalOrderType("maintenance");
+        alert("انقطع الاتصال. تم حفظ أمر الاستلام محلياً. سيتم إنشاؤه تلقائياً عند عودة الإنترنت.");
+        return;
+      }
+
       const res = await fetch("/api/admin/workshop/orders", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          vehicle_plate: form.vehicle_plate.trim(),
-          vehicle_model: form.vehicle_model.trim() || undefined,
-          vehicle_year: form.vehicle_year ? Number(form.vehicle_year) : undefined,
-          mileage: form.mileage ? Number(form.mileage) : undefined,
-          customer_id: form.customer_id || undefined,
-          order_type: modalOrderType,
-        }),
+        body: JSON.stringify(payload),
       });
 
       if (!res.ok) {
@@ -350,7 +347,15 @@ export function WorkshopContent() {
       setForm({ vehicle_plate: "", vehicle_model: "", vehicle_year: "", mileage: "", customer_id: "" });
       setModalOrderType("maintenance");
     } catch {
-      alert("حدث خطأ");
+      if (!navigator.onLine) {
+        addToQueue({ type: "create_repair_order", data: payload });
+        setModalOpen(false);
+        setForm({ vehicle_plate: "", vehicle_model: "", vehicle_year: "", mileage: "", customer_id: "" });
+        setModalOrderType("maintenance");
+        alert("انقطع الاتصال. تم حفظ أمر الاستلام محلياً. سيتم إنشاؤه تلقائياً عند عودة الإنترنت.");
+      } else {
+        alert("حدث خطأ");
+      }
     } finally {
       setSaving(false);
     }
@@ -452,9 +457,15 @@ export function WorkshopContent() {
   }
 
   async function updateStage(orderId: string, newStage: string, inspectionNotes?: string) {
+    const body: { stage: string; inspection_notes?: string } = { stage: newStage };
+    if (inspectionNotes !== undefined) body.inspection_notes = inspectionNotes;
+
     try {
-      const body: { stage: string; inspection_notes?: string } = { stage: newStage };
-      if (inspectionNotes !== undefined) body.inspection_notes = inspectionNotes;
+      if (!navigator.onLine) {
+        addToQueue({ type: "update_repair_order_stage", orderId, data: body });
+        alert("انقطع الاتصال. تم حفظ تغيير المرحلة محلياً. سيتم تطبيقه تلقائياً عند عودة الإنترنت.");
+        return;
+      }
 
       const res = await fetch(`/api/admin/workshop/orders/${orderId}`, {
         method: "PATCH",
@@ -470,7 +481,12 @@ export function WorkshopContent() {
 
       await fetchOrders();
     } catch {
-      alert("حدث خطأ");
+      if (!navigator.onLine) {
+        addToQueue({ type: "update_repair_order_stage", orderId, data: body });
+        alert("انقطع الاتصال. تم حفظ تغيير المرحلة محلياً. سيتم تطبيقه تلقائياً عند عودة الإنترنت.");
+      } else {
+        alert("حدث خطأ");
+      }
     }
   }
 
@@ -479,6 +495,12 @@ export function WorkshopContent() {
     if (!name) return;
     setAddingItem(true);
     try {
+      if (!navigator.onLine) {
+        addToQueue({ type: "add_checklist_item", data: { name_ar: name } });
+        setNewItemName("");
+        alert("انقطع الاتصال. تم حفظ البند محلياً. سيتم إضافته تلقائياً عند عودة الإنترنت.");
+        return;
+      }
       const res = await fetch("/api/admin/workshop/inspection-checklist", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -494,23 +516,40 @@ export function WorkshopContent() {
       setChecklistResults((prev) => ({ ...prev, [item.id]: { status: "na", notes: "" } }));
       setNewItemName("");
     } catch {
-      alert("حدث خطأ");
+      if (!navigator.onLine) {
+        addToQueue({ type: "add_checklist_item", data: { name_ar: name } });
+        setNewItemName("");
+        alert("انقطع الاتصال. تم حفظ البند محلياً. سيتم إضافته تلقائياً عند عودة الإنترنت.");
+      } else {
+        alert("حدث خطأ");
+      }
     } finally {
       setAddingItem(false);
     }
   }
 
   async function saveInspectionChecklist(orderId: string) {
-    try {
-      const results = checklistItems.map((it) => ({
+    const payload = {
+      results: checklistItems.map((it) => ({
         checklist_item_id: it.id,
         status: checklistResults[it.id]?.status ?? "na",
         notes: checklistResults[it.id]?.notes ?? "",
-      }));
+      })),
+      general_notes: generalNotes,
+    };
+
+    try {
+      if (!navigator.onLine) {
+        addToQueue({ type: "save_inspection_checklist", orderId, data: payload });
+        setInspectionChecklistOpen(false);
+        setSelectedOrder(null);
+        alert("انقطع الاتصال. تم حفظ قائمة الفحص محلياً. سيتم إرسالها تلقائياً عند عودة الإنترنت.");
+        return;
+      }
       const res = await fetch(`/api/admin/workshop/orders/${orderId}/inspection-results`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ results, general_notes: generalNotes }),
+        body: JSON.stringify(payload),
       });
       if (!res.ok) {
         const err = await res.json();
@@ -521,16 +560,30 @@ export function WorkshopContent() {
       setSelectedOrder(null);
       fetchOrders();
     } catch {
-      alert("حدث خطأ");
+      if (!navigator.onLine) {
+        addToQueue({ type: "save_inspection_checklist", orderId, data: payload });
+        setInspectionChecklistOpen(false);
+        setSelectedOrder(null);
+        alert("انقطع الاتصال. تم حفظ قائمة الفحص محلياً. سيتم إرسالها تلقائياً عند عودة الإنترنت.");
+      } else {
+        alert("حدث خطأ");
+      }
     }
   }
 
   async function saveInspectionNotes(orderId: string, notes: string) {
+    const payload = { stage: "inspection" as const, inspection_notes: notes };
+
     try {
+      if (!navigator.onLine) {
+        addToQueue({ type: "update_repair_order_stage", orderId, data: payload });
+        alert("انقطع الاتصال. تم حفظ الملاحظات محلياً. سيتم إرسالها تلقائياً عند عودة الإنترنت.");
+        return;
+      }
       const res = await fetch(`/api/admin/workshop/orders/${orderId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ stage: "inspection", inspection_notes: notes }),
+        body: JSON.stringify(payload),
       });
 
       if (!res.ok) {
@@ -541,7 +594,12 @@ export function WorkshopContent() {
 
       await fetchOrders();
     } catch {
-      alert("حدث خطأ");
+      if (!navigator.onLine) {
+        addToQueue({ type: "update_repair_order_stage", orderId, data: payload });
+        alert("انقطع الاتصال. تم حفظ الملاحظات محلياً. سيتم إرسالها تلقائياً عند عودة الإنترنت.");
+      } else {
+        alert("حدث خطأ");
+      }
     }
   }
 
