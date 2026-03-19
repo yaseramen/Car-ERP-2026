@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { SearchableSelect } from "@/components/ui/searchable-select";
+import { BarcodeScanner } from "@/components/inventory/barcode-scanner";
 
 interface CartItem {
   item_id: string;
@@ -49,6 +50,7 @@ export function PurchasesContent() {
   const [savingSupplier, setSavingSupplier] = useState(false);
 
   const [addProductOpen, setAddProductOpen] = useState(false);
+  const [showBarcodeScanner, setShowBarcodeScanner] = useState(false);
   const [newProductForm, setNewProductForm] = useState({
     name: "",
     code: "",
@@ -686,13 +688,23 @@ export function PurchasesContent() {
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">الباركود (تلقائي إن تُرك فارغاً)</label>
-                    <input
-                      type="text"
-                      value={newProductForm.barcode}
-                      onChange={(e) => setNewProductForm((f) => ({ ...f, barcode: e.target.value }))}
-                      className={inputClass}
-                      placeholder="امسح أو اكتب الباركود"
-                    />
+                    <div className="flex gap-2">
+                      <input
+                        type="text"
+                        value={newProductForm.barcode}
+                        onChange={(e) => setNewProductForm((f) => ({ ...f, barcode: e.target.value }))}
+                        className={inputClass}
+                        placeholder="امسح أو اكتب الباركود"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowBarcodeScanner(true)}
+                        className="px-4 py-2.5 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 rounded-lg shrink-0"
+                        title="مسح بالكاميرا"
+                      >
+                        📷 مسح
+                      </button>
+                    </div>
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">القسم</label>
@@ -834,6 +846,16 @@ export function PurchasesContent() {
               </div>
             </div>
           )}
+
+      {showBarcodeScanner && (
+        <BarcodeScanner
+          onScan={(value) => {
+            setNewProductForm((f) => ({ ...f, barcode: value }));
+            setShowBarcodeScanner(false);
+          }}
+          onClose={() => setShowBarcodeScanner(false)}
+        />
+      )}
     </>
   );
 }
