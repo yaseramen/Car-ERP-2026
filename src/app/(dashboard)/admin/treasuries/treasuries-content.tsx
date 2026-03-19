@@ -18,6 +18,12 @@ interface Transaction {
   created_at: string;
 }
 
+interface PaymentMethod {
+  id: string;
+  name: string;
+  type: string;
+}
+
 function SettleButton({ treasuries, onSuccess }: { treasuries: Treasury[]; onSuccess: () => void }) {
   const [loading, setLoading] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
@@ -133,8 +139,165 @@ function SettleButton({ treasuries, onSuccess }: { treasuries: Treasury[]; onSuc
   );
 }
 
+function ExpenseIncomeModal({
+  type,
+  treasuries,
+  paymentMethods,
+  onClose,
+  onSuccess,
+}: {
+  type: "expense" | "income";
+  treasuries: Treasury[];
+  paymentMethods: PaymentMethod[];
+  onClose: () => void;
+  onSuccess: () => void;
+}) {
+  const [treasuryId, setTreasuryId] = useState("");
+  const [amount, setAmount] = useState("");
+  const [description, setDescription] = useState("");
+  const [paymentMethodId, setPaymentMethodId] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    if (treasuries.length > 0 && !treasuryId) {
+      const sales = treasuries.find((t) => t.type === "sales");
+      const workshop = treasuries.find((t) => t.type === "workshop");
+      setTreasuryId((sales?.id ?? workshop?.id ?? treasuries[0].id) || "");
+    }
+  }, [treasuries, treasuryId]);
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    const amt = Number(amount);
+    if (!treasuryId || amt <= 0) return;
+
+    setSaving(true);
+    try {
+      const res = await fetch("/api/admin/treasuries/transaction", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          type,
+          treasury_id: treasuryId,
+          amount: amt,
+          description: description.trim() || undefined,
+          payment_method_id: paymentMethodId || undefined,
+        }),
+      });
+
+      if (!res.ok) {
+        const err = await res.json();
+        alert(err.error || "فشل في الإضافة");
+        return;
+      }
+
+      onClose();
+      setTreasuryId("");
+      setAmount("");
+      setDescription("");
+      setPaymentMethodId("");
+      onSuccess();
+    } catch {
+      alert("حدث خطأ");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  const inputClass =
+    "w-full px-4 py-2.5 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none";
+
+  const labelClass = "block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1";
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50" dir="rtl">
+      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl w-full max-w-sm p-6 border border-gray-200 dark:border-gray-700">
+        <h3 className="text-lg font-bold text-gray-900 dark:text-gray-100 mb-4">
+          {type === "expense" ? "إضافة مصروف" : "إضافة إيراد"}
+        </h3>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <label className={labelClass}>الخزينة *</label>
+            <select
+              value={treasuryId}
+              onChange={(e) => setTreasuryId(e.target.value)}
+              required
+              className={inputClass}
+            >
+              {treasuries.map((t) => (
+                <option key={t.id} value={t.id}>
+                  {t.name}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className={labelClass}>المبلغ (ج.م) *</label>
+            <input
+              type="number"
+              step="0.01"
+              min="0.01"
+              value={amount}
+              onChange={(e) => setAmount(e.target.value)}
+              required
+              className={inputClass}
+              placeholder="0"
+            />
+          </div>
+          <div>
+            <label className={labelClass}>البيان</label>
+            <input
+              type="text"
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              className={inputClass}
+              placeholder={type === "expense" ? "وصف المصروف" : "وصف الإيراد"}
+            />
+          </div>
+          <div>
+            <label className={labelClass}>طريقة الدفع</label>
+            <select
+              value={paymentMethodId}
+              onChange={(e) => setPaymentMethodId(e.target.value)}
+              className={inputClass}
+            >
+              <option value="">—</option>
+              {paymentMethods.map((pm) => (
+                <option key={pm.id} value={pm.id}>
+                  {pm.name}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="flex gap-3 pt-2">
+            <button
+              type="button"
+              onClick={onClose}
+              className="flex-1 px-4 py-2.5 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition"
+            >
+              إلغاء
+            </button>
+            <button
+              type="submit"
+              disabled={saving}
+              className={`flex-1 px-4 py-2.5 font-medium rounded-lg transition-colors ${
+                type === "expense"
+                  ? "bg-red-600 hover:bg-red-700 disabled:bg-red-400 text-white"
+                  : "bg-emerald-600 hover:bg-emerald-700 disabled:bg-emerald-400 text-white"
+              }`}
+            >
+              {saving ? "جاري..." : type === "expense" ? "إضافة مصروف" : "إضافة إيراد"}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
 export function TreasuriesContent() {
   const [treasuries, setTreasuries] = useState<Treasury[]>([]);
+  const [paymentMethods, setPaymentMethods] = useState<PaymentMethod[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(true);
@@ -144,6 +307,7 @@ export function TreasuriesContent() {
   const [transferAmount, setTransferAmount] = useState("");
   const [transferDesc, setTransferDesc] = useState("");
   const [saving, setSaving] = useState(false);
+  const [expenseIncomeModal, setExpenseIncomeModal] = useState<"expense" | "income" | null>(null);
 
   async function fetchTreasuries() {
     try {
@@ -160,6 +324,15 @@ export function TreasuriesContent() {
     }
   }
 
+  async function fetchPaymentMethods() {
+    try {
+      const res = await fetch("/api/admin/payment-methods");
+      if (res.ok) setPaymentMethods(await res.json());
+    } catch {
+      setPaymentMethods([]);
+    }
+  }
+
   async function fetchTransactions(id: string) {
     try {
       const res = await fetch(`/api/admin/treasuries/${id}/transactions`);
@@ -172,6 +345,7 @@ export function TreasuriesContent() {
 
   useEffect(() => {
     fetchTreasuries();
+    fetchPaymentMethods();
   }, []);
 
   useEffect(() => {
@@ -216,12 +390,12 @@ export function TreasuriesContent() {
   }
 
   const inputClass =
-    "w-full px-4 py-2.5 rounded-lg border border-gray-300 bg-white text-gray-900 placeholder-gray-500 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none";
+    "w-full px-4 py-2.5 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none";
 
   if (loading) {
     return (
-      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-12 text-center">
-        <p className="text-gray-500">جاري التحميل...</p>
+      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 p-12 text-center">
+        <p className="text-gray-500 dark:text-gray-400">جاري التحميل...</p>
       </div>
     );
   }
@@ -232,18 +406,32 @@ export function TreasuriesContent() {
         {treasuries.map((t) => (
           <div
             key={t.id}
-            className={`bg-white rounded-xl p-6 shadow-sm border-2 transition-colors cursor-pointer ${
-              selectedId === t.id ? "border-emerald-500" : "border-gray-100 hover:border-gray-200"
+            className={`bg-white dark:bg-gray-800 rounded-xl p-6 shadow-sm border-2 transition-colors cursor-pointer ${
+              selectedId === t.id
+                ? "border-emerald-500"
+                : "border-gray-100 dark:border-gray-700 hover:border-gray-200 dark:hover:border-gray-600"
             }`}
             onClick={() => setSelectedId(t.id)}
           >
-            <h3 className="font-bold text-gray-900">{t.name}</h3>
-            <p className="text-2xl font-bold text-emerald-600 mt-2">{t.balance.toFixed(2)} ج.م</p>
+            <h3 className="font-bold text-gray-900 dark:text-gray-100">{t.name}</h3>
+            <p className="text-2xl font-bold text-emerald-600 dark:text-emerald-400 mt-2">{t.balance.toFixed(2)} ج.م</p>
           </div>
         ))}
       </div>
 
       <div className="flex gap-2 flex-wrap">
+        <button
+          onClick={() => setExpenseIncomeModal("expense")}
+          className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white font-medium rounded-lg transition-colors"
+        >
+          إضافة مصروف
+        </button>
+        <button
+          onClick={() => setExpenseIncomeModal("income")}
+          className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-medium rounded-lg transition-colors"
+        >
+          إضافة إيراد
+        </button>
         <button
           onClick={() => {
             if (treasuries.length >= 2) {
@@ -259,26 +447,39 @@ export function TreasuriesContent() {
         <SettleButton treasuries={treasuries} onSuccess={fetchTreasuries} />
       </div>
 
-      <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-        <div className="p-4 border-b border-gray-100">
-          <h2 className="font-bold text-gray-900">
+      {expenseIncomeModal && (
+        <ExpenseIncomeModal
+          type={expenseIncomeModal}
+          treasuries={treasuries}
+          paymentMethods={paymentMethods}
+          onClose={() => setExpenseIncomeModal(null)}
+          onSuccess={() => {
+            fetchTreasuries();
+            if (selectedId) fetchTransactions(selectedId);
+          }}
+        />
+      )}
+
+      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden">
+        <div className="p-4 border-b border-gray-100 dark:border-gray-700">
+          <h2 className="font-bold text-gray-900 dark:text-gray-100">
             حركة {treasuries.find((t) => t.id === selectedId)?.name ?? "الخزينة"}
           </h2>
         </div>
         <div className="max-h-80 overflow-y-auto">
           {transactions.length === 0 ? (
-            <div className="p-8 text-center text-gray-500">لا توجد حركات</div>
+            <div className="p-8 text-center text-gray-500 dark:text-gray-400">لا توجد حركات</div>
           ) : (
-            <ul className="divide-y divide-gray-100">
+            <ul className="divide-y divide-gray-100 dark:divide-gray-700">
               {transactions.map((tx) => (
                 <li key={tx.id} className="p-4 flex justify-between items-center text-sm">
                   <div>
-                    <span className="text-gray-600">{tx.description || tx.method_name || "—"}</span>
-                    <span className="text-gray-400 mr-2">
+                    <span className="text-gray-600 dark:text-gray-300">{tx.description || tx.method_name || "—"}</span>
+                    <span className="text-gray-400 dark:text-gray-500 mr-2">
                       — {new Date(tx.created_at).toLocaleString("ar-EG")}
                     </span>
                   </div>
-                  <span className={tx.amount >= 0 ? "text-emerald-600 font-medium" : "text-red-600 font-medium"}>
+                  <span className={tx.amount >= 0 ? "text-emerald-600 dark:text-emerald-400 font-medium" : "text-red-600 dark:text-red-400 font-medium"}>
                     {tx.amount >= 0 ? "+" : ""}{tx.amount.toFixed(2)} ج.م
                   </span>
                 </li>
@@ -290,11 +491,11 @@ export function TreasuriesContent() {
 
       {transferOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50" dir="rtl">
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-sm p-6">
-            <h3 className="text-lg font-bold text-gray-900 mb-4">تحويل بين الخزائن</h3>
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl w-full max-w-sm p-6 border border-gray-200 dark:border-gray-700">
+            <h3 className="text-lg font-bold text-gray-900 dark:text-gray-100 mb-4">تحويل بين الخزائن</h3>
             <form onSubmit={handleTransfer} className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">من</label>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">من</label>
                 <select
                   value={transferFrom}
                   onChange={(e) => setTransferFrom(e.target.value)}
@@ -307,7 +508,7 @@ export function TreasuriesContent() {
                 </select>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">إلى</label>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">إلى</label>
                 <select
                   value={transferTo}
                   onChange={(e) => setTransferTo(e.target.value)}
@@ -320,7 +521,7 @@ export function TreasuriesContent() {
                 </select>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">المبلغ (ج.م) *</label>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">المبلغ (ج.م) *</label>
                 <input
                   type="number"
                   step="0.01"
@@ -333,7 +534,7 @@ export function TreasuriesContent() {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">ملاحظة</label>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">ملاحظة</label>
                 <input
                   type="text"
                   value={transferDesc}
@@ -346,7 +547,7 @@ export function TreasuriesContent() {
                 <button
                   type="button"
                   onClick={() => setTransferOpen(false)}
-                  className="flex-1 px-4 py-2.5 text-gray-600 hover:bg-gray-100 rounded-lg transition"
+                  className="flex-1 px-4 py-2.5 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition"
                 >
                   إلغاء
                 </button>
