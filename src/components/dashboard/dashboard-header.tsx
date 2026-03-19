@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useTheme } from "@/components/theme/theme-provider";
 
-export function DashboardHeader({ onMenuClick }: { onMenuClick?: () => void }) {
+export function DashboardHeader() {
   const { theme, toggleTheme } = useTheme();
   const [updating, setUpdating] = useState(false);
 
@@ -27,28 +27,14 @@ export function DashboardHeader({ onMenuClick }: { onMenuClick?: () => void }) {
   };
 
   return (
-    <header className="h-14 px-4 flex items-center justify-between border-b border-gray-200 bg-white dark:bg-gray-900 dark:border-gray-700 shrink-0">
-      <div className="flex items-center gap-2">
-        {onMenuClick && (
-          <button
-            type="button"
-            onClick={onMenuClick}
-            className="md:hidden p-2 rounded-lg text-gray-600 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-800"
-            title="القائمة"
-            aria-label="فتح القائمة"
-          >
-            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-            </svg>
-          </button>
-        )}
-      </div>
+    <header className="h-14 px-4 flex items-center justify-between border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 shrink-0">
+      <div className="flex items-center gap-2" />
       <div className="flex items-center gap-2">
         <button
           type="button"
           onClick={handleUpdate}
           disabled={updating}
-          className="p-2 rounded-lg text-gray-600 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-800 transition-colors"
+          className="p-2 rounded-lg text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
           title="تحديث البرنامج"
         >
           <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -58,7 +44,7 @@ export function DashboardHeader({ onMenuClick }: { onMenuClick?: () => void }) {
         <button
           type="button"
           onClick={toggleTheme}
-          className="p-2 rounded-lg text-gray-600 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-800 transition-colors"
+          className="p-2 rounded-lg text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
           title={theme === "dark" ? "الوضع الفاتح" : "الوضع الليلي"}
         >
           {theme === "dark" ? (

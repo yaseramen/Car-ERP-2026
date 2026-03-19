@@ -30,6 +30,11 @@ body {
   color: #f1f5f9;
 }
 
+/* خلفية منطقة المحتوى الرئيسية في الوضع الليلي */
+.dark main {
+  background-color: #0f172a;
+}
+
 input,
 textarea,
 select {
@@ -56,25 +61,88 @@ dt, th, td, label {
   color: #171717 !important;
 }
 
-/* في الوضع الليلي: النصوص الفاتحة فقط داخل العناصر ذات الخلفية الداكنة */
-.dark dt,
-.dark th,
-.dark td,
-.dark label {
+/* في الوضع الليلي: النصوص الفاتحة لضمان الوضوح - استخدام html.dark لزيادة الأولوية */
+html.dark,
+html.dark body {
   color: #f1f5f9 !important;
 }
 
-/* بطاقات وجداول شائعة: خلفية داكنة في الوضع الليلي لضمان وضوح النص */
-.dark .bg-white.rounded-xl {
+html.dark dt,
+html.dark th,
+html.dark td,
+html.dark label {
+  color: #f1f5f9 !important;
+}
+
+html.dark h1,
+html.dark h2,
+html.dark h3,
+html.dark h4,
+html.dark h5,
+html.dark h6 {
+  color: #f1f5f9 !important;
+}
+
+/* إجبار جميع نصوص gray على اللون الفاتح في الوضع الليلي */
+html.dark [class*="text-gray-900"],
+html.dark [class*="text-gray-950"],
+html.dark .text-gray-900,
+html.dark .text-gray-950 {
+  color: #f1f5f9 !important;
+}
+html.dark [class*="text-gray-800"],
+html.dark .text-gray-800 {
+  color: #e2e8f0 !important;
+}
+html.dark [class*="text-gray-700"],
+html.dark .text-gray-700 {
+  color: #cbd5e1 !important;
+}
+html.dark [class*="text-gray-600"],
+html.dark .text-gray-600 {
+  color: #94a3b8 !important;
+}
+html.dark [class*="text-gray-500"],
+html.dark .text-gray-500 {
+  color: #94a3b8 !important;
+}
+
+/* نصوص slate/zinc/neutral في الوضع الليلي */
+html.dark [class*="text-slate-"],
+html.dark [class*="text-zinc-"],
+html.dark [class*="text-neutral-"] {
+  color: #cbd5e1 !important;
+}
+
+/* بطاقات وجداول: خلفية داكنة في الوضع الليلي */
+html.dark .bg-white.rounded-xl,
+html.dark .bg-white.rounded-lg,
+html.dark .bg-white.rounded-md,
+.dark .bg-white.rounded-xl,
+.dark .bg-white.rounded-lg,
+.dark .bg-white.rounded-md {
   background-color: #1e293b !important;
   border-color: #374151 !important;
 }
+html.dark .bg-gray-50,
+.dark .bg-gray-50 {
+  background-color: #1e293b !important;
+}
+html.dark .border-gray-100,
+html.dark .border-gray-200,
+.dark .border-gray-100,
+.dark .border-gray-200 {
+  border-color: #374151 !important;
+}
+html.dark table thead tr,
 .dark table thead tr {
   background-color: rgba(55, 65, 81, 0.5) !important;
 }
+html.dark table tbody tr,
 .dark table tbody tr {
   border-color: #374151 !important;
 }
+html.dark table tbody tr:hover,
 .dark table tbody tr:hover {
   background-color: rgba(55, 65, 81, 0.3) !important;
 }

@@ -10,8 +10,8 @@ export default async function FeedbackPage() {
 
   return (
     <div className="p-4 md:p-8">
-      <h1 className="text-2xl font-bold text-gray-900 mb-2">الملاحظات والإبلاغات</h1>
-      <p className="text-gray-500 mb-6">
+      <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-2">الملاحظات والإبلاغات</h1>
+      <p className="text-gray-500 dark:text-gray-400 mb-6">
         أرسل ملاحظاتك، اقتراحاتك للتطوير، أو أبلغ عن خطأ معين. المطور سيراجعها ويتعامل معها.
       </p>
       <FeedbackContent isSuperAdmin={session.user.role === "super_admin"} />

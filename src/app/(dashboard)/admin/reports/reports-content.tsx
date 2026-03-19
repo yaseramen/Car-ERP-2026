@@ -162,13 +162,13 @@ export function ReportsContent() {
 
   return (
     <div className="space-y-6">
-      <div className="flex gap-2 border-b border-gray-200 pb-2">
+      <div className="flex gap-2 border-b border-gray-200 dark:border-gray-700 pb-2">
         {tabs.map((t) => (
           <button
             key={t.id}
             onClick={() => setTab(t.id)}
             className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-              tab === t.id ? "bg-emerald-600 text-white" : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+              tab === t.id ? "bg-emerald-600 text-white" : "bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600"
             }`}
           >
             {t.label}
@@ -179,21 +179,21 @@ export function ReportsContent() {
       {(tab === "sales" || tab === "profit" || tab === "inventory" || tab === "workshop") && (
         <div className="flex flex-wrap gap-4 items-center">
           <div>
-            <label className="text-sm text-gray-600 ml-2">من</label>
+            <label className="text-sm text-gray-600 dark:text-gray-400 ml-2">من</label>
             <input
               type="date"
               value={dateFrom}
               onChange={(e) => setDateFrom(e.target.value)}
-              className="px-3 py-2 rounded-lg border border-gray-300"
+              className="px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100"
             />
           </div>
           <div>
-            <label className="text-sm text-gray-600 ml-2">إلى</label>
+            <label className="text-sm text-gray-600 dark:text-gray-400 ml-2">إلى</label>
             <input
               type="date"
               value={dateTo}
               onChange={(e) => setDateTo(e.target.value)}
-              className="px-3 py-2 rounded-lg border border-gray-300"
+              className="px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100"
             />
           </div>
           {(tab === "sales" || tab === "profit" || tab === "inventory" || tab === "workshop") && (
@@ -220,43 +220,43 @@ export function ReportsContent() {
       {tab === "summary" && (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           {loading ? (
-            <div className="col-span-full text-center py-12 text-gray-500">جاري التحميل...</div>
+            <div className="col-span-full text-center py-12 text-gray-500 dark:text-gray-400">جاري التحميل...</div>
           ) : s ? (
             <>
-              <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100">
-                <h3 className="text-sm font-medium text-gray-500 mb-1">مبيعات اليوم</h3>
-                <p className="text-2xl font-bold text-emerald-600">
+              <div className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-sm border border-gray-100 dark:border-gray-700">
+                <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">مبيعات اليوم</h3>
+                <p className="text-2xl font-bold text-emerald-600 dark:text-emerald-400">
                   {Number(s.sales?.today?.total ?? 0).toFixed(2)} ج.م
                 </p>
-                <p className="text-xs text-gray-500 mt-1">{s.sales?.today?.count ?? 0} فاتورة</p>
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">{s.sales?.today?.count ?? 0} فاتورة</p>
               </div>
-              <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100">
-                <h3 className="text-sm font-medium text-gray-500 mb-1">مبيعات الأسبوع</h3>
-                <p className="text-2xl font-bold text-gray-700">
+              <div className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-sm border border-gray-100 dark:border-gray-700">
+                <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">مبيعات الأسبوع</h3>
+                <p className="text-2xl font-bold text-gray-700 dark:text-gray-300">
                   {Number(s.sales?.week?.total ?? 0).toFixed(2)} ج.م
                 </p>
-                <p className="text-xs text-gray-500 mt-1">{s.sales?.week?.count ?? 0} فاتورة</p>
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">{s.sales?.week?.count ?? 0} فاتورة</p>
               </div>
-              <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100">
-                <h3 className="text-sm font-medium text-gray-500 mb-1">مبيعات الشهر</h3>
-                <p className="text-2xl font-bold text-gray-700">
+              <div className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-sm border border-gray-100 dark:border-gray-700">
+                <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">مبيعات الشهر</h3>
+                <p className="text-2xl font-bold text-gray-700 dark:text-gray-300">
                   {Number(s.sales?.month?.total ?? 0).toFixed(2)} ج.م
                 </p>
-                <p className="text-xs text-gray-500 mt-1">{s.sales?.month?.count ?? 0} فاتورة</p>
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">{s.sales?.month?.count ?? 0} فاتورة</p>
               </div>
-              <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100">
-                <h3 className="text-sm font-medium text-gray-500 mb-1">تنبيهات</h3>
-                <p className="text-lg font-bold text-amber-600">{s.lowStockCount ?? 0} صنف تحت الحد الأدنى</p>
-                <p className="text-xs text-gray-500 mt-1">
+              <div className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-sm border border-gray-100 dark:border-gray-700">
+                <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">تنبيهات</h3>
+                <p className="text-lg font-bold text-amber-600 dark:text-amber-400">{s.lowStockCount ?? 0} صنف تحت الحد الأدنى</p>
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
                   {s.pendingInvoices?.count ?? 0} فاتورة معلقة — {Number(s.pendingInvoices?.remaining ?? 0).toFixed(2)} ج.م
                 </p>
               </div>
-              <div className="md:col-span-2 bg-white rounded-xl p-6 shadow-sm border border-gray-100">
-                <h3 className="font-bold text-gray-900 mb-4">الورشة حسب المرحلة</h3>
+              <div className="md:col-span-2 bg-white dark:bg-gray-800 rounded-xl p-6 shadow-sm border border-gray-100 dark:border-gray-700">
+                <h3 className="font-bold text-gray-900 dark:text-gray-100 mb-4">الورشة حسب المرحلة</h3>
                 <div className="flex flex-wrap gap-3">
                   {s.workshop && Object.entries(s.workshop).map(([stage, cnt]) => (
-                    <div key={stage} className="px-4 py-2 bg-gray-100 rounded-lg">
-                      <span className="text-gray-600">{STAGE_LABELS[stage] || stage}</span>
+                    <div key={stage} className="px-4 py-2 bg-gray-100 dark:bg-gray-700 rounded-lg">
+                      <span className="text-gray-600 dark:text-gray-300">{STAGE_LABELS[stage] || stage}</span>
                       <span className="font-bold mr-2">{(cnt as number)}</span>
                     </div>
                   ))}
@@ -268,11 +268,11 @@ export function ReportsContent() {
       )}
 
       {tab === "sales" && (
-        <div id="report-sales" className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-          <div className="p-4 border-b border-gray-100">
-            <h2 className="font-bold text-gray-900">تقرير المبيعات</h2>
+        <div id="report-sales" className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden">
+          <div className="p-4 border-b border-gray-100 dark:border-gray-700">
+            <h2 className="font-bold text-gray-900 dark:text-gray-100">تقرير المبيعات</h2>
             {sales?.totals ? (
-              <p className="text-sm text-gray-500 mt-1">
+              <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
                 الإجمالي: {Number((sales.totals as { total?: number })?.total ?? 0).toFixed(2)} ج.م — {(sales.totals as { count?: number })?.count ?? 0} فاتورة
               </p>
             ) : null}
@@ -306,18 +306,18 @@ export function ReportsContent() {
                 </tbody>
               </table>
             ) : (
-              <div className="p-12 text-center text-gray-500">لا توجد فواتير في الفترة المحددة</div>
+              <div className="p-12 text-center text-gray-500 dark:text-gray-400">لا توجد فواتير في الفترة المحددة</div>
             )}
           </div>
         </div>
       )}
 
       {tab === "profit" && (
-        <div id="report-profit" className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-          <div className="p-4 border-b border-gray-100">
-            <h2 className="font-bold text-gray-900">تقرير الأرباح</h2>
+        <div id="report-profit" className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden">
+          <div className="p-4 border-b border-gray-100 dark:border-gray-700">
+            <h2 className="font-bold text-gray-900 dark:text-gray-100">تقرير الأرباح</h2>
             {profit?.summary ? (
-              <p className="text-sm text-gray-500 mt-1">
+              <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
                 إجمالي المبيعات: {Number((profit.summary as { totalSales?: number })?.totalSales ?? 0).toFixed(2)} ج.م —
                 التكلفة: {Number((profit.summary as { totalCost?: number })?.totalCost ?? 0).toFixed(2)} ج.م —
                 الربح: <span className="font-medium text-emerald-600">{Number((profit.summary as { totalProfit?: number })?.totalProfit ?? 0).toFixed(2)} ج.م</span>
@@ -355,7 +355,7 @@ export function ReportsContent() {
                 </tbody>
               </table>
             ) : (
-              <div className="p-12 text-center text-gray-500">لا توجد بيانات في الفترة المحددة</div>
+              <div className="p-12 text-center text-gray-500 dark:text-gray-400">لا توجد بيانات في الفترة المحددة</div>
             )}
           </div>
         </div>
@@ -363,9 +363,9 @@ export function ReportsContent() {
 
       {tab === "inventory" && (
         <div id="report-inventory" className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-            <div className="p-4 border-b border-gray-100">
-              <h2 className="font-bold text-gray-900">أصناف تحت الحد الأدنى</h2>
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden">
+            <div className="p-4 border-b border-gray-100 dark:border-gray-700">
+              <h2 className="font-bold text-gray-900 dark:text-gray-100">أصناف تحت الحد الأدنى</h2>
             </div>
             <div className="max-h-64 overflow-y-auto">
               {inventory?.lowStock && (inventory.lowStock as unknown[]).length > 0 ? (
@@ -380,13 +380,13 @@ export function ReportsContent() {
                   ))}
                 </ul>
               ) : (
-                <div className="p-8 text-center text-gray-500">لا توجد أصناف تحت الحد الأدنى</div>
+                <div className="p-8 text-center text-gray-500 dark:text-gray-400">لا توجد أصناف تحت الحد الأدنى</div>
               )}
             </div>
           </div>
-          <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-            <div className="p-4 border-b border-gray-100">
-              <h2 className="font-bold text-gray-900">آخر حركات المخزون</h2>
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden">
+            <div className="p-4 border-b border-gray-100 dark:border-gray-700">
+              <h2 className="font-bold text-gray-900 dark:text-gray-100">آخر حركات المخزون</h2>
             </div>
             <div className="max-h-64 overflow-y-auto">
               {inventory?.movements && (inventory.movements as unknown[]).length > 0 ? (
@@ -402,7 +402,7 @@ export function ReportsContent() {
                   ))}
                 </ul>
               ) : (
-                <div className="p-8 text-center text-gray-500">لا توجد حركات</div>
+                <div className="p-8 text-center text-gray-500 dark:text-gray-400">لا توجد حركات</div>
               )}
             </div>
           </div>
@@ -411,24 +411,24 @@ export function ReportsContent() {
 
       {tab === "workshop" && (
         <div id="report-workshop" className="space-y-6">
-          <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100">
-            <h2 className="font-bold text-gray-900 mb-4">المراحل</h2>
+          <div className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-sm border border-gray-100 dark:border-gray-700">
+            <h2 className="font-bold text-gray-900 dark:text-gray-100 mb-4">المراحل</h2>
             <div className="flex flex-wrap gap-3">
               {workshop?.byStage
                 ? Object.entries(workshop.byStage as Record<string, number>).map(([stage, cnt]) => (
-                    <div key={stage} className="px-4 py-2 bg-gray-100 rounded-lg">
-                      <span className="text-gray-600">{STAGE_LABELS[stage] || stage}</span>
+                    <div key={stage} className="px-4 py-2 bg-gray-100 dark:bg-gray-700 rounded-lg">
+                      <span className="text-gray-600 dark:text-gray-300">{STAGE_LABELS[stage] || stage}</span>
                       <span className="font-bold mr-2">{cnt}</span>
                     </div>
                   ))
                 : null}
             </div>
           </div>
-          <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-            <div className="p-4 border-b border-gray-100">
-              <h2 className="font-bold text-gray-900">أوامر مكتملة في الفترة</h2>
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden">
+            <div className="p-4 border-b border-gray-100 dark:border-gray-700">
+              <h2 className="font-bold text-gray-900 dark:text-gray-100">أوامر مكتملة في الفترة</h2>
               {workshop?.completedTotal != null ? (
-                <p className="text-sm text-gray-500 mt-1">
+                <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
                   الإجمالي: {Number(workshop.completedTotal).toFixed(2)} ج.م — {Number(workshop.completedCount ?? 0)} أمر
                 </p>
               ) : null}
@@ -460,7 +460,7 @@ export function ReportsContent() {
                   </tbody>
                 </table>
               ) : (
-                <div className="p-12 text-center text-gray-500">لا توجد أوامر مكتملة في الفترة</div>
+                <div className="p-12 text-center text-gray-500 dark:text-gray-400">لا توجد أوامر مكتملة في الفترة</div>
               )}
             </div>
           </div>

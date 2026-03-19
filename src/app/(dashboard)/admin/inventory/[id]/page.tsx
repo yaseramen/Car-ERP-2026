@@ -119,13 +119,13 @@ export default async function ItemReportPage({
         </div>
 
         <div className="mb-8">
-          <h1 className="text-2xl font-bold text-gray-900">{item.name}</h1>
-          <p className="text-gray-500 mt-1">تقرير شامل للصنف</p>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">{item.name}</h1>
+          <p className="text-gray-500 dark:text-gray-400 mt-1">تقرير شامل للصنف</p>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-          <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100">
-            <h2 className="font-bold text-gray-900 mb-4">البيانات الأساسية</h2>
+          <div className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-sm border border-gray-100 dark:border-gray-700">
+            <h2 className="font-bold text-gray-900 dark:text-gray-100 mb-4">البيانات الأساسية</h2>
             <dl className="space-y-3 text-sm">
               <div className="flex justify-between">
                 <dt className="text-gray-500">الكود</dt>
@@ -181,9 +181,9 @@ export default async function ItemReportPage({
           </div>
         </div>
 
-        <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden mb-8">
-          <div className="p-4 border-b border-gray-100">
-            <h2 className="font-bold text-gray-900">حركة المخزون (من أين جاء وإلى أين ذهب)</h2>
+        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden mb-8">
+          <div className="p-4 border-b border-gray-100 dark:border-gray-700">
+            <h2 className="font-bold text-gray-900 dark:text-gray-100">حركة المخزون (من أين جاء وإلى أين ذهب)</h2>
           </div>
           <div className="overflow-x-auto">
             {movements.length > 0 ? (
