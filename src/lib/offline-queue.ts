@@ -127,7 +127,17 @@ export type QueuedOp =
         min_quantity_enabled?: boolean;
       };
     }
-  | { type: "submit_feedback"; data: { type: string; subject: string; message: string } };
+  | { type: "submit_feedback"; data: { type: string; subject: string; message: string } }
+  | {
+      type: "stock_transfer";
+      data: {
+        item_id: string;
+        from_warehouse_id: string;
+        to_warehouse_id: string;
+        quantity: number;
+        notes?: string;
+      };
+    };
 
 export interface QueuedItem {
   id: string;
@@ -322,6 +332,10 @@ export async function executeQueuedOpDefault(item: QueuedItem): Promise<boolean>
       break;
     case "submit_feedback":
       url = "/api/feedback";
+      body = JSON.stringify(op.data);
+      break;
+    case "stock_transfer":
+      url = "/api/admin/inventory/transfer";
       body = JSON.stringify(op.data);
       break;
     default:

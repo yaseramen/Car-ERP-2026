@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { addToQueue } from "@/lib/offline-queue";
 
 interface Warehouse {
   id: string;
@@ -73,16 +74,28 @@ export function TransferStock() {
     }
     setSaving(true);
     try {
+      const payload = {
+        item_id: itemId,
+        from_warehouse_id: fromId,
+        to_warehouse_id: toId,
+        quantity: qty,
+        notes: notes.trim() || undefined,
+      };
+      if (!navigator.onLine) {
+        addToQueue({ type: "stock_transfer", data: payload });
+        setOpen(false);
+        setItemId("");
+        setFromId("");
+        setToId("");
+        setQuantity("");
+        setNotes("");
+        alert("انقطع الاتصال. تم حفظ طلب النقل. سيتم تنفيذه تلقائياً عند عودة الإنترنت.");
+        return;
+      }
       const res = await fetch("/api/admin/inventory/transfer", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          item_id: itemId,
-          from_warehouse_id: fromId,
-          to_warehouse_id: toId,
-          quantity: qty,
-          notes: notes.trim() || undefined,
-        }),
+        body: JSON.stringify(payload),
       });
       const data = await res.json();
       if (!res.ok) {
@@ -97,7 +110,27 @@ export function TransferStock() {
       setNotes("");
       window.dispatchEvent(new CustomEvent("alameen-inventory-refresh"));
     } catch {
-      alert("حدث خطأ");
+      if (!navigator.onLine) {
+        addToQueue({
+          type: "stock_transfer",
+          data: {
+            item_id: itemId,
+            from_warehouse_id: fromId,
+            to_warehouse_id: toId,
+            quantity: qty,
+            notes: notes.trim() || undefined,
+          },
+        });
+        setOpen(false);
+        setItemId("");
+        setFromId("");
+        setToId("");
+        setQuantity("");
+        setNotes("");
+        alert("انقطع الاتصال. تم حفظ طلب النقل. سيتم تنفيذه تلقائياً عند عودة الإنترنت.");
+      } else {
+        alert("حدث خطأ");
+      }
     } finally {
       setSaving(false);
     }
