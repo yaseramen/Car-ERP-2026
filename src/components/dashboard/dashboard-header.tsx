@@ -34,7 +34,7 @@ export function DashboardHeader({ onMenuClick }: { onMenuClick?: () => void }) {
           <button
             type="button"
             onClick={onMenuClick}
-            className="md:hidden p-2 rounded-lg text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800"
+            className="lg:hidden p-2 rounded-lg text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800"
             title="القائمة"
             aria-label="فتح القائمة"
           >

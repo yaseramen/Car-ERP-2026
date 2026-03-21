@@ -80,7 +80,7 @@ export function Sidebar({ role = "super_admin", businessType, onNavigate, onClos
           <button
             type="button"
             onClick={onClose}
-            className="md:hidden p-2 rounded-lg text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800"
+            className="lg:hidden p-2 rounded-lg text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800"
             aria-label="إغلاق القائمة"
           >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
