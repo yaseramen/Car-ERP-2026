@@ -31,7 +31,7 @@ const navItems: {
   { href: "/admin/settings", label: "إعدادات الشركة", ownerOrAdmin: true },
 ];
 
-export function Sidebar({ role = "super_admin", businessType, onNavigate, onClose }: { role?: string; businessType?: string | null; onNavigate?: () => void; onClose?: () => void }) {
+export function Sidebar({ role = "super_admin", businessType, companyName, onNavigate, onClose }: { role?: string; businessType?: string | null; companyName?: string | null; onNavigate?: () => void; onClose?: () => void }) {
   const [perms, setPerms] = useState<Record<string, { read: boolean }> | null>(null);
   const [canNotify, setCanNotify] = useState(false);
   const notifications = useNotifications();
@@ -73,8 +73,12 @@ export function Sidebar({ role = "super_admin", businessType, onNavigate, onClos
     <aside className="w-64 min-h-screen bg-white dark:bg-gray-900 border-l border-gray-200 dark:border-gray-700 flex flex-col shrink-0">
       <div className="p-6 border-b border-gray-100 dark:border-gray-700 flex items-center justify-between gap-2">
         <div>
-          <h2 className="font-bold text-gray-900 dark:text-gray-100">الأمين لخدمات السيارات</h2>
-          <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">{role === "super_admin" ? "لوحة Super Admin" : "لوحة المالك"}</p>
+          <h2 className="font-bold text-gray-900 dark:text-gray-100">
+            {companyName && role !== "super_admin" ? companyName : "الأمين لخدمات السيارات"}
+          </h2>
+          <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+            {role === "super_admin" ? "لوحة Super Admin" : role === "employee" ? "لوحة الموظف" : "لوحة المالك"}
+          </p>
         </div>
         {onClose && (
           <button

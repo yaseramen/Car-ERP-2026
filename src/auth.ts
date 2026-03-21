@@ -10,6 +10,7 @@ declare module "next-auth" {
     name: string;
     role: string;
     companyId?: string | null;
+    companyName?: string | null;
     companyBusinessType?: string | null;
   }
 
@@ -23,6 +24,7 @@ declare module "@auth/core/jwt" {
     id: string;
     role: string;
     companyId?: string | null;
+    companyName?: string | null;
     companyBusinessType?: string | null;
   }
 }
@@ -41,7 +43,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
 
         const result = await db.execute({
           sql: `SELECT u.id, u.email, u.name, u.password_hash, u.role, u.company_id, u.is_active, u.is_blocked,
-                c.business_type
+                c.business_type, c.name as company_name
                 FROM users u
                 LEFT JOIN companies c ON c.id = u.company_id
                 WHERE u.email = ?`,
@@ -63,6 +65,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           name: String(user.name),
           role: String(user.role),
           companyId: user.company_id ? String(user.company_id) : null,
+          companyName: user.company_name ? String(user.company_name) : null,
           companyBusinessType: user.business_type ? String(user.business_type) : null,
         };
       },
@@ -79,6 +82,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         token.id = user.id;
         token.role = user.role;
         token.companyId = user.companyId;
+        token.companyName = (user as { companyName?: string }).companyName ?? null;
         token.companyBusinessType = (user as { companyBusinessType?: string }).companyBusinessType ?? null;
       }
       return token;
@@ -88,6 +92,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         session.user.id = token.id;
         session.user.role = token.role;
         session.user.companyId = token.companyId ?? null;
+        session.user.companyName = token.companyName ?? null;
         session.user.companyBusinessType = token.companyBusinessType ?? null;
       }
       return session;

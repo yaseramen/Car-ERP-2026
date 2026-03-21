@@ -18,6 +18,7 @@ export default async function AdminLayout({
       <AdminLayoutClient
         role={session.user.role ?? "employee"}
         businessType={session.user.companyBusinessType ?? null}
+        companyName={session.user.companyName ?? null}
       >
         {children}
       </AdminLayoutClient>
