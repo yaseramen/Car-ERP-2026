@@ -17,6 +17,8 @@ export async function GET(request: Request) {
   const to = searchParams.get("to");
   const nameFilter = searchParams.get("name")?.trim();
   const typeFilter = searchParams.get("type")?.trim();
+  const limit = Math.min(200, Math.max(20, Number(searchParams.get("limit")) || 50));
+  const offset = Math.max(0, Number(searchParams.get("offset")) || 0);
 
   try {
     const fromDate = from || new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
@@ -24,28 +26,44 @@ export async function GET(request: Request) {
     const fromStr = `${fromDate}T00:00:00`;
     const toStr = `${toDate}T23:59:59`;
 
-    let sql = `SELECT tt.*, t.name as treasury_name, t.type as treasury_type, pm.name as method_name
+    const baseWhere = `t.company_id = ? AND tt.reference_type IN ('expense', 'income')
+            AND tt.created_at >= ? AND tt.created_at <= ?`;
+    const baseArgs: (string | number)[] = [companyId, fromStr, toStr];
+    let extraWhere = "";
+    if (typeFilter === "expense" || typeFilter === "income") {
+      extraWhere += ` AND tt.reference_type = ?`;
+      baseArgs.push(typeFilter);
+    }
+    if (nameFilter) {
+      extraWhere += ` AND (tt.item_name LIKE ? OR tt.description LIKE ?)`;
+      baseArgs.push(`%${nameFilter}%`, `%${nameFilter}%`);
+    }
+
+    const countSql = `SELECT COUNT(*) as cnt FROM treasury_transactions tt
+            JOIN treasuries t ON tt.treasury_id = t.id
+            WHERE ${baseWhere}${extraWhere}`;
+    const countRes = await db.execute({ sql: countSql, args: baseArgs });
+    const total = Number(countRes.rows[0]?.cnt ?? 0);
+
+    const sumsSql = `SELECT
+            COALESCE(SUM(CASE WHEN tt.reference_type = 'expense' THEN ABS(tt.amount) ELSE 0 END), 0) as exp,
+            COALESCE(SUM(CASE WHEN tt.reference_type = 'income' THEN tt.amount ELSE 0 END), 0) as inc
+            FROM treasury_transactions tt
+            JOIN treasuries t ON tt.treasury_id = t.id
+            WHERE ${baseWhere}${extraWhere}`;
+    const sumsRes = await db.execute({ sql: sumsSql, args: [...baseArgs] });
+    const totalExpenses = Number(sumsRes.rows[0]?.exp ?? 0);
+    const totalIncome = Number(sumsRes.rows[0]?.inc ?? 0);
+
+    const rowsSql = `SELECT tt.*, t.name as treasury_name, t.type as treasury_type, pm.name as method_name
             FROM treasury_transactions tt
             JOIN treasuries t ON tt.treasury_id = t.id
             LEFT JOIN payment_methods pm ON tt.payment_method_id = pm.id
-            WHERE t.company_id = ? AND tt.reference_type IN ('expense', 'income')
-            AND tt.created_at >= ? AND tt.created_at <= ?`;
-    const args: (string | number)[] = [companyId, fromStr, toStr];
-
-    if (typeFilter === "expense" || typeFilter === "income") {
-      sql += ` AND tt.reference_type = ?`;
-      args.push(typeFilter);
-    }
-
-    if (nameFilter) {
-      sql += ` AND (tt.item_name LIKE ? OR tt.description LIKE ?)`;
-      const q = `%${nameFilter}%`;
-      args.push(q, q);
-    }
-
-    sql += ` ORDER BY tt.created_at DESC`;
-
-    const result = await db.execute({ sql, args });
+            WHERE ${baseWhere}${extraWhere}
+            ORDER BY tt.created_at DESC
+            LIMIT ? OFFSET ?`;
+    const rowsArgs = [...baseArgs, limit, offset];
+    const result = await db.execute({ sql: rowsSql, args: rowsArgs });
 
     const rows = result.rows.map((r) => ({
       id: r.id,
@@ -59,11 +77,9 @@ export async function GET(request: Request) {
       created_at: r.created_at,
     }));
 
-    const totalExpenses = rows.filter((r) => r.type === "expense").reduce((s, r) => s + Math.abs(r.amount), 0);
-    const totalIncome = rows.filter((r) => r.type === "income").reduce((s, r) => s + r.amount, 0);
-
     return NextResponse.json({
       rows,
+      total,
       totalExpenses,
       totalIncome,
       net: totalIncome - totalExpenses,

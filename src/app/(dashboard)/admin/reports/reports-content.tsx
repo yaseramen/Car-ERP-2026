@@ -98,7 +98,7 @@ export function ReportsContent() {
 
   useEffect(() => {
     setPage(1);
-  }, [tab, dateFrom, dateTo, searchQuery]);
+  }, [tab, dateFrom, dateTo, searchQuery, expenseNameFilter, expenseTypeFilter]);
 
   function setDateRange(days: number) {
     const to = new Date();
@@ -155,7 +155,7 @@ export function ReportsContent() {
 
   async function fetchExpensesIncome() {
     try {
-      const params = new URLSearchParams({ from: dateFrom, to: dateTo });
+      const params = new URLSearchParams({ from: dateFrom, to: dateTo, limit: String(ROWS_PER_PAGE), offset: String((page - 1) * ROWS_PER_PAGE) });
       if (expenseNameFilter) params.set("name", expenseNameFilter);
       if (expenseTypeFilter) params.set("type", expenseTypeFilter);
       const res = await fetch(`/api/admin/reports/expenses-income?${params}`);
@@ -198,7 +198,7 @@ export function ReportsContent() {
       tab === "expenses" ? Promise.all([fetchExpenseIncomeNames(), fetchExpensesIncome()]) :
       fetchSuppliersReport();
     p.finally(() => setTabLoading(false));
-  }, [tab, dateFrom, dateTo, expenseNameFilter, expenseTypeFilter]);
+  }, [tab, dateFrom, dateTo, expenseNameFilter, expenseTypeFilter, page]);
 
   const tabs = [
     { id: "summary" as Tab, label: "ملخص" },
@@ -260,15 +260,35 @@ export function ReportsContent() {
       }));
       exportToExcel(data, `ورشة-${dateFrom}-${dateTo}`, "الورشة");
     } else if (tab === "expenses" && expensesIncome?.rows) {
-      const data = (expensesIncome.rows as Array<{ type: string; amount: number; item_name: string | null; description: string; treasury_name: string; created_at: string }>).map((r) => ({
-        التاريخ: new Date(r.created_at).toLocaleString("ar-EG"),
-        النوع: r.type === "expense" ? "مصروف" : "إيراد",
-        الاسم: r.item_name || "—",
-        المبلغ: r.amount,
-        البيان: r.description || "—",
-        الخزينة: r.treasury_name,
-      }));
-      exportToExcel(data, `مصروفات-إيرادات-${dateFrom}-${dateTo}`, "المصروفات والإيرادات");
+      (async () => {
+        try {
+          const params = new URLSearchParams({ from: dateFrom, to: dateTo, limit: "10000", offset: "0" });
+          if (expenseNameFilter) params.set("name", expenseNameFilter);
+          if (expenseTypeFilter) params.set("type", expenseTypeFilter);
+          const res = await fetch(`/api/admin/reports/expenses-income?${params}`);
+          const data = res.ok ? await res.json() : { rows: expensesIncome.rows };
+          const rows = (data.rows ?? expensesIncome.rows) as Array<{ type: string; amount: number; item_name: string | null; description: string; treasury_name: string; created_at: string }>;
+          const excelData = rows.map((r) => ({
+            التاريخ: new Date(r.created_at).toLocaleString("ar-EG"),
+            النوع: r.type === "expense" ? "مصروف" : "إيراد",
+            الاسم: r.item_name || "—",
+            المبلغ: r.amount,
+            البيان: r.description || "—",
+            الخزينة: r.treasury_name,
+          }));
+          exportToExcel(excelData, `مصروفات-إيرادات-${dateFrom}-${dateTo}`, "المصروفات والإيرادات");
+        } catch {
+          const fallback = (expensesIncome.rows as Array<{ type: string; amount: number; item_name: string | null; description: string; treasury_name: string; created_at: string }>).map((r) => ({
+            التاريخ: new Date(r.created_at).toLocaleString("ar-EG"),
+            النوع: r.type === "expense" ? "مصروف" : "إيراد",
+            الاسم: r.item_name || "—",
+            المبلغ: r.amount,
+            البيان: r.description || "—",
+            الخزينة: r.treasury_name,
+          }));
+          exportToExcel(fallback, `مصروفات-إيرادات-${dateFrom}-${dateTo}`, "المصروفات والإيرادات");
+        }
+      })();
     } else if (tab === "suppliers" && suppliersReport?.rows) {
       const data = (suppliersReport.rows as Array<{ supplier_name: string; invoice_count: number; total_quantity: number; total_amount: number; avg_price: number }>).map((r) => ({
         المورد: r.supplier_name,
@@ -814,11 +834,8 @@ export function ReportsContent() {
             <div className="overflow-x-auto max-h-96">
               {expensesIncome?.rows && (expensesIncome.rows as unknown[]).length > 0 ? (
                 (() => {
-                  const expFiltered = filterBySearch(
-                    (expensesIncome.rows as Array<{ id: string; type: string; amount: number; item_name: string | null; description: string; treasury_name: string; created_at: string }>),
-                    (r) => `${r.item_name || ""} ${r.description || ""} ${r.treasury_name || ""} ${r.type === "expense" ? "مصروف" : "إيراد"}`
-                  );
-                  const expPaginated = expFiltered.slice((page - 1) * ROWS_PER_PAGE, page * ROWS_PER_PAGE);
+                  const expRows = expensesIncome.rows as Array<{ id: string; type: string; amount: number; item_name: string | null; description: string; treasury_name: string; created_at: string }>;
+                  const expTotal = Number(expensesIncome?.total ?? expRows.length);
                   return (
                 <>
                 <table className="w-full">
@@ -833,7 +850,7 @@ export function ReportsContent() {
                     </tr>
                   </thead>
                   <tbody>
-                    {expPaginated.map((r) => (
+                    {expRows.map((r) => (
                       <tr key={r.id} className="border-b border-gray-50 dark:border-gray-700">
                         <td className="px-4 py-3 text-sm text-gray-900 dark:text-gray-100">{new Date(r.created_at).toLocaleString("ar-EG")}</td>
                         <td className="px-4 py-3 text-sm">{r.type === "expense" ? "مصروف" : "إيراد"}</td>
@@ -847,7 +864,7 @@ export function ReportsContent() {
                     ))}
                   </tbody>
                 </table>
-                <PaginationControls page={page} totalItems={expFiltered.length} onPageChange={setPage} />
+                <PaginationControls page={page} totalItems={expTotal} onPageChange={setPage} />
                 </>
                   );
                 })()
