@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { getErrorMessage } from "@/lib/error-messages";
 import { addToQueue } from "@/lib/offline-queue";
 
 interface Warehouse {
@@ -99,7 +100,7 @@ export function WarehousesSection() {
       }
       setModalOpen(false);
       fetchWarehouses();
-    } catch {
+    } catch (err) {
       if (editing && !navigator.onLine) {
         addToQueue({
           type: "warehouse_patch",
@@ -114,7 +115,7 @@ export function WarehousesSection() {
         setModalOpen(false);
         fetchWarehouses();
       } else {
-        setMessage({ type: "error", text: "حدث خطأ" });
+        setMessage({ type: "error", text: getErrorMessage(err, "حدث خطأ") });
       }
     } finally {
       setSaving(false);
@@ -140,8 +141,8 @@ export function WarehousesSection() {
       setMessage({ type: "success", text: "تم تعطيل المخزن" });
       setDeleteConfirm(null);
       fetchWarehouses();
-    } catch {
-      setMessage({ type: "error", text: "حدث خطأ" });
+    } catch (err) {
+      setMessage({ type: "error", text: getErrorMessage(err, "حدث خطأ") });
     } finally {
       setSaving(false);
     }
@@ -232,8 +233,8 @@ export function WarehousesSection() {
                               setMessage({ type: "success", text: "تم التفعيل" });
                               fetchWarehouses();
                             }
-                          } catch {
-                            setMessage({ type: "error", text: "حدث خطأ" });
+                          } catch (err) {
+                            setMessage({ type: "error", text: getErrorMessage(err, "حدث خطأ") });
                           } finally {
                             setSaving(false);
                           }

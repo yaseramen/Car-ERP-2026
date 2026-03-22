@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { addToQueue } from "@/lib/offline-queue";
+import { getErrorMessage } from "@/lib/error-messages";
 
 interface Company {
   id: string;
@@ -200,8 +201,8 @@ export function WalletsContent() {
       });
       if (res.ok) alert("تم حفظ الإعدادات");
       else alert((await res.json()).error || "فشل");
-    } catch {
-      alert("حدث خطأ");
+    } catch (err) {
+      alert(getErrorMessage(err, "حدث خطأ"));
     } finally {
       setFeeSaving(false);
     }
@@ -225,8 +226,8 @@ export function WalletsContent() {
         setCustomFeeCompany(null);
         setCustomFeeForm({ rate: "", minFee: "" });
       } else alert((await res.json()).error || "فشل");
-    } catch {
-      alert("حدث خطأ");
+    } catch (err) {
+      alert(getErrorMessage(err, "حدث خطأ"));
     } finally {
       setFeeSaving(false);
     }

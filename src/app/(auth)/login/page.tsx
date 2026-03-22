@@ -4,6 +4,7 @@ import { useState, Suspense } from "react";
 import Link from "next/link";
 import { signIn } from "next-auth/react";
 import { useSearchParams } from "next/navigation";
+import { getErrorMessage } from "@/lib/error-messages";
 
 function LoginForm() {
   const [email, setEmail] = useState("");
@@ -38,8 +39,8 @@ function LoginForm() {
         window.location.href = callbackUrl;
         return;
       }
-    } catch {
-      setError("حدث خطأ. حاول مرة أخرى.");
+    } catch (err) {
+      setError(getErrorMessage(err, "حدث خطأ. حاول مرة أخرى."));
     } finally {
       setLoading(false);
     }

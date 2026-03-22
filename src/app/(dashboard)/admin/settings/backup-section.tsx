@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { getErrorMessage } from "@/lib/error-messages";
 
 const MODULES = [
   { id: "company", label: "بيانات الشركة" },
@@ -64,8 +65,8 @@ export function BackupSection() {
       }
       setRestoreMsg({ type: "success", text: data.message || "تمت الاستعادة بنجاح" });
       setRestoreFile(null);
-    } catch {
-      setRestoreMsg({ type: "error", text: "حدث خطأ أثناء الاستعادة" });
+    } catch (err) {
+      setRestoreMsg({ type: "error", text: getErrorMessage(err, "حدث خطأ أثناء الاستعادة") });
     } finally {
       setRestoring(false);
     }

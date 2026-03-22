@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { exportToExcel, exportToPdf } from "@/lib/export-reports";
+import { getErrorMessage } from "@/lib/error-messages";
 
 const STAGE_LABELS: Record<string, string> = {
   received: "استلام",
@@ -117,14 +118,18 @@ export function ReportsContent() {
     try {
       const res = await fetch("/api/admin/reports/summary");
       if (res.ok) setSummary(await res.json());
-    } catch {}
+    } catch (err) {
+      console.error("Reports summary fetch error:", err);
+    }
   }
 
   async function fetchSales() {
     try {
       const res = await fetch(`/api/admin/reports/sales?from=${dateFrom}&to=${dateTo}`);
       if (res.ok) setSales(await res.json());
-    } catch {}
+    } catch (err) {
+      console.error("Reports sales fetch error:", err);
+    }
   }
 
   async function fetchProfit() {
@@ -155,7 +160,9 @@ export function ReportsContent() {
       if (expenseTypeFilter) params.set("type", expenseTypeFilter);
       const res = await fetch(`/api/admin/reports/expenses-income?${params}`);
       if (res.ok) setExpensesIncome(await res.json());
-    } catch {}
+    } catch (err) {
+      console.error("Reports expenses-income fetch error:", err);
+    }
   }
 
   async function fetchExpenseIncomeNames() {
@@ -292,8 +299,8 @@ export function ReportsContent() {
     }
     try {
       await exportToPdf(id, `تقرير-${tab}-${dateFrom}-${dateTo}`);
-    } catch {
-      alert("فشل في تصدير PDF");
+    } catch (err) {
+      alert(getErrorMessage(err, "فشل في تصدير PDF"));
     }
   }
 

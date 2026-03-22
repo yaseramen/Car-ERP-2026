@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { addToQueue } from "@/lib/offline-queue";
+import { getErrorMessage } from "@/lib/error-messages";
 
 interface Warehouse {
   id: string;
@@ -109,7 +110,7 @@ export function TransferStock() {
       setQuantity("");
       setNotes("");
       window.dispatchEvent(new CustomEvent("alameen-inventory-refresh"));
-    } catch {
+    } catch (err) {
       if (!navigator.onLine) {
         addToQueue({
           type: "stock_transfer",
@@ -129,7 +130,7 @@ export function TransferStock() {
         setNotes("");
         alert("انقطع الاتصال. تم حفظ طلب النقل. سيتم تنفيذه تلقائياً عند عودة الإنترنت.");
       } else {
-        alert("حدث خطأ");
+        alert(getErrorMessage(err, "حدث خطأ"));
       }
     } finally {
       setSaving(false);
@@ -153,8 +154,8 @@ export function TransferStock() {
       }
       setWarehouses((prev) => [...prev, { id: data.id, name: data.name, type: data.type }]);
       setNewWarehouseName("");
-    } catch {
-      alert("حدث خطأ");
+    } catch (err) {
+      alert(getErrorMessage(err, "حدث خطأ"));
     } finally {
       setAddingWarehouse(false);
     }
