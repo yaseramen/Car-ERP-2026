@@ -14,6 +14,7 @@ interface Transaction {
   id: string;
   amount: number;
   type: string;
+  item_name?: string | null;
   description: string | null;
   method_name: string | null;
   created_at: string;
@@ -176,6 +177,7 @@ function ExpenseIncomeModal({
 }) {
   const [treasuryId, setTreasuryId] = useState("");
   const [amount, setAmount] = useState("");
+  const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [paymentMethodId, setPaymentMethodId] = useState("");
   const [saving, setSaving] = useState(false);
@@ -197,6 +199,7 @@ function ExpenseIncomeModal({
       type,
       treasury_id: treasuryId,
       amount: amt,
+      name: name.trim() || undefined,
       description: description.trim() || undefined,
       payment_method_id: paymentMethodId || undefined,
     };
@@ -290,13 +293,23 @@ function ExpenseIncomeModal({
             />
           </div>
           <div>
-            <label className={labelClass}>البيان</label>
+            <label className={labelClass}>{type === "expense" ? "اسم المصروف" : "اسم الإيراد"}</label>
+            <input
+              type="text"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              className={inputClass}
+              placeholder={type === "expense" ? "مثال: إيجار، كهرباء، مرتبات" : "مثال: بيع قطع، خدمة صيانة"}
+            />
+          </div>
+          <div>
+            <label className={labelClass}>تفاصيل إضافية (اختياري)</label>
             <input
               type="text"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               className={inputClass}
-              placeholder={type === "expense" ? "وصف المصروف" : "وصف الإيراد"}
+              placeholder={type === "expense" ? "وصف أو ملاحظات" : "وصف أو ملاحظات"}
             />
           </div>
           <div>
@@ -552,7 +565,9 @@ export function TreasuriesContent() {
               {transactions.map((tx) => (
                 <li key={tx.id} className="p-4 flex justify-between items-center text-sm">
                   <div>
-                    <span className="text-gray-600 dark:text-gray-300">{tx.description || tx.method_name || "—"}</span>
+                    <span className="text-gray-600 dark:text-gray-300">
+                      {tx.item_name ? `${tx.item_name}${tx.description ? ` — ${tx.description}` : ""}` : tx.description || tx.method_name || "—"}
+                    </span>
                     <span className="text-gray-400 dark:text-gray-500 mr-2">
                       — {new Date(tx.created_at).toLocaleString("ar-EG")}
                     </span>

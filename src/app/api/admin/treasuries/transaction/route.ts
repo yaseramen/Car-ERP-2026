@@ -15,7 +15,7 @@ export async function POST(request: Request) {
 
   try {
     const body = await request.json();
-    const { type, treasury_id, amount, description, payment_method_id } = body;
+    const { type, treasury_id, amount, description, name: itemName, payment_method_id } = body;
 
     if (!type || !treasury_id || !amount) {
       return NextResponse.json({ error: "النوع والخزينة والمبلغ مطلوبان" }, { status: 400 });
@@ -50,6 +50,7 @@ export async function POST(request: Request) {
     const txId = randomUUID();
     const desc = description?.trim() || (type === "expense" ? "مصروف" : "إيراد");
     const refType = type === "expense" ? "expense" : "income";
+    const nameVal = typeof itemName === "string" ? itemName.trim() || null : null;
 
     if (type === "expense") {
       await db.execute({
@@ -57,9 +58,9 @@ export async function POST(request: Request) {
         args: [amt, treasury_id],
       });
       await db.execute({
-        sql: `INSERT INTO treasury_transactions (id, treasury_id, amount, type, description, reference_type, reference_id, payment_method_id, performed_by)
-              VALUES (?, ?, ?, 'out', ?, ?, ?, ?, ?)`,
-        args: [txId, treasury_id, -amt, desc, refType, txId, payment_method_id || null, session.user.id],
+        sql: `INSERT INTO treasury_transactions (id, treasury_id, amount, type, description, item_name, reference_type, reference_id, payment_method_id, performed_by)
+              VALUES (?, ?, ?, 'out', ?, ?, ?, ?, ?, ?)`,
+        args: [txId, treasury_id, -amt, desc, nameVal, refType, txId, payment_method_id || null, session.user.id],
       });
     } else {
       await db.execute({
@@ -67,9 +68,9 @@ export async function POST(request: Request) {
         args: [amt, treasury_id],
       });
       await db.execute({
-        sql: `INSERT INTO treasury_transactions (id, treasury_id, amount, type, description, reference_type, reference_id, payment_method_id, performed_by)
-              VALUES (?, ?, ?, 'in', ?, ?, ?, ?, ?)`,
-        args: [txId, treasury_id, amt, desc, refType, txId, payment_method_id || null, session.user.id],
+        sql: `INSERT INTO treasury_transactions (id, treasury_id, amount, type, description, item_name, reference_type, reference_id, payment_method_id, performed_by)
+              VALUES (?, ?, ?, 'in', ?, ?, ?, ?, ?, ?)`,
+        args: [txId, treasury_id, amt, desc, nameVal, refType, txId, payment_method_id || null, session.user.id],
       });
     }
 

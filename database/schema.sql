@@ -113,6 +113,7 @@ CREATE TABLE IF NOT EXISTS treasury_transactions (
     amount REAL NOT NULL,
     type TEXT NOT NULL CHECK(type IN ('in', 'out', 'transfer')),
     description TEXT,
+    item_name TEXT,
     reference_type TEXT,
     reference_id TEXT,
     payment_method_id TEXT,

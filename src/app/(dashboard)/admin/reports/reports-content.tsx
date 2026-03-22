@@ -65,6 +65,8 @@ export function ReportsContent() {
   const [inventory, setInventory] = useState<Record<string, unknown> | null>(null);
   const [workshop, setWorkshop] = useState<Record<string, unknown> | null>(null);
   const [expensesIncome, setExpensesIncome] = useState<Record<string, unknown> | null>(null);
+  const [expenseIncomeNames, setExpenseIncomeNames] = useState<string[]>([]);
+  const [expenseNameFilter, setExpenseNameFilter] = useState("");
   const [suppliersReport, setSuppliersReport] = useState<Record<string, unknown> | null>(null);
   const [loading, setLoading] = useState(true);
   const [tabLoading, setTabLoading] = useState(false);
@@ -147,8 +149,19 @@ export function ReportsContent() {
 
   async function fetchExpensesIncome() {
     try {
-      const res = await fetch(`/api/admin/reports/expenses-income?from=${dateFrom}&to=${dateTo}`);
+      const url = `/api/admin/reports/expenses-income?from=${dateFrom}&to=${dateTo}${expenseNameFilter ? `&name=${encodeURIComponent(expenseNameFilter)}` : ""}`;
+      const res = await fetch(url);
       if (res.ok) setExpensesIncome(await res.json());
+    } catch {}
+  }
+
+  async function fetchExpenseIncomeNames() {
+    try {
+      const res = await fetch("/api/admin/reports/expenses-income-names");
+      if (res.ok) {
+        const d = await res.json();
+        setExpenseIncomeNames(d.names ?? []);
+      }
     } catch {}
   }
 
@@ -172,10 +185,10 @@ export function ReportsContent() {
       tab === "profit" ? fetchProfit() :
       tab === "inventory" ? fetchInventory() :
       tab === "workshop" ? fetchWorkshop() :
-      tab === "expenses" ? fetchExpensesIncome() :
+      tab === "expenses" ? Promise.all([fetchExpenseIncomeNames(), fetchExpensesIncome()]) :
       fetchSuppliersReport();
     p.finally(() => setTabLoading(false));
-  }, [tab, dateFrom, dateTo]);
+  }, [tab, dateFrom, dateTo, expenseNameFilter]);
 
   const tabs = [
     { id: "summary" as Tab, label: "ملخص" },
@@ -237,9 +250,10 @@ export function ReportsContent() {
       }));
       exportToExcel(data, `ورشة-${dateFrom}-${dateTo}`, "الورشة");
     } else if (tab === "expenses" && expensesIncome?.rows) {
-      const data = (expensesIncome.rows as Array<{ type: string; amount: number; description: string; treasury_name: string; created_at: string }>).map((r) => ({
+      const data = (expensesIncome.rows as Array<{ type: string; amount: number; item_name: string | null; description: string; treasury_name: string; created_at: string }>).map((r) => ({
         التاريخ: new Date(r.created_at).toLocaleString("ar-EG"),
         النوع: r.type === "expense" ? "مصروف" : "إيراد",
+        الاسم: r.item_name || "—",
         المبلغ: r.amount,
         البيان: r.description || "—",
         الخزينة: r.treasury_name,
@@ -740,6 +754,19 @@ export function ReportsContent() {
 
       {tab === "expenses" && !tabLoading && (
         <div id="report-expenses" className="space-y-6">
+          <div className="flex flex-wrap gap-3 items-center">
+            <label className="text-sm font-medium text-gray-700 dark:text-gray-300">فلترة حسب الاسم:</label>
+            <select
+              value={expenseNameFilter}
+              onChange={(e) => setExpenseNameFilter(e.target.value)}
+              className="px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 text-sm"
+            >
+              <option value="">كل المصروفات والإيرادات</option>
+              {expenseIncomeNames.map((n) => (
+                <option key={n} value={n}>{n}</option>
+              ))}
+            </select>
+          </div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-sm border border-gray-100 dark:border-gray-700">
               <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">إجمالي المصروفات</h3>
@@ -768,8 +795,8 @@ export function ReportsContent() {
               {expensesIncome?.rows && (expensesIncome.rows as unknown[]).length > 0 ? (
                 (() => {
                   const expFiltered = filterBySearch(
-                    (expensesIncome.rows as Array<{ id: string; type: string; amount: number; description: string; treasury_name: string; created_at: string }>),
-                    (r) => `${r.description || ""} ${r.treasury_name || ""} ${r.type === "expense" ? "مصروف" : "إيراد"}`
+                    (expensesIncome.rows as Array<{ id: string; type: string; amount: number; item_name: string | null; description: string; treasury_name: string; created_at: string }>),
+                    (r) => `${r.item_name || ""} ${r.description || ""} ${r.treasury_name || ""} ${r.type === "expense" ? "مصروف" : "إيراد"}`
                   );
                   const expPaginated = expFiltered.slice((page - 1) * ROWS_PER_PAGE, page * ROWS_PER_PAGE);
                   return (
@@ -779,6 +806,7 @@ export function ReportsContent() {
                     <tr className="bg-gray-50 dark:bg-gray-700/50">
                       <th className="text-right px-4 py-3 text-sm font-medium text-gray-600 dark:text-gray-300">التاريخ</th>
                       <th className="text-right px-4 py-3 text-sm font-medium text-gray-600 dark:text-gray-300">النوع</th>
+                      <th className="text-right px-4 py-3 text-sm font-medium text-gray-600 dark:text-gray-300">الاسم</th>
                       <th className="text-right px-4 py-3 text-sm font-medium text-gray-600 dark:text-gray-300">المبلغ</th>
                       <th className="text-right px-4 py-3 text-sm font-medium text-gray-600 dark:text-gray-300">البيان</th>
                       <th className="text-right px-4 py-3 text-sm font-medium text-gray-600 dark:text-gray-300">الخزينة</th>
@@ -789,6 +817,7 @@ export function ReportsContent() {
                       <tr key={r.id} className="border-b border-gray-50 dark:border-gray-700">
                         <td className="px-4 py-3 text-sm text-gray-900 dark:text-gray-100">{new Date(r.created_at).toLocaleString("ar-EG")}</td>
                         <td className="px-4 py-3 text-sm">{r.type === "expense" ? "مصروف" : "إيراد"}</td>
+                        <td className="px-4 py-3 text-sm font-medium text-gray-900 dark:text-gray-100">{r.item_name || "—"}</td>
                         <td className={`px-4 py-3 text-sm font-medium ${r.amount < 0 ? "text-red-600 dark:text-red-400" : "text-emerald-600 dark:text-emerald-400"}`}>
                           {r.amount.toFixed(2)} ج.م
                         </td>

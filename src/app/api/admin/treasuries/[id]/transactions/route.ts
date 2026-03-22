@@ -41,6 +41,7 @@ export async function GET(
       id: r.id,
       amount: Number(r.amount ?? 0),
       type: r.type,
+      item_name: r.item_name ? String(r.item_name) : null,
       description: r.description ? String(r.description) : null,
       reference_type: r.reference_type ? String(r.reference_type) : null,
       method_name: r.method_name ? String(r.method_name) : null,
