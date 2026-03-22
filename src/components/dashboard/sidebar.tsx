@@ -70,8 +70,8 @@ export function Sidebar({ role = "super_admin", businessType, companyName, onNav
   };
 
   return (
-    <aside className="w-64 min-h-screen bg-white dark:bg-gray-900 border-l border-gray-200 dark:border-gray-700 flex flex-col shrink-0">
-      <div className="p-6 border-b border-gray-100 dark:border-gray-700 flex items-center justify-between gap-2">
+    <aside className="w-64 h-screen max-h-[100dvh] lg:min-h-screen lg:max-h-none bg-white dark:bg-gray-900 border-l border-gray-200 dark:border-gray-700 flex flex-col shrink-0 overflow-hidden">
+      <div className="p-6 border-b border-gray-100 dark:border-gray-700 flex items-center justify-between gap-2 shrink-0">
         <div>
           <h2 className="font-bold text-gray-900 dark:text-gray-100">
             {companyName && role !== "super_admin" ? companyName : "الأمين لخدمات السيارات"}
@@ -94,8 +94,9 @@ export function Sidebar({ role = "super_admin", businessType, companyName, onNav
         )}
       </div>
 
-      <nav className="flex-1 p-4 space-y-1">
-        {items.map((item) => {
+      <div className="flex-1 min-h-0 overflow-y-auto">
+        <nav className="p-4 space-y-1">
+          {items.map((item) => {
           const isActive = pathname === item.href || (item.href !== "/admin" && pathname.startsWith(item.href));
           return (
             <Link
@@ -112,9 +113,9 @@ export function Sidebar({ role = "super_admin", businessType, companyName, onNav
             </Link>
           );
         })}
-      </nav>
+        </nav>
 
-      <div className="p-4 border-t border-gray-100 dark:border-gray-700 space-y-2">
+        <div className="p-4 border-t border-gray-100 dark:border-gray-700 space-y-2">
         {notifications && canNotify && (
           <button
             type="button"
@@ -136,6 +137,7 @@ export function Sidebar({ role = "super_admin", businessType, companyName, onNav
         >
           تسجيل الخروج
         </button>
+        </div>
       </div>
     </aside>
   );
