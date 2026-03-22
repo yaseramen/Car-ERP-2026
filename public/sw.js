@@ -1,24 +1,20 @@
-const CACHE_NAME = "alameen-pwa-v5";
-const API_CACHE_NAME = "alameen-api-v5";
+const CACHE_NAME = "alameen-pwa-v6";
+const API_CACHE_NAME = "alameen-api-v6";
 
+// لا نُخزّن بيانات مالية/معاملات في الـ cache لتجنب عرض بيانات قديمة
 const API_CACHE_PATHS = [
   '/api/admin/workshop/orders',
   '/api/admin/inventory/items',
   '/api/admin/customers',
-  '/api/admin/invoices',
   '/api/admin/suppliers',
-  '/api/admin/reports/summary',
-  '/api/admin/reports/sales',
-  '/api/admin/reports/profit',
   '/api/admin/reports/inventory',
   '/api/admin/reports/workshop',
-  '/api/admin/reports/expenses-income',
   '/api/admin/reports/suppliers',
   '/api/admin/payment-methods',
   '/api/admin/digital-fee',
-  '/api/admin/treasuries',
   '/api/admin/inventory/categories'
 ];
+// المستثناة من الـ cache: invoices, treasuries, expenses-income, summary, sales, profit
 
 function shouldCacheApi(url) {
   return API_CACHE_PATHS.some(p => url.includes(p));
