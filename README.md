@@ -76,6 +76,10 @@
 
 **للتحقق من الإعداد:** افتح `/api/health` - إذا ظهر `auth: "missing_secret"` أضف AUTH_SECRET في Vercel → Settings → Environment Variables → Production
 
+## ملاحظات تقنية
+
+- **Next.js 16 / middleware:** تظهر رسالة أن `middleware` أصبحت `proxy`. الحل المستقبلي: تشغيل `npx @next/codemod@canary middleware-to-proxy .` أو نقل منطق المصادقة إلى layout guards حسب توصيات Next.js 16.
+
 ## الميزات الرئيسية
 
 - **مستخدمون وصلاحيات:** Super Admin، Tenant Owner، موظفون بصلاحيات دقيقة
