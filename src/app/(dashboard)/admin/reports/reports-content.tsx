@@ -67,6 +67,7 @@ export function ReportsContent() {
   const [expensesIncome, setExpensesIncome] = useState<Record<string, unknown> | null>(null);
   const [expenseIncomeNames, setExpenseIncomeNames] = useState<string[]>([]);
   const [expenseNameFilter, setExpenseNameFilter] = useState("");
+  const [expenseTypeFilter, setExpenseTypeFilter] = useState<"" | "expense" | "income">("");
   const [suppliersReport, setSuppliersReport] = useState<Record<string, unknown> | null>(null);
   const [loading, setLoading] = useState(true);
   const [tabLoading, setTabLoading] = useState(false);
@@ -149,8 +150,10 @@ export function ReportsContent() {
 
   async function fetchExpensesIncome() {
     try {
-      const url = `/api/admin/reports/expenses-income?from=${dateFrom}&to=${dateTo}${expenseNameFilter ? `&name=${encodeURIComponent(expenseNameFilter)}` : ""}`;
-      const res = await fetch(url);
+      const params = new URLSearchParams({ from: dateFrom, to: dateTo });
+      if (expenseNameFilter) params.set("name", expenseNameFilter);
+      if (expenseTypeFilter) params.set("type", expenseTypeFilter);
+      const res = await fetch(`/api/admin/reports/expenses-income?${params}`);
       if (res.ok) setExpensesIncome(await res.json());
     } catch {}
   }
@@ -188,7 +191,7 @@ export function ReportsContent() {
       tab === "expenses" ? Promise.all([fetchExpenseIncomeNames(), fetchExpensesIncome()]) :
       fetchSuppliersReport();
     p.finally(() => setTabLoading(false));
-  }, [tab, dateFrom, dateTo, expenseNameFilter]);
+  }, [tab, dateFrom, dateTo, expenseNameFilter, expenseTypeFilter]);
 
   const tabs = [
     { id: "summary" as Tab, label: "ملخص" },
@@ -755,13 +758,23 @@ export function ReportsContent() {
       {tab === "expenses" && !tabLoading && (
         <div id="report-expenses" className="space-y-6">
           <div className="flex flex-wrap gap-3 items-center">
-            <label className="text-sm font-medium text-gray-700 dark:text-gray-300">فلترة حسب الاسم:</label>
+            <label className="text-sm font-medium text-gray-700 dark:text-gray-300">النوع:</label>
+            <select
+              value={expenseTypeFilter}
+              onChange={(e) => setExpenseTypeFilter((e.target.value || "") as "" | "expense" | "income")}
+              className="px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 text-sm"
+            >
+              <option value="">كل المصروفات والإيرادات</option>
+              <option value="expense">مصروف فقط</option>
+              <option value="income">إيراد فقط</option>
+            </select>
+            <label className="text-sm font-medium text-gray-700 dark:text-gray-300 mr-2">الاسم:</label>
             <select
               value={expenseNameFilter}
               onChange={(e) => setExpenseNameFilter(e.target.value)}
               className="px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 text-sm"
             >
-              <option value="">كل المصروفات والإيرادات</option>
+              <option value="">كل الأسماء</option>
               {expenseIncomeNames.map((n) => (
                 <option key={n} value={n}>{n}</option>
               ))}

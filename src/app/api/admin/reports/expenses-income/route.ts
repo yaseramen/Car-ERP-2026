@@ -16,6 +16,7 @@ export async function GET(request: Request) {
   const from = searchParams.get("from");
   const to = searchParams.get("to");
   const nameFilter = searchParams.get("name")?.trim();
+  const typeFilter = searchParams.get("type")?.trim();
 
   try {
     const fromDate = from || new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
@@ -30,6 +31,11 @@ export async function GET(request: Request) {
             WHERE t.company_id = ? AND tt.reference_type IN ('expense', 'income')
             AND tt.created_at >= ? AND tt.created_at <= ?`;
     const args: (string | number)[] = [companyId, fromStr, toStr];
+
+    if (typeFilter === "expense" || typeFilter === "income") {
+      sql += ` AND tt.reference_type = ?`;
+      args.push(typeFilter);
+    }
 
     if (nameFilter) {
       sql += ` AND (tt.item_name LIKE ? OR tt.description LIKE ?)`;
