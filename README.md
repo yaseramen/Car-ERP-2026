@@ -36,24 +36,32 @@
 
 ## الإعداد
 
-1. **نسخ ملف البيئة:**
+1. **نسخ ملف البيئة وتعبئته:**
    ```bash
    cp .env.example .env
    ```
+   ثم عدّل `.env` بالقيم الفعلية. المتغيرات المطلوبة:
 
-2. **تعبئة بيانات Turso في `.env`**
+   | المتغير | مطلوب | الوصف |
+   |---------|-------|-------|
+   | `TURSO_DATABASE_URL` | ✅ | رابط قاعدة Turso (مثل `libsql://xxx.turso.io`) |
+   | `TURSO_AUTH_TOKEN` | ✅ | رمز مصادقة Turso |
+   | `AUTH_SECRET` أو `NEXTAUTH_SECRET` | ✅ | سري الجلسات (مثلاً: `openssl rand -base64 32`) |
+   | `NEXTAUTH_URL` أو `NEXT_PUBLIC_APP_URL` | للإنتاج | رابط التطبيق (مثل `https://car.aiverce.com`) |
 
-3. **تشغيل Migrations:**
+   **ملاحظة:** بدون `TURSO_DATABASE_URL` و `TURSO_AUTH_TOKEN` يفشل البناء والتشغيل.
+
+2. **تشغيل Migrations:**
    ```bash
    npm run db:migrate
    ```
 
-4. **إضافة Super Admin (اختياري):**
+3. **إضافة Super Admin (اختياري):**
    ```bash
    SEED_SUPER_ADMIN_PASSWORD=كلمة_المرور_المرغوبة npm run db:seed
    ```
 
-5. **تشغيل التطبيق:**
+4. **تشغيل التطبيق:**
    ```bash
    npm run dev
    ```
@@ -61,7 +69,8 @@
 **بيانات Super Admin الافتراضية:** santws1@gmail.com / `Admin@123`  
 لتغيير كلمة المرور: `SEED_SUPER_ADMIN_PASSWORD=الجديدة npm run db:seed`
 
-**متغيرات Vercel المطلوبة:** `TURSO_DATABASE_URL`, `TURSO_AUTH_TOKEN`, `AUTH_SECRET`, `NEXTAUTH_URL`
+**متغيرات Vercel المطلوبة:** `TURSO_DATABASE_URL`, `TURSO_AUTH_TOKEN`, `AUTH_SECRET`, `NEXTAUTH_URL`  
+*(بدون TURSO_DATABASE_URL و TURSO_AUTH_TOKEN يفشل البناء)*
 
 **لنطاق مخصص (مثل car.aiverce.com):** أضف `NEXT_PUBLIC_APP_URL=https://car.aiverce.com` في Vercel → Settings → Environment Variables → Production. هذا يمنع إعادة التوجيه إلى vercel.app ويُبقي تسجيل الدخول على نطاقك.
 
