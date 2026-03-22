@@ -31,14 +31,38 @@ const navItems: {
   { href: "/admin/settings", label: "إعدادات الشركة", ownerOrAdmin: true },
 ];
 
-export function Sidebar({ role = "super_admin", businessType, companyName, onNavigate, onClose }: { role?: string; businessType?: string | null; companyName?: string | null; onNavigate?: () => void; onClose?: () => void }) {
+export function Sidebar({ role = "super_admin", businessType, companyName: initialCompanyName, onNavigate, onClose }: { role?: string; businessType?: string | null; companyName?: string | null; onNavigate?: () => void; onClose?: () => void }) {
   const [perms, setPerms] = useState<Record<string, { read: boolean }> | null>(null);
   const [canNotify, setCanNotify] = useState(false);
+  const [companyName, setCompanyName] = useState<string | null>(initialCompanyName ?? null);
   const notifications = useNotifications();
 
   useEffect(() => {
     setCanNotify(typeof window !== "undefined" && "Notification" in window);
   }, []);
+
+  useEffect(() => {
+    setCompanyName(initialCompanyName ?? null);
+  }, [initialCompanyName]);
+
+  useEffect(() => {
+    const fetchName = () => {
+      if (role !== "super_admin") {
+        fetch("/api/admin/me/company-name")
+          .then((r) => r.json())
+          .then((d) => { if (d.name) setCompanyName(d.name); })
+          .catch(() => {});
+      }
+    };
+    fetchName();
+    const handler = (e: Event) => {
+      const d = (e as CustomEvent<{ name: string }>)?.detail;
+      if (d?.name) setCompanyName(d.name);
+      else fetchName();
+    };
+    window.addEventListener("alameen-company-updated", handler);
+    return () => window.removeEventListener("alameen-company-updated", handler);
+  }, [role]);
 
   useEffect(() => {
     if (role === "employee") {

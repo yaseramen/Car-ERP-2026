@@ -48,6 +48,7 @@ export function CompanySettingsContent() {
       setMessage({ type: "error", text: data.error || "فشل التحديث" });
     } else {
       setMessage({ type: "success", text: data.message || "تم الحفظ بنجاح" });
+      window.dispatchEvent(new CustomEvent("alameen-company-updated", { detail: { name: form.name } }));
     }
     setSaving(false);
   };
