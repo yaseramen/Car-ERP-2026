@@ -5,6 +5,7 @@ import { AuthSessionProvider } from "@/components/providers/session-provider";
 import { PwaProvider } from "@/components/pwa/pwa-provider";
 import { OfflineProvider } from "@/components/offline/offline-provider";
 import { ThemeProvider } from "@/components/theme/theme-provider";
+import { InAppBrowserBanner } from "@/components/in-app-browser-banner";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -54,7 +55,7 @@ export default function RootLayout({
       <head>
         <script
           dangerouslySetInnerHTML={{
-            __html: `(function(){var t=localStorage.getItem('alameen-theme');var d=window.matchMedia('(prefers-color-scheme: dark)').matches;document.documentElement.classList.add(t||(d?'dark':'light')||'light');})();`,
+            __html: `(function(){try{var t=localStorage.getItem('alameen-theme');var d=typeof window.matchMedia!=='undefined'&&window.matchMedia('(prefers-color-scheme: dark)').matches;document.documentElement.classList.add(t||(d?'dark':'light')||'light');}catch(e){document.documentElement.classList.add('light');}})();`,
           }}
         />
       </head>
@@ -64,7 +65,10 @@ export default function RootLayout({
         <AuthSessionProvider>
           <ThemeProvider>
             <OfflineProvider>
-              <PwaProvider>{children}</PwaProvider>
+              <PwaProvider>
+                <InAppBrowserBanner />
+                {children}
+              </PwaProvider>
             </OfflineProvider>
           </ThemeProvider>
         </AuthSessionProvider>
