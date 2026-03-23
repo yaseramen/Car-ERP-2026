@@ -51,22 +51,22 @@ export default async function CustomerDetailPage({
 
   const customer = custResult.rows[0];
   const invoices = invoicesResult.rows.map((r) => ({
-    id: r.id,
-    invoice_number: r.invoice_number,
-    type: r.type,
-    status: r.status,
+    id: String(r.id ?? ""),
+    invoice_number: String(r.invoice_number ?? ""),
+    type: String(r.type ?? ""),
+    status: String(r.status ?? ""),
     total: Number(r.total ?? 0),
     paid_amount: Number(r.paid_amount ?? 0),
     balance: Number(r.total ?? 0) - Number(r.paid_amount ?? 0),
-    created_at: r.created_at,
+    created_at: String(r.created_at ?? ""),
   }));
   const repair_orders = ordersResult.rows.map((r) => ({
-    id: r.id,
-    order_number: r.order_number,
-    vehicle_plate: r.vehicle_plate,
-    stage: r.stage,
-    received_at: r.received_at,
-    completed_at: r.completed_at,
+    id: String(r.id ?? ""),
+    order_number: String(r.order_number ?? ""),
+    vehicle_plate: r.vehicle_plate != null ? String(r.vehicle_plate) : null,
+    stage: String(r.stage ?? ""),
+    received_at: r.received_at != null ? String(r.received_at) : null,
+    completed_at: r.completed_at != null ? String(r.completed_at) : null,
   }));
 
   const totalSales = invoices.reduce((s, i) => s + i.total, 0);
@@ -75,7 +75,14 @@ export default async function CustomerDetailPage({
   const pendingCount = invoices.filter((i) => i.status === "pending" || i.status === "partial").length;
 
   const data = {
-    customer: { id: customer.id, name: customer.name, phone: customer.phone, email: customer.email, address: customer.address, notes: customer.notes },
+    customer: {
+      id: String(customer.id ?? ""),
+      name: String(customer.name ?? ""),
+      phone: customer.phone != null ? String(customer.phone) : null,
+      email: customer.email != null ? String(customer.email) : null,
+      address: customer.address != null ? String(customer.address) : null,
+      notes: customer.notes != null ? String(customer.notes) : null,
+    },
     invoices,
     repair_orders,
     summary: { totalSales, totalPaid, totalBalance, invoiceCount: invoices.length, pendingCount, orderCount: repair_orders.length },

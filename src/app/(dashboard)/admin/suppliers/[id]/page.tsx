@@ -42,14 +42,14 @@ export default async function SupplierDetailPage({
 
   const supplier = supResult.rows[0];
   const invoices = invoicesResult.rows.map((r) => ({
-    id: r.id,
-    invoice_number: r.invoice_number,
-    type: r.type,
-    status: r.status,
+    id: String(r.id ?? ""),
+    invoice_number: String(r.invoice_number ?? ""),
+    type: String(r.type ?? ""),
+    status: String(r.status ?? ""),
     total: Number(r.total ?? 0),
     paid_amount: Number(r.paid_amount ?? 0),
     balance: Number(r.total ?? 0) - Number(r.paid_amount ?? 0),
-    created_at: r.created_at,
+    created_at: String(r.created_at ?? ""),
   }));
 
   const totalPurchases = invoices.reduce((s, i) => s + i.total, 0);
@@ -58,7 +58,14 @@ export default async function SupplierDetailPage({
   const pendingCount = invoices.filter((i) => i.status === "pending" || i.status === "partial").length;
 
   const data = {
-    supplier: { id: supplier.id, name: supplier.name, phone: supplier.phone, email: supplier.email, address: supplier.address, notes: supplier.notes },
+    supplier: {
+      id: String(supplier.id ?? ""),
+      name: String(supplier.name ?? ""),
+      phone: supplier.phone != null ? String(supplier.phone) : null,
+      email: supplier.email != null ? String(supplier.email) : null,
+      address: supplier.address != null ? String(supplier.address) : null,
+      notes: supplier.notes != null ? String(supplier.notes) : null,
+    },
     invoices,
     summary: { totalPurchases, totalPaid, totalBalance, invoiceCount: invoices.length, pendingCount },
   };
