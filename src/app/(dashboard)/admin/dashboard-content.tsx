@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 
-const DASHBOARD_SECTIONS = ["alerts", "backup", "sales", "treasuries", "workshop", "inventory", "chart"] as const;
+const DASHBOARD_SECTIONS = ["superStats", "alerts", "backup", "sales", "treasuries", "workshop", "inventory", "chart"] as const;
 const STORAGE_KEY = "alameen-dashboard-hidden";
 
 type Summary = {
@@ -32,11 +32,35 @@ const TREASURY_LABELS: Record<string, string> = {
 
 const BACKUP_REMINDER_DAYS = 7;
 
-export function DashboardContent() {
+type SuperStats = {
+  totalCompanies: number;
+  activeCompanies: number;
+  newThisMonth: number;
+  target: number;
+  alertLevel: "none" | "warn" | "alert" | "target";
+};
+
+type CompanyUsage = {
+  id: string;
+  name: string;
+  created_at: string;
+  last_activity: string | null;
+  days_since_activity: number | null;
+  status: "active" | "inactive";
+  invoice_count: number;
+  customer_count: number;
+  user_count: number;
+};
+
+export function DashboardContent({ isSuperAdmin = false }: { isSuperAdmin?: boolean }) {
   const [data, setData] = useState<Summary | null>(null);
   const [loading, setLoading] = useState(true);
   const [lastBackup, setLastBackup] = useState<string | null>(null);
   const [hiddenSections, setHiddenSections] = useState<Set<string>>(new Set());
+  const [superStats, setSuperStats] = useState<SuperStats | null>(null);
+  const [companiesUsage, setCompaniesUsage] = useState<{ rows: CompanyUsage[]; total: number } | null>(null);
+  const [usageFilter, setUsageFilter] = useState<"all" | "active" | "inactive">("all");
+  const [usagePage, setUsagePage] = useState(1);
 
   useEffect(() => {
     try {
@@ -71,6 +95,23 @@ export function DashboardContent() {
       .catch(() => setData(null))
       .finally(() => setLoading(false));
   }, []);
+
+  useEffect(() => {
+    if (!isSuperAdmin) return;
+    fetch("/api/admin/super/stats")
+      .then((r) => r.json())
+      .then(setSuperStats)
+      .catch(() => setSuperStats(null));
+  }, [isSuperAdmin]);
+
+  useEffect(() => {
+    if (!isSuperAdmin) return;
+    const offset = (usagePage - 1) * 20;
+    fetch(`/api/admin/super/companies-usage?limit=20&offset=${offset}&filter=${usageFilter}`)
+      .then((r) => r.json())
+      .then((d) => setCompaniesUsage({ rows: d.rows ?? [], total: d.total ?? 0 }))
+      .catch(() => setCompaniesUsage(null));
+  }, [isSuperAdmin, usagePage, usageFilter]);
 
   if (loading) {
     return (
@@ -118,6 +159,7 @@ export function DashboardContent() {
                   onChange={() => toggleSection(id)}
                   className="rounded"
                 />
+                {id === "superStats" && "إحصائيات الشركات (Super Admin)"}
                 {id === "alerts" && "التنبيهات"}
                 {id === "backup" && "تذكير النسخ الاحتياطي"}
                 {id === "sales" && "المبيعات"}
@@ -130,6 +172,129 @@ export function DashboardContent() {
           </div>
         </details>
       </div>
+      {isSuperAdmin && superStats && !hiddenSections.has("superStats") && (
+        <div className="space-y-4">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div className="bg-white dark:bg-gray-800 rounded-xl p-5 border border-gray-100 dark:border-gray-700">
+              <p className="text-sm text-gray-500 dark:text-gray-400">الشركات النشطة</p>
+              <p className="text-2xl font-bold text-gray-900 dark:text-gray-100 mt-1">{superStats.activeCompanies}</p>
+              <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">من أصل {superStats.target} (هدف الترقية)</p>
+            </div>
+            <div className="bg-white dark:bg-gray-800 rounded-xl p-5 border border-gray-100 dark:border-gray-700">
+              <p className="text-sm text-gray-500 dark:text-gray-400">إجمالي الشركات</p>
+              <p className="text-2xl font-bold text-gray-900 dark:text-gray-100 mt-1">{superStats.totalCompanies}</p>
+            </div>
+            <div className="bg-white dark:bg-gray-800 rounded-xl p-5 border border-gray-100 dark:border-gray-700">
+              <p className="text-sm text-gray-500 dark:text-gray-400">جديد هذا الشهر</p>
+              <p className="text-2xl font-bold text-gray-900 dark:text-gray-100 mt-1">{superStats.newThisMonth}</p>
+            </div>
+            {superStats.alertLevel !== "none" && (
+              <div
+                className={`rounded-xl p-5 border ${
+                  superStats.alertLevel === "target"
+                    ? "bg-emerald-50 dark:bg-emerald-900/30 border-emerald-200 dark:border-emerald-800"
+                    : superStats.alertLevel === "alert"
+                      ? "bg-red-50 dark:bg-red-900/30 border-red-200 dark:border-red-800"
+                      : "bg-amber-50 dark:bg-amber-900/30 border-amber-200 dark:border-amber-800"
+                }`}
+              >
+                <p className="text-sm font-medium">
+                  {superStats.alertLevel === "target" && "✓ وصلت للهدف — يمكن ترقية الخطة"}
+                  {superStats.alertLevel === "alert" && `⚠ تنبيه: ${superStats.activeCompanies}/${superStats.target} — قريب من الحد`}
+                  {superStats.alertLevel === "warn" && `تنبيه: ${superStats.activeCompanies}/${superStats.target} شركة`}
+                </p>
+              </div>
+            )}
+          </div>
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 p-6">
+            <h3 className="font-bold text-gray-900 dark:text-gray-100 mb-4">استخدام الشركات — النشطة مقابل الخاملة</h3>
+            <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
+              الشركة <strong>نشطة</strong> إذا كان لها فاتورة أو دخول خلال آخر 30 يوم. <strong>خاملة</strong> = لا استخدام منذ 30+ يوم.
+            </p>
+            <div className="flex gap-2 mb-4">
+              {(["all", "active", "inactive"] as const).map((f) => (
+                <button
+                  key={f}
+                  type="button"
+                  onClick={() => { setUsageFilter(f); setUsagePage(1); }}
+                  className={`px-3 py-1.5 rounded-lg text-sm font-medium ${
+                    usageFilter === f
+                      ? "bg-emerald-600 text-white"
+                      : "bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600"
+                  }`}
+                >
+                  {f === "all" && "الكل"}
+                  {f === "active" && "نشطة"}
+                  {f === "inactive" && "خاملة"}
+                </button>
+              ))}
+            </div>
+            {companiesUsage && (
+              <>
+                <div className="overflow-x-auto max-h-80">
+                  {companiesUsage.rows.length === 0 ? (
+                    <p className="text-gray-500 dark:text-gray-400 text-sm py-6 text-center">لا توجد شركات تطابق الفلتر</p>
+                  ) : (
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="bg-gray-50 dark:bg-gray-700/50 border-b border-gray-200 dark:border-gray-600">
+                        <th className="text-right px-3 py-2">الشركة</th>
+                        <th className="text-right px-3 py-2">الحالة</th>
+                        <th className="text-right px-3 py-2">آخر نشاط</th>
+                        <th className="text-right px-3 py-2">فواتير</th>
+                        <th className="text-right px-3 py-2">عملاء</th>
+                        <th className="text-right px-3 py-2">مستخدمون</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {companiesUsage.rows.map((c) => (
+                        <tr key={c.id} className="border-b border-gray-100 dark:border-gray-700">
+                          <td className="px-3 py-2 font-medium text-gray-900 dark:text-gray-100">{c.name}</td>
+                          <td className="px-3 py-2">
+                            <span className={c.status === "active" ? "text-emerald-600 dark:text-emerald-400" : "text-amber-600 dark:text-amber-400"}>
+                              {c.status === "active" ? "نشطة" : "خاملة"}
+                            </span>
+                          </td>
+                          <td className="px-3 py-2 text-gray-500 dark:text-gray-400">
+                            {c.last_activity ? (c.days_since_activity != null ? `منذ ${c.days_since_activity} يوم` : "—") : "لم يبدأ"}
+                          </td>
+                          <td className="px-3 py-2">{c.invoice_count}</td>
+                          <td className="px-3 py-2">{c.customer_count}</td>
+                          <td className="px-3 py-2">{c.user_count}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                  )}
+                </div>
+                {companiesUsage.total > 20 && (
+                  <div className="flex justify-center gap-2 mt-4">
+                    <button
+                      type="button"
+                      onClick={() => setUsagePage((p) => Math.max(1, p - 1))}
+                      disabled={usagePage <= 1}
+                      className="px-3 py-1 rounded border border-gray-300 dark:border-gray-600 text-sm disabled:opacity-50"
+                    >
+                      السابق
+                    </button>
+                    <span className="text-sm text-gray-500">
+                      {usagePage} من {Math.ceil(companiesUsage.total / 20)}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setUsagePage((p) => p + 1)}
+                      disabled={usagePage >= Math.ceil(companiesUsage.total / 20)}
+                      className="px-3 py-1 rounded border border-gray-300 dark:border-gray-600 text-sm disabled:opacity-50"
+                    >
+                      التالي
+                    </button>
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+        </div>
+      )}
       {hasAlerts && !hiddenSections.has("alerts") && (
         <div className="bg-amber-50 dark:bg-amber-900/30 border border-amber-200 dark:border-amber-700 rounded-xl p-4 flex items-center gap-4">
           <span className="text-2xl">🔔</span>

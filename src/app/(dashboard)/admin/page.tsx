@@ -28,7 +28,7 @@ export default async function AdminDashboardPage() {
         <p className="text-gray-500 dark:text-gray-400 mt-1">مرحباً، {session?.user?.name || session?.user?.email}</p>
       </div>
 
-      <DashboardContent />
+      <DashboardContent isSuperAdmin={session.user.role === "super_admin"} />
     </div>
   );
 }
