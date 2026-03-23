@@ -43,7 +43,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
 
         const result = await db.execute({
           sql: `SELECT u.id, u.email, u.name, u.password_hash, u.role, u.company_id, u.is_active, u.is_blocked,
-                c.business_type, c.name as company_name
+                c.business_type, c.name as company_name, c.is_active as company_is_active
                 FROM users u
                 LEFT JOIN companies c ON c.id = u.company_id
                 WHERE u.email = ?`,
@@ -52,6 +52,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
 
         const user = result.rows[0];
         if (!user || user.is_active !== 1 || user.is_blocked === 1) return null;
+        if (user.company_id && user.role !== "super_admin" && Number(user.company_is_active ?? 1) !== 1) return null;
 
         const valid = await bcrypt.compare(
           String(credentials.password),

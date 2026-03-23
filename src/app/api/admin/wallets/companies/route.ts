@@ -11,13 +11,13 @@ export async function GET() {
 
   try {
     const result = await db.execute({
-      sql: `SELECT c.id, c.name, c.phone, c.address,
+      sql: `SELECT c.id, c.name, c.phone, c.address, c.is_active,
             COALESCE(cw.id, '') as wallet_id,
             COALESCE(cw.balance, 0) as balance
             FROM companies c
             LEFT JOIN company_wallets cw ON c.id = cw.company_id
-            WHERE c.is_active = 1
-            ORDER BY c.name`,
+            WHERE c.id NOT IN ('company-system', 'company-demo')
+            ORDER BY c.is_active DESC, c.name`,
     });
 
     const companies = result.rows.map((row) => ({
@@ -25,6 +25,7 @@ export async function GET() {
       name: row.name,
       phone: row.phone,
       address: row.address,
+      is_active: Number(row.is_active ?? 1) === 1,
       wallet_id: row.wallet_id || null,
       balance: Number(row.balance ?? 0),
     }));

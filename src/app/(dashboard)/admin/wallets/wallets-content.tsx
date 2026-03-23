@@ -9,6 +9,7 @@ interface Company {
   name: string;
   phone: string | null;
   address: string | null;
+  is_active: boolean;
   wallet_id: string | null;
   balance: number;
 }
@@ -40,6 +41,10 @@ export function WalletsContent() {
   const [customFeeOpen, setCustomFeeOpen] = useState(false);
   const [customFeeCompany, setCustomFeeCompany] = useState<Company | null>(null);
   const [customFeeForm, setCustomFeeForm] = useState({ rate: "", minFee: "" });
+  const [companyActionOpen, setCompanyActionOpen] = useState(false);
+  const [companyActionType, setCompanyActionType] = useState<"block" | "unblock" | "delete">("block");
+  const [companyActionTarget, setCompanyActionTarget] = useState<Company | null>(null);
+  const [companyActionSaving, setCompanyActionSaving] = useState(false);
 
   async function fetchCompanies() {
     try {
@@ -141,6 +146,48 @@ export function WalletsContent() {
       }
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function handleCompanyAction() {
+    if (!companyActionTarget) return;
+    setCompanyActionSaving(true);
+    try {
+      if (companyActionType === "delete") {
+        const ok = confirm(`هل أنت متأكد من حذف "${companyActionTarget.name}" وكل بياناتها؟ يمكن للأعضاء إعادة التسجيل لاحقاً.`);
+        if (!ok) {
+          setCompanyActionSaving(false);
+          return;
+        }
+        const res = await fetch(`/api/admin/super/companies/${companyActionTarget.id}`, { method: "DELETE" });
+        const data = await res.json();
+        if (!res.ok) {
+          alert(data.error || "فشل في الحذف");
+          return;
+        }
+        setCompanyActionOpen(false);
+        setCompanyActionTarget(null);
+        fetchCompanies();
+        fetchTransactions();
+      } else {
+        const res = await fetch(`/api/admin/super/companies/${companyActionTarget.id}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ is_active: companyActionType === "unblock" ? true : false }),
+        });
+        const data = await res.json();
+        if (!res.ok) {
+          alert(data.error || "فشل في التعديل");
+          return;
+        }
+        setCompanyActionOpen(false);
+        setCompanyActionTarget(null);
+        fetchCompanies();
+      }
+    } catch {
+      alert("حدث خطأ");
+    } finally {
+      setCompanyActionSaving(false);
     }
   }
 
@@ -295,6 +342,7 @@ export function WalletsContent() {
             <thead>
               <tr className="bg-gray-50 dark:bg-gray-700/50 border-b border-gray-100 dark:border-gray-600">
                 <th className="text-right px-4 py-3 text-sm font-medium text-gray-600 dark:text-gray-300">الشركة</th>
+                <th className="text-right px-4 py-3 text-sm font-medium text-gray-600 dark:text-gray-300">الحالة</th>
                 <th className="text-right px-4 py-3 text-sm font-medium text-gray-600 dark:text-gray-300">الهاتف</th>
                 <th className="text-right px-4 py-3 text-sm font-medium text-gray-600 dark:text-gray-300">الرصيد</th>
                 <th className="text-right px-4 py-3 text-sm font-medium text-gray-600 dark:text-gray-300">إجراءات</th>
@@ -304,19 +352,24 @@ export function WalletsContent() {
             <tbody>
               {companies.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="px-4 py-12 text-center text-gray-500 dark:text-gray-400">
+                  <td colSpan={6} className="px-4 py-12 text-center text-gray-500 dark:text-gray-400">
                     لا توجد شركات. اضغط "إضافة شركة" للبدء.
                   </td>
                 </tr>
               ) : (
                 companies.map((c) => (
-                  <tr key={c.id} className="border-b border-gray-50 dark:border-gray-700 hover:bg-gray-50/50 dark:hover:bg-gray-700/30">
+                  <tr key={c.id} className={`border-b border-gray-50 dark:border-gray-700 hover:bg-gray-50/50 dark:hover:bg-gray-700/30 ${!c.is_active ? "opacity-60" : ""}`}>
                     <td className="px-4 py-3 text-sm font-medium text-gray-900 dark:text-gray-100">{c.name}</td>
+                    <td className="px-4 py-3">
+                      <span className={`px-2 py-0.5 text-xs rounded ${c.is_active ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300" : "bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300"}`}>
+                        {c.is_active ? "نشطة" : "محظورة"}
+                      </span>
+                    </td>
                     <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-300">{c.phone || "—"}</td>
                     <td className="px-4 py-3 text-sm font-bold text-emerald-600 dark:text-emerald-400">
                       {c.balance.toFixed(2)} ج.م
                     </td>
-                    <td className="px-4 py-3 flex gap-2">
+                    <td className="px-4 py-3 flex flex-wrap gap-2">
                       <button
                         onClick={() => {
                           setSelectedCompany(c);
@@ -347,6 +400,28 @@ export function WalletsContent() {
                         title="تخصيص نسبة الخدمة الرقمية"
                       >
                         نسبة
+                      </button>
+                      <button
+                        onClick={() => {
+                          setCompanyActionTarget(c);
+                          setCompanyActionType(c.is_active ? "block" : "unblock");
+                          setCompanyActionOpen(true);
+                        }}
+                        className={`px-3 py-1.5 text-sm rounded-lg transition ${c.is_active ? "bg-amber-600 hover:bg-amber-700" : "bg-emerald-600 hover:bg-emerald-700"} text-white`}
+                        title={c.is_active ? "حظر الشركة" : "إلغاء الحظر"}
+                      >
+                        {c.is_active ? "حظر" : "إلغاء حظر"}
+                      </button>
+                      <button
+                        onClick={() => {
+                          setCompanyActionTarget(c);
+                          setCompanyActionType("delete");
+                          setCompanyActionOpen(true);
+                        }}
+                        className="px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white text-sm rounded-lg transition"
+                        title="حذف الشركة وجميع بياناتها"
+                      >
+                        حذف
                       </button>
                     </td>
                   </tr>
@@ -538,6 +613,47 @@ export function WalletsContent() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {companyActionOpen && companyActionTarget && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50" dir="rtl">
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl w-full max-w-md">
+            <div className="p-6 border-b border-gray-100 dark:border-gray-700">
+              <h3 className="text-lg font-bold text-gray-900 dark:text-gray-100">
+                {companyActionType === "delete" && `حذف: ${companyActionTarget.name}`}
+                {companyActionType === "block" && `حظر: ${companyActionTarget.name}`}
+                {companyActionType === "unblock" && `إلغاء حظر: ${companyActionTarget.name}`}
+              </h3>
+              <p className="text-sm text-gray-500 dark:text-gray-400 mt-2">
+                {companyActionType === "delete" && "سيتم حذف الشركة وجميع بياناتها (عملاء، فواتير، مخزون...). يمكن للأعضاء إعادة التسجيل."}
+                {companyActionType === "block" && "لن يتمكن المستخدمون من الدخول حتى إلغاء الحظر."}
+                {companyActionType === "unblock" && "سيتمكن المستخدمون من الدخول مرة أخرى."}
+              </p>
+            </div>
+            <div className="p-6 flex gap-3">
+              <button
+                type="button"
+                onClick={() => {
+                  setCompanyActionOpen(false);
+                  setCompanyActionTarget(null);
+                }}
+                className="flex-1 px-4 py-2.5 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition"
+              >
+                إلغاء
+              </button>
+              <button
+                type="button"
+                onClick={handleCompanyAction}
+                disabled={companyActionSaving}
+                className={`flex-1 px-4 py-2.5 text-white font-medium rounded-lg transition-colors disabled:opacity-50 ${
+                  companyActionType === "delete" ? "bg-red-600 hover:bg-red-700" : companyActionType === "block" ? "bg-amber-600 hover:bg-amber-700" : "bg-emerald-600 hover:bg-emerald-700"
+                }`}
+              >
+                {companyActionSaving ? "جاري..." : companyActionType === "delete" ? "حذف" : companyActionType === "block" ? "حظر" : "إلغاء حظر"}
+              </button>
+            </div>
           </div>
         </div>
       )}
