@@ -68,7 +68,7 @@ export function NotificationsProvider({ children }: { children: React.ReactNode 
         if (summary.lowStockCount > 0) parts.push(`${summary.lowStockCount} صنف ناقص`);
         if (summary.pendingInvoices.count > 0) parts.push(`${summary.pendingInvoices.count} فاتورة معلقة`);
         if (parts.length > 0) {
-          new Notification("تنبيهات الأمين", {
+          new Notification("تنبيهات EFCT", {
             body: parts.join(" • "),
             icon: "/icon.svg",
             tag: "alameen-alert",

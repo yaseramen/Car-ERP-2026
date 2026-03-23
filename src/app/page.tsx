@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 export const metadata: Metadata = {
-  title: "برنامج الأمين | إدارة مراكز الصيانة ومحلات قطع غيار السيارات",
+  title: "EFCT | إدارة مراكز الصيانة ومحلات قطع غيار السيارات",
   description:
     "برنامج متكامل لإدارة مراكز خدمة السيارات ومحلات بيع قطع الغيار. إدارة المخزون، الفواتير، الورشة، الكاشير، العملاء، الموردين، التقارير. أفضل برامج ادارة مراكز الصيانة في مصر.",
   keywords: [
@@ -20,7 +20,7 @@ export const metadata: Metadata = {
     "برنامج تقارير مراكز الصيانة",
   ],
   openGraph: {
-    title: "برنامج الأمين | إدارة مراكز الصيانة ومحلات قطع غيار السيارات",
+    title: "EFCT | إدارة مراكز الصيانة ومحلات قطع غيار السيارات",
     description:
       "برنامج متكامل لإدارة مراكز خدمة السيارات ومحلات بيع قطع الغيار. المخزون، الفواتير، الورشة، التقارير.",
     type: "website",
@@ -61,7 +61,7 @@ const FEATURES = [
 const JSON_LD = {
   "@context": "https://schema.org",
   "@type": "SoftwareApplication",
-  name: "برنامج الأمين لخدمات السيارات",
+  name: "EFCT",
   applicationCategory: "BusinessApplication",
   operatingSystem: "Web",
   description:
@@ -80,7 +80,7 @@ export default function HomePage() {
       <section className="relative bg-gradient-to-b from-emerald-50 to-white py-16 sm:py-24 px-6">
         <div className="max-w-4xl mx-auto text-center">
           <h1 className="text-4xl sm:text-5xl font-bold text-gray-900 mb-4">
-            برنامج الأمين لخدمات السيارات
+            EFCT
           </h1>
           <p className="text-xl text-gray-600 mb-2">
             منصة متكاملة لإدارة <strong>مراكز خدمة السيارات</strong> و{" "}
@@ -114,7 +114,7 @@ export default function HomePage() {
             برنامج إدارة مراكز الصيانة ومحلات قطع الغيار
           </h2>
           <p className="text-gray-600 leading-relaxed mb-4">
-            <strong>برنامج الأمين</strong> هو نظام <strong>إدارة مراكز خدمة السيارات</strong> و{" "}
+            <strong>EFCT</strong> هو نظام <strong>إدارة مراكز خدمة السيارات</strong> و{" "}
             <strong>محلات قطع الغيار</strong> مصمم خصيصاً لاحتياجات السوق المصري. يساعدك في إدارة المخزون،
             الفواتير، الورشة، العملاء، الموردين، والتقارير من مكان واحد.
           </p>
@@ -211,7 +211,7 @@ export default function HomePage() {
 
       {/* Footer */}
       <footer className="py-8 px-6 border-t border-gray-200 text-center text-sm text-gray-500">
-        <p className="mb-2">برنامج الأمين لخدمات السيارات — إدارة مراكز الصيانة ومحلات قطع الغيار</p>
+        <p className="mb-2">EFCT — إدارة مراكز الصيانة ومحلات قطع الغيار</p>
         <p>
           <Link href="/how-it-works" className="text-emerald-600 hover:text-emerald-700">
             كيف يعمل

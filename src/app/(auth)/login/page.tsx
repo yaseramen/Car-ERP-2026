@@ -49,7 +49,7 @@ function LoginForm() {
   return (
     <div className="w-full max-w-md mx-auto p-8 bg-white rounded-2xl shadow-lg border border-gray-100">
       <div className="text-center mb-8">
-        <h1 className="text-2xl font-bold text-gray-900">الأمين لخدمات السيارات</h1>
+        <h1 className="text-2xl font-bold text-gray-900">EFCT</h1>
         <p className="text-gray-500 mt-2">تسجيل الدخول</p>
       </div>
 

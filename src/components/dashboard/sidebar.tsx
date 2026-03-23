@@ -98,7 +98,7 @@ export function Sidebar({ role = "super_admin", businessType, companyName: initi
       <div className="p-6 border-b border-gray-100 dark:border-gray-700 flex items-center justify-between gap-2 shrink-0">
         <div>
           <h2 className="font-bold text-gray-900 dark:text-gray-100">
-            {companyName && role !== "super_admin" ? companyName : "الأمين لخدمات السيارات"}
+            {companyName && role !== "super_admin" ? companyName : "EFCT"}
           </h2>
           <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
             {role === "super_admin" ? "لوحة Super Admin" : role === "employee" ? "لوحة الموظف" : "لوحة المالك"}

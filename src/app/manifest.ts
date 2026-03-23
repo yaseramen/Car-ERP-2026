@@ -5,8 +5,8 @@ export default function manifest(): MetadataRoute.Manifest {
   // وعدم إجبار إعادة التوجيه إلى vercel.app
   return {
     id: "/",
-    name: "الأمين لخدمات السيارات",
-    short_name: "الأمين",
+    name: "EFCT",
+    short_name: "EFCT",
     description: "منصة SaaS متكاملة لإدارة مراكز خدمة السيارات",
     start_url: "/",
     display: "standalone",

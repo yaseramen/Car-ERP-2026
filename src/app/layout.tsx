@@ -26,7 +26,7 @@ const metadataBase =
 
 export const metadata: Metadata = {
   metadataBase: metadataBase ?? new URL("http://localhost:3000"),
-  title: "برنامج الأمين | إدارة مراكز الصيانة ومحلات قطع غيار السيارات",
+  title: "EFCT | إدارة مراكز الصيانة ومحلات قطع غيار السيارات",
   description:
     "برنامج متكامل لإدارة مراكز خدمة السيارات ومحلات بيع قطع الغيار. المخزون، الفواتير، الورشة، الكاشير، العملاء، الموردين، التقارير.",
   icons: {

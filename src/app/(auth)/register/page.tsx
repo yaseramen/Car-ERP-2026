@@ -66,7 +66,7 @@ export default function RegisterPage() {
   return (
     <div className="w-full max-w-md mx-auto p-8 bg-white rounded-2xl shadow-lg border border-gray-100">
       <div className="text-center mb-8">
-        <h1 className="text-2xl font-bold text-gray-900">الأمين لخدمات السيارات</h1>
+        <h1 className="text-2xl font-bold text-gray-900">EFCT</h1>
         <p className="text-gray-500 mt-2">تسجيل شركة جديدة</p>
       </div>
 
@@ -83,7 +83,7 @@ export default function RegisterPage() {
             value={form.company_name}
             onChange={(e) => setForm((f) => ({ ...f, company_name: e.target.value }))}
             className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-emerald-500"
-            placeholder="مثال: مركز الأمين للسيارات"
+            placeholder="مثال: مركز EFCT للسيارات"
           />
         </div>
 
