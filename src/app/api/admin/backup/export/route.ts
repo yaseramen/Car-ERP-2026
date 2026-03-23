@@ -30,6 +30,11 @@ export async function GET(request: Request) {
 
     if (format === "excel") {
       const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(
+        wb,
+        XLSX.utils.json_to_sheet([{ exportedAt: data.exportedAt, companyId: data.companyId }]),
+        "_meta"
+      );
       const sheets: [string, Record<string, unknown>[]][] = [
         ["company", data.company ?? []],
         ["customers", data.customers ?? []],

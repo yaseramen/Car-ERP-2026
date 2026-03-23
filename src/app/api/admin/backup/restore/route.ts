@@ -34,15 +34,16 @@ export async function POST(request: Request) {
       data = JSON.parse(text) as BackupData;
     } else if (name.endsWith(".xlsx") || name.endsWith(".xls")) {
       const wb = XLSX.read(buffer, { type: "buffer" });
-      data = {
-        version: 1,
-        exportedAt: new Date().toISOString(),
-        companyId,
-      };
       const toArr = (sheetName: string): Record<string, unknown>[] => {
         const sh = wb.Sheets[sheetName];
         if (!sh) return [];
         return XLSX.utils.sheet_to_json(sh) as Record<string, unknown>[];
+      };
+      const meta = toArr("_meta")[0] as Record<string, unknown> | undefined;
+      data = {
+        version: 1,
+        exportedAt: (meta?.exportedAt ? String(meta.exportedAt) : new Date().toISOString()),
+        companyId,
       };
       data.company = toArr("company");
       data.customers = toArr("customers");

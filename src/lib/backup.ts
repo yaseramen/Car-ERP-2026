@@ -637,6 +637,40 @@ export async function restoreBackup(
       counts.stock_movements = (data.stock_movements as unknown[]).length;
     }
 
+    const hasSubstantialData =
+      (data.invoices?.length ?? 0) > 0 ||
+      (data.customers?.length ?? 0) > 5 ||
+      (data.items?.length ?? 0) > 5;
+    if (hasSubstantialData) {
+      const companyRow = await db.execute({
+        sql: "SELECT created_at FROM companies WHERE id = ?",
+        args: [companyId],
+      });
+      const backupExportedAt = data.exportedAt ? new Date(data.exportedAt).getTime() : 0;
+      const companyCreatedAt = companyRow.rows[0]?.created_at
+        ? new Date(String(companyRow.rows[0].created_at)).getTime()
+        : 0;
+      const isSuspiciousRestore =
+        backupExportedAt > 0 && companyCreatedAt > 0 && backupExportedAt < companyCreatedAt;
+      if (isSuspiciousRestore) {
+        const wallet = await db.execute({
+          sql: "SELECT id, balance FROM company_wallets WHERE company_id = ?",
+          args: [companyId],
+        });
+        if (wallet.rows.length > 0) {
+          const balance = Number(wallet.rows[0].balance ?? 0);
+          if (balance > 0) {
+            const WELCOME_GIFT = 50;
+            const newBalance = Math.max(0, balance - WELCOME_GIFT);
+            await db.execute({
+              sql: "UPDATE company_wallets SET balance = ?, updated_at = datetime('now') WHERE company_id = ?",
+              args: [newBalance, companyId],
+            });
+          }
+        }
+      }
+    }
+
     return { success: true, message: "تمت الاستعادة بنجاح", counts };
   } catch (err) {
     console.error("Restore error:", err);
