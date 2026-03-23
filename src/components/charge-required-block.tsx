@@ -1,0 +1,29 @@
+"use client";
+
+import { signOut } from "next-auth/react";
+
+export function ChargeRequiredBlock() {
+  return (
+    <div className="min-h-screen flex flex-col items-center justify-center p-6 bg-gray-50 dark:bg-gray-900">
+      <div className="max-w-md w-full text-center space-y-6">
+        <div className="text-6xl">⚠️</div>
+        <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">
+          رصيد المحفظة نفد
+        </h1>
+        <p className="text-gray-600 dark:text-gray-400 leading-relaxed">
+          يجب شحن المحفظة لمتابعة استخدام البرنامج. لا يمكن عرض أي بيانات أو تنفيذ أي عمليات حتى يتم الشحن.
+        </p>
+        <p className="text-sm text-gray-500 dark:text-gray-500">
+          تواصل مع مدير النظام (Super Admin) لشحن محفظة شركتك من لوحة المحافظ.
+        </p>
+        <button
+          type="button"
+          onClick={() => signOut({ callbackUrl: "/login" })}
+          className="mt-6 px-6 py-3 bg-gray-700 hover:bg-gray-800 text-white font-medium rounded-lg transition-colors"
+        >
+          تسجيل الخروج
+        </button>
+      </div>
+    </div>
+  );
+}
