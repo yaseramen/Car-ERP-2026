@@ -23,12 +23,10 @@ export async function GET(request: Request) {
   try {
     const fromDate = from || new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
     const toDate = to || new Date().toISOString().slice(0, 10);
-    const fromStr = `${fromDate}T00:00:00`;
-    const toStr = `${toDate}T23:59:59`;
 
     const baseWhere = `t.company_id = ? AND tt.reference_type IN ('expense', 'income')
-            AND tt.created_at >= ? AND tt.created_at <= ?`;
-    const baseArgs: (string | number)[] = [companyId, fromStr, toStr];
+            AND DATE(tt.created_at) >= DATE(?) AND DATE(tt.created_at) <= DATE(?)`;
+    const baseArgs: (string | number)[] = [companyId, fromDate, toDate];
     let extraWhere = "";
     if (typeFilter === "expense" || typeFilter === "income") {
       extraWhere += ` AND tt.reference_type = ?`;
