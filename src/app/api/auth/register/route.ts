@@ -34,6 +34,17 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "البريد الإلكتروني مستخدم مسبقاً" }, { status: 400 });
     }
 
+    let skipWelcomeGift = false;
+    try {
+      const excludedResult = await db.execute({
+        sql: "SELECT 1 FROM welcome_gift_excluded_emails WHERE email = ?",
+        args: [emailNorm],
+      });
+      skipWelcomeGift = excludedResult.rows.length > 0;
+    } catch {
+      skipWelcomeGift = false;
+    }
+
     const passwordHash = await bcrypt.hash(String(password), 12);
     const companyId = randomUUID();
     const userId = randomUUID();
@@ -50,18 +61,20 @@ export async function POST(request: Request) {
       args: [userId, companyId, emailNorm, passwordHash, String(name).trim(), phone ? String(phone) : null],
     });
 
-    const WELCOME_GIFT = 50;
+    const WELCOME_GIFT = skipWelcomeGift ? 0 : 50;
     const walletId = randomUUID();
     await db.execute({
       sql: `INSERT INTO company_wallets (id, company_id, balance, currency)
             VALUES (?, ?, ?, 'EGP')`,
       args: [walletId, companyId, WELCOME_GIFT],
     });
-    await db.execute({
-      sql: `INSERT INTO wallet_transactions (id, wallet_id, amount, type, description, performed_by)
-            VALUES (?, ?, ?, 'credit', ?, ?)`,
-      args: [randomUUID(), walletId, WELCOME_GIFT, `هدية اشتراك - ${WELCOME_GIFT} ج.م`, userId],
-    });
+    if (WELCOME_GIFT > 0) {
+      await db.execute({
+        sql: `INSERT INTO wallet_transactions (id, wallet_id, amount, type, description, performed_by)
+              VALUES (?, ?, ?, 'credit', ?, ?)`,
+        args: [randomUUID(), walletId, WELCOME_GIFT, `هدية اشتراك - ${WELCOME_GIFT} ج.م`, userId],
+      });
+    }
 
     return NextResponse.json({
       ok: true,

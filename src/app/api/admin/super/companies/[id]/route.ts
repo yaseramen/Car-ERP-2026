@@ -57,6 +57,23 @@ export async function DELETE(
   }
 
   try {
+    try {
+      const usersResult = await db.execute({
+        sql: "SELECT email FROM users WHERE company_id = ? AND role = 'tenant_owner'",
+        args: [id],
+      });
+      for (const row of usersResult.rows) {
+        const email = String(row.email ?? "").toLowerCase().trim();
+        if (email) {
+          await db.execute({
+            sql: "INSERT OR IGNORE INTO welcome_gift_excluded_emails (email) VALUES (?)",
+            args: [email],
+          });
+        }
+      }
+    } catch {
+      // جدول welcome_gift_excluded_emails قد لا يكون موجوداً بعد
+    }
     await db.execute({ sql: "DELETE FROM companies WHERE id = ?", args: [id] });
     return NextResponse.json({ success: true, message: "تم حذف الشركة وكل بياناتها. يمكن للأعضاء إعادة التسجيل." });
   } catch (error) {
