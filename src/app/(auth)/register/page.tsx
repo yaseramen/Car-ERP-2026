@@ -2,8 +2,10 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { useDeviceFingerprint } from "@/hooks/use-device-fingerprint";
 
 export default function RegisterPage() {
+  const deviceFingerprint = useDeviceFingerprint();
   const [form, setForm] = useState({
     email: "",
     password: "",
@@ -30,7 +32,10 @@ export default function RegisterPage() {
       const res = await fetch("/api/auth/register", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(form),
+        body: JSON.stringify({
+          ...form,
+          device_fingerprint: deviceFingerprint || undefined,
+        }),
       });
       const data = await res.json();
 

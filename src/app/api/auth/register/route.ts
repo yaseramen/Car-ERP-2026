@@ -8,7 +8,7 @@ type BusinessType = "sales_only" | "service_only" | "both";
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { email, password, name, phone, company_name, business_type } = body;
+    const { email, password, name, phone, company_name, business_type, device_fingerprint } = body;
 
     if (!email || !password || !name || !company_name) {
       return NextResponse.json(
@@ -40,9 +40,16 @@ export async function POST(request: Request) {
         sql: "SELECT 1 FROM welcome_gift_excluded_emails WHERE email = ?",
         args: [emailNorm],
       });
-      skipWelcomeGift = excludedResult.rows.length > 0;
-    } catch {
-      skipWelcomeGift = false;
+      if (excludedResult.rows.length > 0) skipWelcomeGift = true;
+    } catch {}
+    if (!skipWelcomeGift && typeof device_fingerprint === "string" && device_fingerprint.trim()) {
+      try {
+        const fpResult = await db.execute({
+          sql: "SELECT 1 FROM device_fingerprints WHERE fingerprint = ?",
+          args: [device_fingerprint.trim()],
+        });
+        if (fpResult.rows.length > 0) skipWelcomeGift = true;
+      } catch {}
     }
 
     const passwordHash = await bcrypt.hash(String(password), 12);
@@ -74,6 +81,14 @@ export async function POST(request: Request) {
               VALUES (?, ?, ?, 'credit', ?, ?)`,
         args: [randomUUID(), walletId, WELCOME_GIFT, `هدية اشتراك - ${WELCOME_GIFT} ج.م`, userId],
       });
+      if (typeof device_fingerprint === "string" && device_fingerprint.trim()) {
+        try {
+          await db.execute({
+            sql: "INSERT OR IGNORE INTO device_fingerprints (fingerprint) VALUES (?)",
+            args: [device_fingerprint.trim()],
+          });
+        } catch {}
+      }
     }
 
     return NextResponse.json({
