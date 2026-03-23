@@ -21,6 +21,8 @@ const ACTION_LABELS: Record<string, string> = {
   stock_adjust: "تعديل مخزون",
   stock_transfer: "نقل مخزون",
   treasury_transaction: "حركة خزينة",
+  treasury_expense: "إضافة مصروف",
+  treasury_income: "إضافة إيراد",
 };
 
 export function AuditSection() {

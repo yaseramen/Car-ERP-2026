@@ -18,6 +18,8 @@ export type AuditAction =
   | "stock_adjust"
   | "stock_transfer"
   | "treasury_transaction"
+  | "treasury_expense"
+  | "treasury_income"
   | "backup_export"
   | "backup_restore";
 

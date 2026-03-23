@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { db } from "@/lib/db/client";
 import { getCompanyId } from "@/lib/company";
+import { logAudit } from "@/lib/audit";
 import { randomUUID } from "crypto";
 
 const ALLOWED_ROLES = ["super_admin", "tenant_owner", "employee"] as const;
@@ -31,7 +32,7 @@ export async function POST(request: Request) {
     }
 
     const treasury = await db.execute({
-      sql: "SELECT id, balance FROM treasuries WHERE id = ? AND company_id = ?",
+      sql: "SELECT id, name, balance FROM treasuries WHERE id = ? AND company_id = ?",
       args: [treasury_id, companyId],
     });
 
@@ -73,6 +74,18 @@ export async function POST(request: Request) {
         args: [txId, treasury_id, amt, desc, nameVal, refType, txId, payment_method_id || null, session.user.id],
       });
     }
+
+    const treasuryName = String(treasury.rows[0]?.name ?? "خزينة");
+    const label = nameVal || desc;
+    await logAudit({
+      companyId,
+      userId: session.user.id,
+      userName: session.user.name ?? undefined,
+      action: type === "expense" ? "treasury_expense" : "treasury_income",
+      entityType: "treasury_transaction",
+      entityId: txId,
+      details: `${treasuryName}: ${amt.toFixed(2)} ج.م — ${label}`,
+    });
 
     return NextResponse.json({ success: true });
   } catch (error) {
