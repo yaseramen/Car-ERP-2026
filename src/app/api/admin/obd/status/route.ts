@@ -28,7 +28,7 @@ export async function GET() {
   const providers = [gemini && "Gemini", groq && "Groq", openai && "OpenAI"].filter(Boolean);
 
   const message = aiAvailable
-    ? `الذكاء الاصطناعي متاح (${providers.join("، ")})`
+    ? "الذكاء الاصطناعي متاح (EFCT)"
     : isSuperAdmin
       ? "أضف GEMINI_API_KEY أو GROQ_API_KEY أو OPENAI_API_KEY في Vercel → Settings → Environment Variables ثم أعد النشر"
       : "الذكاء الاصطناعي غير مفعّل. تواصل مع مدير النظام لإضافة مفاتيح API في إعدادات الاستضافة.";
