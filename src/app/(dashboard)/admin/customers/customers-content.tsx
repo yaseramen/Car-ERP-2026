@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
+import Link from "next/link";
 import { addToQueue } from "@/lib/offline-queue";
 import { useKeyboardShortcut } from "@/hooks/use-keyboard-shortcut";
 import { TableSkeleton } from "@/components/ui/skeleton";
@@ -330,7 +331,14 @@ export function CustomersContent() {
               ) : (
                 customers.map((c) => (
                   <tr key={c.id} className="border-b border-gray-50 dark:border-gray-700 hover:bg-gray-50/50 dark:hover:bg-gray-700/30">
-                    <td className="px-4 py-3 text-sm font-medium text-gray-900 dark:text-gray-100">{c.name}</td>
+                    <td className="px-4 py-3">
+                      <Link
+                        href={`/admin/customers/${c.id}`}
+                        className="text-sm font-medium text-emerald-600 dark:text-emerald-400 hover:text-emerald-700 dark:hover:text-emerald-300 hover:underline"
+                      >
+                        {c.name}
+                      </Link>
+                    </td>
                     <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-300">{c.phone || "—"}</td>
                     <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-300">{c.email || "—"}</td>
                     <td className="px-4 py-3">

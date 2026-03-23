@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
+import Link from "next/link";
 import { addToQueue } from "@/lib/offline-queue";
 import { useKeyboardShortcut } from "@/hooks/use-keyboard-shortcut";
 import { TableSkeleton } from "@/components/ui/skeleton";
@@ -323,7 +324,14 @@ export function SuppliersContent() {
               ) : (
                 suppliers.map((s) => (
                   <tr key={s.id} className="border-b border-gray-50 dark:border-gray-700 hover:bg-gray-50/50 dark:hover:bg-gray-700/30">
-                    <td className="px-4 py-3 text-sm font-medium text-gray-900 dark:text-gray-100">{s.name}</td>
+                    <td className="px-4 py-3">
+                      <Link
+                        href={`/admin/suppliers/${s.id}`}
+                        className="text-sm font-medium text-emerald-600 dark:text-emerald-400 hover:text-emerald-700 dark:hover:text-emerald-300 hover:underline"
+                      >
+                        {s.name}
+                      </Link>
+                    </td>
                     <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-300">{s.phone || "—"}</td>
                     <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-300">{s.email || "—"}</td>
                     <td className="px-4 py-3">
