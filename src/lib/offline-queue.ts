@@ -354,9 +354,8 @@ export async function executeQueuedOpDefault(item: QueuedItem): Promise<boolean>
       method = "PATCH";
       break;
     case "stock_adjustment":
-      url = `/api/admin/inventory/items/${op.itemId}/adjust`;
-      body = JSON.stringify(op.data);
-      break;
+      // التعديل اليدوي للمخزون معطّل — نتجاهل العمليات القديمة في الطابور
+      return true;
     default:
       return false;
   }

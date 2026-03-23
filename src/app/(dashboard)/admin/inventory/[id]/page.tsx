@@ -5,7 +5,6 @@ import { db } from "@/lib/db/client";
 import { getCompanyId } from "@/lib/company";
 import { canAccess } from "@/lib/permissions";
 import { EditMinQuantity } from "./edit-min-quantity";
-import { AdjustStock } from "./adjust-stock";
 
 export default async function ItemReportPage({
   params,
@@ -152,11 +151,11 @@ export default async function ItemReportPage({
               </div>
             <div className="flex justify-between items-center">
               <dt className="text-gray-500 dark:text-gray-400">الكمية الإجمالية</dt>
-              <dd className="text-gray-900 dark:text-gray-100 font-bold flex items-center gap-2">
-                {item.total_quantity}
-                <AdjustStock itemId={id} itemName={item.name} currentQuantity={item.total_quantity} />
-              </dd>
+              <dd className="text-gray-900 dark:text-gray-100 font-bold">{item.total_quantity}</dd>
             </div>
+            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+              الكمية تتغير فقط عبر فاتورة بيع أو شراء أو مرتجع
+            </p>
             <div className="pt-3 border-t border-gray-100 dark:border-gray-700">
               <dt className="text-gray-500 text-xs mb-2">الحد الأدنى (تنبيه نقص الكمية)</dt>
               <dd>
