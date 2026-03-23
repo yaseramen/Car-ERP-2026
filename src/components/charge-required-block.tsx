@@ -14,7 +14,12 @@ export function ChargeRequiredBlock() {
           يجب شحن المحفظة لمتابعة استخدام البرنامج. لا يمكن عرض أي بيانات أو تنفيذ أي عمليات حتى يتم الشحن.
         </p>
         <p className="text-sm text-gray-500 dark:text-gray-500">
-          تواصل مع مدير النظام (Super Admin) لشحن محفظة شركتك من لوحة المحافظ.
+          تواصل مع مدير النظام لشحن المحفظة:
+        </p>
+        <p className="text-lg font-medium text-emerald-600 dark:text-emerald-400">
+          <a href="tel:01009376052" className="hover:underline">01009376052</a>
+          {" · "}
+          <a href="tel:01556660502" className="hover:underline">01556660502</a>
         </p>
         <button
           type="button"
