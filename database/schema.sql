@@ -1,5 +1,5 @@
 -- ============================================================
--- الأمين لخدمات السيارات - Database Schema
+-- EFCT - Database Schema
 -- Al-Ameen Car Services - Comprehensive Schema
 -- Turso/LibSQL Compatible
 -- ============================================================

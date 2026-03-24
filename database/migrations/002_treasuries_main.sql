@@ -23,7 +23,7 @@ DROP TABLE treasuries;
 ALTER TABLE treasuries_new RENAME TO treasuries;
 
 -- التأكد من وجود الشركة النظامية
-INSERT OR IGNORE INTO companies (id, name, is_active) VALUES ('company-system', 'نظام الأمين', 1);
+INSERT OR IGNORE INTO companies (id, name, is_active) VALUES ('company-system', 'نظام EFCT', 1);
 
 -- إنشاء الخزينة الرئيسية
 INSERT OR IGNORE INTO treasuries (id, company_id, name, type, balance) 

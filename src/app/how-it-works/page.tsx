@@ -59,7 +59,7 @@ export default function HowItWorksPage() {
 
       <main className="max-w-4xl mx-auto py-12 px-6">
         <h1 className="text-3xl font-bold text-gray-900 mb-4">
-          كيف يعمل برنامج الأمين لإدارة مراكز الصيانة وقطع الغيار؟
+          كيف يعمل برنامج EFCT لإدارة مراكز الصيانة وقطع الغيار؟
         </h1>
         <p className="text-gray-600 mb-12">
           EFCT مصمم ليكون سهل الاستخدام. اتبع الخطوات التالية للبدء في إدارة مركزك أو محلّك.

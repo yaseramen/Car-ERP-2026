@@ -27,7 +27,7 @@ export async function POST(request: Request) {
     });
     if (companyCheck.rows.length === 0) {
       await db.execute({
-        sql: "INSERT INTO companies (id, name, is_active) VALUES (?, 'نظام الأمين', 1)",
+        sql: "INSERT INTO companies (id, name, is_active) VALUES (?, 'نظام EFCT', 1)",
         args: [companyId],
       });
     }

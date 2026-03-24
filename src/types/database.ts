@@ -1,5 +1,5 @@
 /**
- * أنواع قاعدة البيانات - الأمين لخدمات السيارات
+ * أنواع قاعدة البيانات - EFCT
  */
 
 export type UserRole = "super_admin" | "tenant_owner" | "employee";

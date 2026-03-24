@@ -23,7 +23,7 @@ export async function ensureCompanyWarehouse(companyId: string): Promise<string>
     if (companyExisting.rows.length === 0) {
       await db.execute({
         sql: "INSERT INTO companies (id, name, is_active) VALUES (?, ?, 1)",
-        args: [SYSTEM_COMPANY_ID, "نظام الأمين"],
+        args: [SYSTEM_COMPANY_ID, "نظام EFCT"],
       });
     }
     await db.execute({
