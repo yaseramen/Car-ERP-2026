@@ -658,6 +658,7 @@ export function RepairOrderEditContent({
                   <input
                     type="number"
                     min="0.01"
+                    step="any"
                     value={serviceForm.quantity}
                     onChange={(e) => setServiceForm((f) => ({ ...f, quantity: e.target.value }))}
                     className={inputClass}

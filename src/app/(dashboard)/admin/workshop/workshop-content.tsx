@@ -1162,12 +1162,12 @@ export function WorkshopContent() {
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">الكمية</label>
-                    <input
-                      type="number"
-                      min="0.01"
-                      step="0.01"
-                      value={serviceForm.quantity}
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">الكمية</label>
+                  <input
+                    type="number"
+                    min="0.01"
+                    step="any"
+                    value={serviceForm.quantity}
                       onChange={(e) => setServiceForm((f: { description: string; quantity: string; unit_price: string }) => ({ ...f, quantity: e.target.value }))}
                       className={inputClass}
                     />
