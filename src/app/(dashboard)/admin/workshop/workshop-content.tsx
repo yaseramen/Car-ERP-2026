@@ -68,21 +68,23 @@ export function WorkshopContent() {
   const [orderServices, setOrderServices] = useState<OrderService[]>([]);
   const [inventoryItems, setInventoryItems] = useState<InventoryItem[]>([]);
   const [addForm, setAddForm] = useState(() => {
-    if (typeof window === "undefined") return { item_id: "", quantity: "1" };
+    if (typeof window === "undefined") return { item_id: "", quantity: "1", discount_type: "" as "" | "percent" | "amount", discount_value: "", tax_percent: "" };
     try {
       const raw = localStorage.getItem("alameen-workshop-part-draft");
-      return raw ? JSON.parse(raw) : { item_id: "", quantity: "1" };
+      const parsed = raw ? JSON.parse(raw) : {};
+      return { item_id: parsed.item_id ?? "", quantity: parsed.quantity ?? "1", discount_type: parsed.discount_type ?? "", discount_value: parsed.discount_value ?? "", tax_percent: parsed.tax_percent ?? "" };
     } catch {
-      return { item_id: "", quantity: "1" };
+      return { item_id: "", quantity: "1", discount_type: "" as "" | "percent" | "amount", discount_value: "", tax_percent: "" };
     }
   });
   const [serviceForm, setServiceForm] = useState(() => {
-    if (typeof window === "undefined") return { description: "", quantity: "1", unit_price: "" };
+    if (typeof window === "undefined") return { description: "", quantity: "1", unit_price: "", discount_type: "" as "" | "percent" | "amount", discount_value: "", tax_percent: "" };
     try {
       const raw = localStorage.getItem("alameen-workshop-service-draft");
-      return raw ? JSON.parse(raw) : { description: "", quantity: "1", unit_price: "" };
+      const parsed = raw ? JSON.parse(raw) : {};
+      return { description: parsed.description ?? "", quantity: parsed.quantity ?? "1", unit_price: parsed.unit_price ?? "", discount_type: parsed.discount_type ?? "", discount_value: parsed.discount_value ?? "", tax_percent: parsed.tax_percent ?? "" };
     } catch {
-      return { description: "", quantity: "1", unit_price: "" };
+      return { description: "", quantity: "1", unit_price: "", discount_type: "" as "" | "percent" | "amount", discount_value: "", tax_percent: "" };
     }
   });
   const [saving, setSaving] = useState(false);
@@ -380,16 +382,22 @@ export function WorkshopContent() {
     try {
       if (!navigator.onLine) {
         addToQueue({ type: "add_service", orderId: selectedOrder.id, data: { description: desc, quantity: qty, unit_price: price } });
-        setServiceForm({ description: "", quantity: "1", unit_price: "" });
+        setServiceForm({ description: "", quantity: "1", unit_price: "", discount_type: "", discount_value: "", tax_percent: "" });
         alert("انقطع الاتصال. تم حفظ الخدمة محلياً. سيتم إرسالها تلقائياً عند عودة الإنترنت.");
         setAddServicesOpen(false);
         setSelectedOrder(null);
         return;
       }
+      const payload: Record<string, unknown> = { description: desc, quantity: qty, unit_price: price };
+      if (serviceForm.discount_type) {
+        payload.discount_type = serviceForm.discount_type;
+        payload.discount_value = Number(serviceForm.discount_value) || 0;
+      }
+      if (serviceForm.tax_percent !== "" && !Number.isNaN(Number(serviceForm.tax_percent))) payload.tax_percent = Number(serviceForm.tax_percent);
       const res = await fetch(`/api/admin/workshop/orders/${selectedOrder.id}/services`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ description: desc, quantity: qty, unit_price: price }),
+        body: JSON.stringify(payload),
       });
       if (!res.ok) {
         const err = await res.json();
@@ -398,11 +406,11 @@ export function WorkshopContent() {
       }
       await fetchOrderServices(selectedOrder.id);
       await fetchOrders();
-      setServiceForm({ description: "", quantity: "1", unit_price: "" });
+      setServiceForm({ description: "", quantity: "1", unit_price: "", discount_type: "", discount_value: "", tax_percent: "" });
     } catch {
       if (!navigator.onLine) {
         addToQueue({ type: "add_service", orderId: selectedOrder.id, data: { description: desc, quantity: qty, unit_price: price } });
-        setServiceForm({ description: "", quantity: "1", unit_price: "" });
+        setServiceForm({ description: "", quantity: "1", unit_price: "", discount_type: "", discount_value: "", tax_percent: "" });
         alert("انقطع الاتصال. تم حفظ الخدمة محلياً. سيتم إرسالها تلقائياً عند عودة الإنترنت.");
         setAddServicesOpen(false);
         setSelectedOrder(null);
@@ -427,16 +435,22 @@ export function WorkshopContent() {
     try {
       if (!navigator.onLine) {
         addToQueue({ type: "add_part", orderId: selectedOrder.id, data: { item_id: itemId, quantity: qty } });
-        setAddForm({ item_id: "", quantity: "1" });
+        setAddForm({ item_id: "", quantity: "1", discount_type: "", discount_value: "", tax_percent: "" });
         alert("انقطع الاتصال. تم حفظ القطعة محلياً. سيتم إرسالها تلقائياً عند عودة الإنترنت.");
         setAddPartsOpen(false);
         setSelectedOrder(null);
         return;
       }
+      const payload: Record<string, unknown> = { item_id: itemId, quantity: qty };
+      if (addForm.discount_type) {
+        payload.discount_type = addForm.discount_type;
+        payload.discount_value = Number(addForm.discount_value) || 0;
+      }
+      if (addForm.tax_percent !== "" && !Number.isNaN(Number(addForm.tax_percent))) payload.tax_percent = Number(addForm.tax_percent);
       const res = await fetch(`/api/admin/workshop/orders/${selectedOrder.id}/items`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ item_id: itemId, quantity: qty }),
+        body: JSON.stringify(payload),
       });
       if (!res.ok) {
         const err = await res.json();
@@ -445,11 +459,11 @@ export function WorkshopContent() {
       }
       await fetchOrderItems(selectedOrder.id);
       await fetchOrders();
-      setAddForm({ item_id: "", quantity: "1" });
+      setAddForm({ item_id: "", quantity: "1", discount_type: "", discount_value: "", tax_percent: "" });
     } catch {
       if (!navigator.onLine) {
         addToQueue({ type: "add_part", orderId: selectedOrder.id, data: { item_id: itemId, quantity: qty } });
-        setAddForm({ item_id: "", quantity: "1" });
+        setAddForm({ item_id: "", quantity: "1", discount_type: "", discount_value: "", tax_percent: "" });
         alert("انقطع الاتصال. تم حفظ القطعة محلياً. سيتم إرسالها تلقائياً عند عودة الإنترنت.");
         setAddPartsOpen(false);
         setSelectedOrder(null);
@@ -1078,7 +1092,7 @@ export function WorkshopContent() {
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">الصنف</label>
                   <select
                     value={addForm.item_id}
-                    onChange={(e) => setAddForm((f: { item_id: string; quantity: string }) => ({ ...f, item_id: e.target.value }))}
+                    onChange={(e) => setAddForm((f) => ({ ...f, item_id: e.target.value }))}
                     required
                     className={inputClass}
                   >
@@ -1095,12 +1109,31 @@ export function WorkshopContent() {
                   <input
                     type="number"
                     min="0.01"
-                    step="0.01"
+                    step="any"
                     value={addForm.quantity}
-                    onChange={(e) => setAddForm((f: { item_id: string; quantity: string }) => ({ ...f, quantity: e.target.value }))}
+                    onChange={(e) => setAddForm((f) => ({ ...f, quantity: e.target.value }))}
                     required
                     className={inputClass}
                   />
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">الخصم</label>
+                    <div className="flex gap-2">
+                      <select value={addForm.discount_type} onChange={(e) => setAddForm((f) => ({ ...f, discount_type: e.target.value as "" | "percent" | "amount" }))} className={inputClass}>
+                        <option value="">بدون</option>
+                        <option value="percent">نسبة %</option>
+                        <option value="amount">مبلغ (ج.م)</option>
+                      </select>
+                      {(addForm.discount_type === "percent" || addForm.discount_type === "amount") && (
+                        <input type="number" min="0" step="any" value={addForm.discount_value} onChange={(e) => setAddForm((f) => ({ ...f, discount_value: e.target.value }))} placeholder={addForm.discount_type === "percent" ? "0-100" : "0"} className={inputClass} />
+                      )}
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">ضريبة %</label>
+                    <input type="number" min="0" max="100" step="any" value={addForm.tax_percent} onChange={(e) => setAddForm((f) => ({ ...f, tax_percent: e.target.value }))} placeholder="0" className={inputClass} />
+                  </div>
                 </div>
                 <div className="flex gap-3">
                   <button
@@ -1154,7 +1187,7 @@ export function WorkshopContent() {
                   <input
                     type="text"
                     value={serviceForm.description}
-                    onChange={(e) => setServiceForm((f: { description: string; quantity: string; unit_price: string }) => ({ ...f, description: e.target.value }))}
+                    onChange={(e) => setServiceForm((f) => ({ ...f, description: e.target.value }))}
                     required
                     className={inputClass}
                     placeholder="مثال: فحص المحرك، تغيير الزيت، إلخ"
@@ -1162,27 +1195,31 @@ export function WorkshopContent() {
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">الكمية</label>
-                  <input
-                    type="number"
-                    min="0.01"
-                    step="any"
-                    value={serviceForm.quantity}
-                      onChange={(e) => setServiceForm((f: { description: string; quantity: string; unit_price: string }) => ({ ...f, quantity: e.target.value }))}
-                      className={inputClass}
-                    />
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">الكمية</label>
+                    <input type="number" min="0.01" step="any" value={serviceForm.quantity} onChange={(e) => setServiceForm((f) => ({ ...f, quantity: e.target.value }))} className={inputClass} />
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">السعر (ج.م)</label>
-                    <input
-                      type="number"
-                      step="0.01"
-                      min="0"
-                      value={serviceForm.unit_price}
-                      onChange={(e) => setServiceForm((f: { description: string; quantity: string; unit_price: string }) => ({ ...f, unit_price: e.target.value }))}
-                      className={inputClass}
-                      placeholder="0"
-                    />
+                    <input type="number" step="any" min="0" value={serviceForm.unit_price} onChange={(e) => setServiceForm((f) => ({ ...f, unit_price: e.target.value }))} className={inputClass} placeholder="0" />
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">الخصم</label>
+                    <div className="flex gap-2">
+                      <select value={serviceForm.discount_type} onChange={(e) => setServiceForm((f) => ({ ...f, discount_type: e.target.value as "" | "percent" | "amount" }))} className={inputClass}>
+                        <option value="">بدون</option>
+                        <option value="percent">نسبة %</option>
+                        <option value="amount">مبلغ (ج.م)</option>
+                      </select>
+                      {(serviceForm.discount_type === "percent" || serviceForm.discount_type === "amount") && (
+                        <input type="number" min="0" step="any" value={serviceForm.discount_value} onChange={(e) => setServiceForm((f) => ({ ...f, discount_value: e.target.value }))} placeholder={serviceForm.discount_type === "percent" ? "0-100" : "0"} className={inputClass} />
+                      )}
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">ضريبة %</label>
+                    <input type="number" min="0" max="100" step="any" value={serviceForm.tax_percent} onChange={(e) => setServiceForm((f) => ({ ...f, tax_percent: e.target.value }))} placeholder="0" className={inputClass} />
                   </div>
                 </div>
                 <div className="flex gap-3">

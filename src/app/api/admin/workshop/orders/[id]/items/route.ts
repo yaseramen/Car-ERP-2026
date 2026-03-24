@@ -27,15 +27,33 @@ export async function GET(
       args: [id],
     });
 
-    const items = result.rows.map((row) => ({
-      id: row.id,
-      item_id: row.item_id,
-      item_name: row.item_name,
-      item_unit: row.item_unit,
-      quantity: row.quantity,
-      unit_price: row.unit_price,
-      total: row.total,
-    }));
+    const items = result.rows.map((row) => {
+      const qty = Number(row.quantity ?? 0);
+      const up = Number(row.unit_price ?? 0);
+      const dt = (row.discount_type as string) || null;
+      const dv = Number(row.discount_value ?? 0);
+      const tp = row.tax_percent != null ? Number(row.tax_percent) : null;
+      const base = qty * up;
+      let disc = 0;
+      if (dt === "percent" && dv > 0) disc = base * (Math.min(100, dv) / 100);
+      else if (dt === "amount" && dv > 0) disc = Math.min(base, dv);
+      let after = Math.max(0, base - disc);
+      let tax = 0;
+      if (tp != null && tp > 0) tax = after * (Math.min(100, tp) / 100);
+      const total = Math.round((after + tax) * 100) / 100;
+      return {
+        id: row.id,
+        item_id: row.item_id,
+        item_name: row.item_name,
+        item_unit: row.item_unit,
+        quantity: qty,
+        unit_price: up,
+        discount_type: dt,
+        discount_value: dv,
+        tax_percent: tp,
+        total,
+      };
+    });
 
     return NextResponse.json(items);
   } catch (error) {
@@ -58,7 +76,7 @@ export async function POST(
 
   try {
     const body = await request.json();
-    const { item_id, quantity } = body;
+    const { item_id, quantity, discount_type, discount_value, tax_percent } = body;
 
     if (!item_id || !quantity || Number(quantity) <= 0) {
       return NextResponse.json({ error: "الصنف والكمية مطلوبان" }, { status: 400 });
@@ -116,7 +134,17 @@ export async function POST(
     }
 
     const unitPrice = Number(itemResult.rows[0].sale_price ?? 0);
-    const total = qty * unitPrice;
+    const dt = discount_type === "percent" || discount_type === "amount" ? discount_type : null;
+    const dv = Math.max(0, Number(discount_value ?? 0));
+    const tp = tax_percent != null && !Number.isNaN(Number(tax_percent)) ? Number(tax_percent) : null;
+    let base = qty * unitPrice;
+    let disc = 0;
+    if (dt === "percent" && dv > 0) disc = base * (Math.min(100, dv) / 100);
+    else if (dt === "amount" && dv > 0) disc = Math.min(base, dv);
+    let after = Math.max(0, base - disc);
+    let tax = 0;
+    if (tp != null && tp > 0) tax = after * (Math.min(100, tp) / 100);
+    const total = Math.round((after + tax) * 100) / 100;
 
     const roiId = randomUUID();
     const smId = randomUUID();
@@ -132,8 +160,8 @@ export async function POST(
     });
 
     await db.execute({
-      sql: "INSERT INTO repair_order_items (id, repair_order_id, item_id, warehouse_id, quantity, unit_price, total, stock_movement_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-      args: [roiId, orderId, item_id, warehouseId, qty, unitPrice, total, smId],
+      sql: "INSERT INTO repair_order_items (id, repair_order_id, item_id, warehouse_id, quantity, unit_price, total, stock_movement_id, discount_type, discount_value, tax_percent) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+      args: [roiId, orderId, item_id, warehouseId, qty, unitPrice, total, smId, dt, dv, tp],
     });
 
     const newItem = await db.execute({
@@ -141,18 +169,96 @@ export async function POST(
       args: [roiId],
     });
 
-    const row = newItem.rows[0];
+    const row = newItem.rows[0] as Record<string, unknown>;
     return NextResponse.json({
       id: row.id,
       item_id: row.item_id,
       item_name: row.item_name,
       quantity: row.quantity,
       unit_price: row.unit_price,
+      discount_type: dt,
+      discount_value: dv,
+      tax_percent: tp,
       total: row.total,
     });
   } catch (error) {
     console.error("Add item error:", error);
     return NextResponse.json({ error: "فشل في إضافة القطعة" }, { status: 500 });
+  }
+}
+
+export async function PATCH(
+  request: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const session = await auth();
+  const companyId = getCompanyId(session);
+  if (!session?.user || !companyId || !ALLOWED_ROLES.includes(session.user.role as (typeof ALLOWED_ROLES)[number])) {
+    return NextResponse.json({ error: "غير مصرح" }, { status: 401 });
+  }
+
+  const { id: orderId } = await params;
+
+  try {
+    const body = await request.json();
+    const { item_id: roiId, discount_type, discount_value, tax_percent } = body;
+    if (!roiId) return NextResponse.json({ error: "معرف القطعة مطلوب" }, { status: 400 });
+
+    const orderCheck = await db.execute({
+      sql: "SELECT invoice_id FROM repair_orders WHERE id = ? AND company_id = ?",
+      args: [orderId, companyId],
+    });
+    if (orderCheck.rows.length === 0) return NextResponse.json({ error: "أمر غير موجود" }, { status: 404 });
+    if (orderCheck.rows[0]?.invoice_id) {
+      return NextResponse.json({ error: "لا يمكن التعديل بعد إصدار الفاتورة" }, { status: 400 });
+    }
+
+    const roi = await db.execute({
+      sql: "SELECT quantity, unit_price FROM repair_order_items roi JOIN repair_orders ro ON roi.repair_order_id = ro.id WHERE roi.id = ? AND roi.repair_order_id = ? AND ro.company_id = ?",
+      args: [roiId, orderId, companyId],
+    });
+    if (roi.rows.length === 0) return NextResponse.json({ error: "القطعة غير موجودة" }, { status: 404 });
+
+    const qty = Number(roi.rows[0].quantity ?? 0);
+    const up = Number(roi.rows[0].unit_price ?? 0);
+    const dt = discount_type === "percent" || discount_type === "amount" ? discount_type : null;
+    const dv = Math.max(0, Number(discount_value ?? 0));
+    const tp = tax_percent != null && !Number.isNaN(Number(tax_percent)) ? Number(tax_percent) : null;
+
+    let base = qty * up;
+    let disc = 0;
+    if (dt === "percent" && dv > 0) disc = base * (Math.min(100, dv) / 100);
+    else if (dt === "amount" && dv > 0) disc = Math.min(base, dv);
+    let after = Math.max(0, base - disc);
+    let tax = 0;
+    if (tp != null && tp > 0) tax = after * (Math.min(100, tp) / 100);
+    const total = Math.round((after + tax) * 100) / 100;
+
+    await db.execute({
+      sql: "UPDATE repair_order_items SET discount_type = ?, discount_value = ?, tax_percent = ?, total = ? WHERE id = ?",
+      args: [dt, dv, tp, total, roiId],
+    });
+
+    const res = await db.execute({
+      sql: `SELECT roi.*, i.name as item_name, i.unit as item_unit FROM repair_order_items roi JOIN items i ON roi.item_id = i.id WHERE roi.id = ?`,
+      args: [roiId],
+    });
+    const r = res.rows[0] as Record<string, unknown>;
+    return NextResponse.json({
+      id: r.id,
+      item_id: r.item_id,
+      item_name: r.item_name,
+      item_unit: r.item_unit,
+      quantity: r.quantity,
+      unit_price: r.unit_price,
+      discount_type: dt,
+      discount_value: dv,
+      tax_percent: tp,
+      total: r.total,
+    });
+  } catch (error) {
+    console.error("Update item error:", error);
+    return NextResponse.json({ error: "فشل في التحديث" }, { status: 500 });
   }
 }
 

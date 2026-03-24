@@ -474,8 +474,8 @@ export async function restoreBackup(
           const whId = mapId(row.warehouse_id as string) ?? (row.warehouse_id as string);
           const id = mapId(row.id as string) ?? randomUUID();
           await db.execute({
-            sql: `INSERT INTO repair_order_items (id, repair_order_id, item_id, warehouse_id, quantity, unit_price, total, created_at)
-                  VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+            sql: `INSERT INTO repair_order_items (id, repair_order_id, item_id, warehouse_id, quantity, unit_price, total, created_at, discount_type, discount_value, tax_percent)
+                  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
             args: [
               id,
               roId,
@@ -485,6 +485,9 @@ export async function restoreBackup(
               Number(row.unit_price ?? 0),
               Number(row.total ?? 0),
               String(row.created_at ?? new Date().toISOString()),
+              row.discount_type ?? null,
+              Number(row.discount_value ?? 0),
+              row.tax_percent != null ? Number(row.tax_percent) : null,
             ] as InArgs,
           });
         }
@@ -495,8 +498,8 @@ export async function restoreBackup(
           const roId = mapId(row.repair_order_id as string) ?? (row.repair_order_id as string);
           const id = mapId(row.id as string) ?? randomUUID();
           await db.execute({
-            sql: `INSERT INTO repair_order_services (id, repair_order_id, description, quantity, unit_price, total, created_at)
-                  VALUES (?, ?, ?, ?, ?, ?, ?)`,
+            sql: `INSERT INTO repair_order_services (id, repair_order_id, description, quantity, unit_price, total, created_at, discount_type, discount_value, tax_percent)
+                  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
             args: [
               id,
               roId,
@@ -505,6 +508,9 @@ export async function restoreBackup(
               Number(row.unit_price ?? 0),
               Number(row.total ?? 0),
               String(row.created_at ?? new Date().toISOString()),
+              row.discount_type ?? null,
+              Number(row.discount_value ?? 0),
+              row.tax_percent != null ? Number(row.tax_percent) : null,
             ] as InArgs,
           });
         }

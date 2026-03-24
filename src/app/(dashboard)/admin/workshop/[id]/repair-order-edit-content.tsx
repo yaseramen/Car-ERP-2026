@@ -37,6 +37,9 @@ interface Item {
   item_unit: string;
   quantity: number;
   unit_price: number;
+  discount_type?: string | null;
+  discount_value?: number;
+  tax_percent?: number | null;
   total: number;
 }
 
@@ -45,6 +48,9 @@ interface Service {
   description: string;
   quantity: number;
   unit_price: number;
+  discount_type?: string | null;
+  discount_value?: number;
+  tax_percent?: number | null;
   total: number;
 }
 
@@ -95,8 +101,8 @@ export function RepairOrderEditContent({
   const [addPartOpen, setAddPartOpen] = useState(false);
   const [addServiceOpen, setAddServiceOpen] = useState(false);
   const [inventoryItems, setInventoryItems] = useState<{ id: string; name: string; quantity: number }[]>([]);
-  const [addForm, setAddForm] = useState({ item_id: "", quantity: "1" });
-  const [serviceForm, setServiceForm] = useState({ description: "", quantity: "1", unit_price: "" });
+  const [addForm, setAddForm] = useState({ item_id: "", quantity: "1", discount_type: "" as "" | "percent" | "amount", discount_value: "", tax_percent: "" });
+  const [serviceForm, setServiceForm] = useState({ description: "", quantity: "1", unit_price: "", discount_type: "" as "" | "percent" | "amount", discount_value: "", tax_percent: "" });
   const [saving, setSaving] = useState(false);
 
   const editable = canEdit(order.stage, orderType, order.invoice_id);
@@ -163,14 +169,22 @@ export function RepairOrderEditContent({
     }
     setSaving(true);
     try {
+      const payload: Record<string, unknown> = { item_id: addForm.item_id, quantity: addForm.quantity };
+      if (addForm.discount_type) {
+        payload.discount_type = addForm.discount_type;
+        payload.discount_value = Number(addForm.discount_value) || 0;
+      }
+      if (addForm.tax_percent !== "" && !Number.isNaN(Number(addForm.tax_percent))) {
+        payload.tax_percent = Number(addForm.tax_percent);
+      }
       const res = await fetch(`/api/admin/workshop/orders/${order.id}/items`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ item_id: addForm.item_id, quantity: addForm.quantity }),
+        body: JSON.stringify(payload),
       });
       if (res.ok) {
         await refreshItems();
-        setAddForm({ item_id: "", quantity: "1" });
+        setAddForm({ item_id: "", quantity: "1", discount_type: "", discount_value: "", tax_percent: "" });
         setAddPartOpen(false);
       } else {
         const err = await res.json();
@@ -210,14 +224,22 @@ export function RepairOrderEditContent({
     const price = Number(serviceForm.unit_price) || 0;
     setSaving(true);
     try {
+      const payload: Record<string, unknown> = { description: serviceForm.description.trim(), quantity: qty, unit_price: price };
+      if (serviceForm.discount_type) {
+        payload.discount_type = serviceForm.discount_type;
+        payload.discount_value = Number(serviceForm.discount_value) || 0;
+      }
+      if (serviceForm.tax_percent !== "" && !Number.isNaN(Number(serviceForm.tax_percent))) {
+        payload.tax_percent = Number(serviceForm.tax_percent);
+      }
       const res = await fetch(`/api/admin/workshop/orders/${order.id}/services`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ description: serviceForm.description.trim(), quantity: qty, unit_price: price }),
+        body: JSON.stringify(payload),
       });
       if (res.ok) {
         await refreshServices();
-        setServiceForm({ description: "", quantity: "1", unit_price: "" });
+        setServiceForm({ description: "", quantity: "1", unit_price: "", discount_type: "", discount_value: "", tax_percent: "" });
         setAddServiceOpen(false);
       } else {
         const err = await res.json();
@@ -441,18 +463,31 @@ export function RepairOrderEditContent({
                   <th className="text-right px-4 py-3 text-sm font-medium text-gray-600 dark:text-gray-300">الصنف</th>
                   <th className="text-right px-4 py-3 text-sm font-medium text-gray-600 dark:text-gray-300">الكمية</th>
                   <th className="text-right px-4 py-3 text-sm font-medium text-gray-600 dark:text-gray-300">سعر الوحدة</th>
+                  <th className="text-right px-4 py-3 text-sm font-medium text-gray-600 dark:text-gray-300">الخصم</th>
+                  <th className="text-right px-4 py-3 text-sm font-medium text-gray-600 dark:text-gray-300">ضريبة</th>
                   <th className="text-right px-4 py-3 text-sm font-medium text-gray-600 dark:text-gray-300">الإجمالي</th>
                   {editable && <th className="px-4 py-3 text-sm font-medium text-gray-600 dark:text-gray-300 w-16" />}
                 </tr>
               </thead>
               <tbody>
-                {items.map((item) => (
+                {items.map((item) => {
+                  const base = item.quantity * item.unit_price;
+                  let disc = 0;
+                  if (item.discount_type === "percent" && (item.discount_value ?? 0) > 0) disc = base * (Math.min(100, item.discount_value!) / 100);
+                  else if (item.discount_type === "amount" && (item.discount_value ?? 0) > 0) disc = Math.min(base, item.discount_value!);
+                  const after = Math.max(0, base - disc);
+                  const tax = (item.tax_percent != null && item.tax_percent > 0) ? after * (Math.min(100, item.tax_percent) / 100) : 0;
+                  const discLabel = item.discount_type === "percent" ? `${item.discount_value}%` : item.discount_type === "amount" ? `${item.discount_value} ج.م` : "—";
+                  const taxLabel = item.tax_percent != null && item.tax_percent > 0 ? `${item.tax_percent}%` : "—";
+                  return (
                   <tr key={item.id} className="border-b border-gray-50 dark:border-gray-700">
                     <td className="px-4 py-3 text-sm text-gray-900 dark:text-gray-100">{item.item_name}</td>
                     <td className="px-4 py-3 text-sm text-gray-900 dark:text-gray-100">
                       {item.quantity} {item.item_unit}
                     </td>
                     <td className="px-4 py-3 text-sm text-gray-900 dark:text-gray-100">{item.unit_price.toFixed(2)} ج.م</td>
+                    <td className="px-4 py-3 text-sm text-gray-500 dark:text-gray-400">{discLabel}</td>
+                    <td className="px-4 py-3 text-sm text-gray-500 dark:text-gray-400">{taxLabel}</td>
                     <td className="px-4 py-3 text-sm font-medium text-gray-900 dark:text-gray-100">{item.total.toFixed(2)} ج.م</td>
                     {editable && (
                       <td className="px-4 py-3">
@@ -467,14 +502,16 @@ export function RepairOrderEditContent({
                       </td>
                     )}
                   </tr>
-                ))}
+                  );
+                })}
               </tbody>
               <tfoot>
                 <tr className="bg-gray-50 dark:bg-gray-700/50 font-medium">
-                  <td colSpan={editable ? 4 : 3} className="px-4 py-3 text-sm text-right text-gray-900 dark:text-gray-100">
+                  <td colSpan={5} className="px-4 py-3 text-sm text-right text-gray-900 dark:text-gray-100">
                     المجموع (القطع)
                   </td>
                   <td className="px-4 py-3 text-sm text-gray-900 dark:text-gray-100">{itemsTotal.toFixed(2)} ج.م</td>
+                  {editable && <td />}
                 </tr>
               </tfoot>
             </table>
@@ -516,16 +553,27 @@ export function RepairOrderEditContent({
                   <th className="text-right px-4 py-3 text-sm font-medium text-gray-600 dark:text-gray-300">الوصف</th>
                   <th className="text-right px-4 py-3 text-sm font-medium text-gray-600 dark:text-gray-300">الكمية</th>
                   <th className="text-right px-4 py-3 text-sm font-medium text-gray-600 dark:text-gray-300">سعر الوحدة</th>
+                  <th className="text-right px-4 py-3 text-sm font-medium text-gray-600 dark:text-gray-300">الخصم</th>
+                  <th className="text-right px-4 py-3 text-sm font-medium text-gray-600 dark:text-gray-300">ضريبة</th>
                   <th className="text-right px-4 py-3 text-sm font-medium text-gray-600 dark:text-gray-300">الإجمالي</th>
                   {editable && <th className="px-4 py-3 text-sm font-medium text-gray-600 dark:text-gray-300 w-16" />}
                 </tr>
               </thead>
               <tbody>
-                {services.map((sv) => (
+                {services.map((sv) => {
+                  const base = sv.quantity * sv.unit_price;
+                  let disc = 0;
+                  if (sv.discount_type === "percent" && (sv.discount_value ?? 0) > 0) disc = base * (Math.min(100, sv.discount_value!) / 100);
+                  else if (sv.discount_type === "amount" && (sv.discount_value ?? 0) > 0) disc = Math.min(base, sv.discount_value!);
+                  const discLabel = sv.discount_type === "percent" ? `${sv.discount_value}%` : sv.discount_type === "amount" ? `${sv.discount_value} ج.م` : "—";
+                  const taxLabel = sv.tax_percent != null && sv.tax_percent > 0 ? `${sv.tax_percent}%` : "—";
+                  return (
                   <tr key={sv.id} className="border-b border-gray-50 dark:border-gray-700">
                     <td className="px-4 py-3 text-sm text-gray-900 dark:text-gray-100">{sv.description}</td>
                     <td className="px-4 py-3 text-sm text-gray-900 dark:text-gray-100">{sv.quantity}</td>
                     <td className="px-4 py-3 text-sm text-gray-900 dark:text-gray-100">{sv.unit_price.toFixed(2)} ج.م</td>
+                    <td className="px-4 py-3 text-sm text-gray-500 dark:text-gray-400">{discLabel}</td>
+                    <td className="px-4 py-3 text-sm text-gray-500 dark:text-gray-400">{taxLabel}</td>
                     <td className="px-4 py-3 text-sm font-medium text-gray-900 dark:text-gray-100">{sv.total.toFixed(2)} ج.م</td>
                     {editable && (
                       <td className="px-4 py-3">
@@ -540,20 +588,23 @@ export function RepairOrderEditContent({
                       </td>
                     )}
                   </tr>
-                ))}
+                  );
+                })}
               </tbody>
               <tfoot>
                 <tr className="bg-gray-50 dark:bg-gray-700/50 font-medium">
-                  <td colSpan={editable ? 4 : 3} className="px-4 py-3 text-sm text-right text-gray-900 dark:text-gray-100">
+                  <td colSpan={5} className="px-4 py-3 text-sm text-right text-gray-900 dark:text-gray-100">
                     المجموع (الخدمات)
                   </td>
                   <td className="px-4 py-3 text-sm text-gray-900 dark:text-gray-100">{servicesTotal.toFixed(2)} ج.م</td>
+                  {editable && <td />}
                 </tr>
                 <tr className="bg-gray-50 dark:bg-gray-700/50 font-medium">
-                  <td colSpan={editable ? 4 : 3} className="px-4 py-3 text-sm text-right text-gray-900 dark:text-gray-100">
+                  <td colSpan={5} className="px-4 py-3 text-sm text-right text-gray-900 dark:text-gray-100">
                     المجموع الكلي
                   </td>
                   <td className="px-4 py-3 text-sm text-gray-900 dark:text-gray-100">{(itemsTotal + servicesTotal).toFixed(2)} ج.م</td>
+                  {editable && <td />}
                 </tr>
                 {order.invoice_digital_fee != null && order.invoice_digital_fee > 0 && (
                   <tr className="bg-gray-50 dark:bg-gray-700/50">
@@ -616,12 +667,52 @@ export function RepairOrderEditContent({
                 <input
                   type="number"
                   min="0.01"
-                  step="0.01"
+                  step="any"
                   value={addForm.quantity}
                   onChange={(e) => setAddForm((f) => ({ ...f, quantity: e.target.value }))}
                   required
                   className={inputClass}
                 />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium mb-1">الخصم</label>
+                  <div className="flex gap-2">
+                    <select
+                      value={addForm.discount_type}
+                      onChange={(e) => setAddForm((f) => ({ ...f, discount_type: e.target.value as "" | "percent" | "amount" }))}
+                      className={inputClass}
+                    >
+                      <option value="">بدون</option>
+                      <option value="percent">نسبة %</option>
+                      <option value="amount">مبلغ (ج.م)</option>
+                    </select>
+                    {(addForm.discount_type === "percent" || addForm.discount_type === "amount") && (
+                      <input
+                        type="number"
+                        min="0"
+                        step="any"
+                        value={addForm.discount_value}
+                        onChange={(e) => setAddForm((f) => ({ ...f, discount_value: e.target.value }))}
+                        placeholder={addForm.discount_type === "percent" ? "0-100" : "0"}
+                        className={inputClass}
+                      />
+                    )}
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-1">ضريبة % (اختياري)</label>
+                  <input
+                    type="number"
+                    min="0"
+                    max="100"
+                    step="any"
+                    value={addForm.tax_percent}
+                    onChange={(e) => setAddForm((f) => ({ ...f, tax_percent: e.target.value }))}
+                    placeholder="0"
+                    className={inputClass}
+                  />
+                </div>
               </div>
               <div className="flex gap-3">
                 <button type="button" onClick={() => setAddPartOpen(false)} className="flex-1 px-4 py-2.5 bg-gray-200 dark:bg-gray-700 rounded-lg">
@@ -668,9 +759,49 @@ export function RepairOrderEditContent({
                   <label className="block text-sm font-medium mb-1">السعر (ج.م)</label>
                   <input
                     type="number"
-                    step="0.01"
+                    step="any"
                     value={serviceForm.unit_price}
                     onChange={(e) => setServiceForm((f) => ({ ...f, unit_price: e.target.value }))}
+                    className={inputClass}
+                  />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium mb-1">الخصم</label>
+                  <div className="flex gap-2">
+                    <select
+                      value={serviceForm.discount_type}
+                      onChange={(e) => setServiceForm((f) => ({ ...f, discount_type: e.target.value as "" | "percent" | "amount" }))}
+                      className={inputClass}
+                    >
+                      <option value="">بدون</option>
+                      <option value="percent">نسبة %</option>
+                      <option value="amount">مبلغ (ج.م)</option>
+                    </select>
+                    {(serviceForm.discount_type === "percent" || serviceForm.discount_type === "amount") && (
+                      <input
+                        type="number"
+                        min="0"
+                        step="any"
+                        value={serviceForm.discount_value}
+                        onChange={(e) => setServiceForm((f) => ({ ...f, discount_value: e.target.value }))}
+                        placeholder={serviceForm.discount_type === "percent" ? "0-100" : "0"}
+                        className={inputClass}
+                      />
+                    )}
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-1">ضريبة % (اختياري)</label>
+                  <input
+                    type="number"
+                    min="0"
+                    max="100"
+                    step="any"
+                    value={serviceForm.tax_percent}
+                    onChange={(e) => setServiceForm((f) => ({ ...f, tax_percent: e.target.value }))}
+                    placeholder="0"
                     className={inputClass}
                   />
                 </div>

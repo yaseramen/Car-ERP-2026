@@ -72,27 +72,63 @@ export default async function RepairOrderReportPage({
       args: [id],
     });
 
-    const items = itemsResult.rows.map((r) => ({
-      id: String(r.id),
-      item_name: String(r.item_name ?? ""),
-      item_unit: String(r.item_unit ?? "قطعة"),
-      quantity: Number(r.quantity ?? 0),
-      unit_price: Number(r.unit_price ?? 0),
-      total: Number(r.total ?? 0),
-    }));
+    const items = itemsResult.rows.map((r) => {
+      const qty = Number(r.quantity ?? 0);
+      const up = Number(r.unit_price ?? 0);
+      const dt = (r.discount_type as string) || null;
+      const dv = Number(r.discount_value ?? 0);
+      const tp = r.tax_percent != null ? Number(r.tax_percent) : null;
+      let base = qty * up;
+      let disc = 0;
+      if (dt === "percent" && dv > 0) disc = base * (Math.min(100, dv) / 100);
+      else if (dt === "amount" && dv > 0) disc = Math.min(base, dv);
+      let after = Math.max(0, base - disc);
+      let tax = 0;
+      if (tp != null && tp > 0) tax = after * (Math.min(100, tp) / 100);
+      const total = Math.round((after + tax) * 100) / 100;
+      return {
+        id: String(r.id),
+        item_name: String(r.item_name ?? ""),
+        item_unit: String(r.item_unit ?? "قطعة"),
+        quantity: qty,
+        unit_price: up,
+        discount_type: dt,
+        discount_value: dv,
+        tax_percent: tp,
+        total,
+      };
+    });
 
     const servicesResult = await db.execute({
-      sql: "SELECT id, description, quantity, unit_price, total FROM repair_order_services WHERE repair_order_id = ? ORDER BY created_at",
+      sql: "SELECT id, description, quantity, unit_price, total, discount_type, discount_value, tax_percent FROM repair_order_services WHERE repair_order_id = ? ORDER BY created_at",
       args: [id],
     });
 
-    const services = servicesResult.rows.map((r) => ({
-      id: String(r.id),
-      description: String(r.description ?? ""),
-      quantity: Number(r.quantity ?? 1),
-      unit_price: Number(r.unit_price ?? 0),
-      total: Number(r.total ?? 0),
-    }));
+    const services = servicesResult.rows.map((r) => {
+      const qty = Number(r.quantity ?? 1);
+      const up = Number(r.unit_price ?? 0);
+      const dt = (r.discount_type as string) || null;
+      const dv = Number(r.discount_value ?? 0);
+      const tp = r.tax_percent != null ? Number(r.tax_percent) : null;
+      let base = qty * up;
+      let disc = 0;
+      if (dt === "percent" && dv > 0) disc = base * (Math.min(100, dv) / 100);
+      else if (dt === "amount" && dv > 0) disc = Math.min(base, dv);
+      let after = Math.max(0, base - disc);
+      let tax = 0;
+      if (tp != null && tp > 0) tax = after * (Math.min(100, tp) / 100);
+      const total = Math.round((after + tax) * 100) / 100;
+      return {
+        id: String(r.id),
+        description: String(r.description ?? ""),
+        quantity: qty,
+        unit_price: up,
+        discount_type: dt,
+        discount_value: dv,
+        tax_percent: tp,
+        total,
+      };
+    });
 
     const itemsTotal = items.reduce((sum, i) => sum + i.total, 0);
     const servicesTotal = services.reduce((sum, s) => sum + s.total, 0);
