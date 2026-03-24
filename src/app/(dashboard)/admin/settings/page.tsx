@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 import { getCompanyId } from "@/lib/company";
 import { CompanySettingsContent } from "./company-settings-content";
 import { BackupSection } from "./backup-section";
-import { WarehousesSection } from "./warehouses-section";
+import { WarehousesSection } from "@/app/(dashboard)/admin/settings/warehouses-section";
 import { AuditSection } from "./audit-section";
 
 export default async function SettingsPage() {
