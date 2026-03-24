@@ -5,6 +5,7 @@ import { db } from "@/lib/db/client";
 import { getCompanyId } from "@/lib/company";
 import { canAccess } from "@/lib/permissions";
 import { EditMinQuantity } from "./edit-min-quantity";
+import { PrintBarcodeButton } from "./print-barcode-button";
 
 export default async function ItemReportPage({
   params,
@@ -133,9 +134,12 @@ export default async function ItemReportPage({
                 <dt className="text-gray-500">الكود</dt>
                 <dd className="text-gray-900 font-medium">{item.code || "—"}</dd>
               </div>
-              <div className="flex justify-between">
-                <dt className="text-gray-500">الباركود</dt>
-                <dd className="text-gray-900 font-mono">{item.barcode || "—"}</dd>
+              <div className="flex justify-between items-start gap-2">
+                <dt className="text-gray-500 shrink-0">الباركود</dt>
+                <dd className="text-gray-900 font-mono flex flex-col gap-2">
+                  <span>{item.barcode || "—"}</span>
+                  <PrintBarcodeButton barcode={item.barcode || ""} itemName={item.name} />
+                </dd>
               </div>
               <div className="flex justify-between">
                 <dt className="text-gray-500">القسم</dt>

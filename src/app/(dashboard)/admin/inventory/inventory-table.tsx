@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useKeyboardShortcut } from "@/hooks/use-keyboard-shortcut";
 import { TableSkeleton } from "@/components/ui/skeleton";
 import { BarcodeScanner } from "@/components/inventory/barcode-scanner";
+import { BarcodeLabelPrint } from "@/components/inventory/barcode-label-print";
 import { addToQueue } from "@/lib/offline-queue";
 import { getErrorMessage } from "@/lib/error-messages";
 
@@ -32,6 +33,7 @@ export function InventoryTable() {
   const [deleteConfirm, setDeleteConfirm] = useState<Item | null>(null);
   const [saving, setSaving] = useState(false);
   const [showScanner, setShowScanner] = useState(false);
+  const [barcodePrint, setBarcodePrint] = useState<{ barcode: string; itemName: string } | null>(null);
   const [categories, setCategories] = useState<string[]>([]);
   const [units, setUnits] = useState<string[]>([]);
   const [newCategory, setNewCategory] = useState("");
@@ -734,6 +736,16 @@ export function InventoryTable() {
                   >
                     مسح
                   </button>
+                  {form.barcode.trim() && (
+                    <button
+                      type="button"
+                      onClick={() => setBarcodePrint({ barcode: form.barcode.trim(), itemName: form.name || "صنف" })}
+                      className="px-4 py-2.5 bg-emerald-100 dark:bg-emerald-900/50 hover:bg-emerald-200 dark:hover:bg-emerald-800/70 text-emerald-800 dark:text-emerald-200 rounded-lg transition shrink-0"
+                      title="طباعة ملصق الباركود"
+                    >
+                      طباعة
+                    </button>
+                  )}
                 </div>
               </div>
 
@@ -895,6 +907,14 @@ export function InventoryTable() {
             setShowScanner(false);
           }}
           onClose={() => setShowScanner(false)}
+        />
+      )}
+
+      {barcodePrint && (
+        <BarcodeLabelPrint
+          barcode={barcodePrint.barcode}
+          itemName={barcodePrint.itemName}
+          onClose={() => setBarcodePrint(null)}
         />
       )}
     </>
