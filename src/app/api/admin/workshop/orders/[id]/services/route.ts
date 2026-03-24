@@ -65,11 +65,14 @@ export async function POST(
     const total = qty * price;
 
     const orderCheck = await db.execute({
-      sql: "SELECT id FROM repair_orders WHERE id = ? AND company_id = ?",
+      sql: "SELECT id, invoice_id FROM repair_orders WHERE id = ? AND company_id = ?",
       args: [orderId, companyId],
     });
     if (orderCheck.rows.length === 0) {
       return NextResponse.json({ error: "أمر غير موجود" }, { status: 404 });
+    }
+    if (orderCheck.rows[0]?.invoice_id) {
+      return NextResponse.json({ error: "لا يمكن التعديل بعد إصدار الفاتورة" }, { status: 400 });
     }
 
     const serviceId = randomUUID();
@@ -107,7 +110,23 @@ export async function DELETE(
     return NextResponse.json({ error: "معرف الخدمة مطلوب" }, { status: 400 });
   }
 
+  const { id: orderId } = await params;
+
   try {
+    const orderCheck = await db.execute({
+      sql: "SELECT invoice_id FROM repair_orders WHERE id = ? AND company_id = ?",
+      args: [orderId, companyId],
+    });
+    if (orderCheck.rows.length === 0) return NextResponse.json({ error: "أمر غير موجود" }, { status: 404 });
+    if (orderCheck.rows[0]?.invoice_id) {
+      return NextResponse.json({ error: "لا يمكن التعديل بعد إصدار الفاتورة" }, { status: 400 });
+    }
+    const svcCheck = await db.execute({
+      sql: "SELECT id FROM repair_order_services WHERE id = ? AND repair_order_id = ?",
+      args: [serviceId, orderId],
+    });
+    if (svcCheck.rows.length === 0) return NextResponse.json({ error: "الخدمة غير موجودة" }, { status: 404 });
+
     await db.execute({
       sql: "DELETE FROM repair_order_services WHERE id = ?",
       args: [serviceId],

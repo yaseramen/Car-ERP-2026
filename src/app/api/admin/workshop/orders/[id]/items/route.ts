@@ -67,7 +67,7 @@ export async function POST(
     const qty = Number(quantity);
 
     const orderResult = await db.execute({
-      sql: "SELECT id, warehouse_id, stage FROM repair_orders WHERE id = ? AND company_id = ?",
+      sql: "SELECT id, warehouse_id, stage, invoice_id FROM repair_orders WHERE id = ? AND company_id = ?",
       args: [orderId, companyId],
     });
 
@@ -76,6 +76,10 @@ export async function POST(
     }
 
     const order = orderResult.rows[0];
+    if (order.invoice_id) {
+      return NextResponse.json({ error: "لا يمكن التعديل بعد إصدار الفاتورة" }, { status: 400 });
+    }
+
     const stage = order.stage as string;
     if (stage !== "maintenance" && stage !== "ready") {
       return NextResponse.json(
@@ -149,5 +153,82 @@ export async function POST(
   } catch (error) {
     console.error("Add item error:", error);
     return NextResponse.json({ error: "فشل في إضافة القطعة" }, { status: 500 });
+  }
+}
+
+export async function DELETE(
+  request: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const session = await auth();
+  const companyId = getCompanyId(session);
+  if (!session?.user || !companyId || !ALLOWED_ROLES.includes(session.user.role as (typeof ALLOWED_ROLES)[number])) {
+    return NextResponse.json({ error: "غير مصرح" }, { status: 401 });
+  }
+
+  const { searchParams } = new URL(request.url);
+  const itemId = searchParams.get("item_id");
+  if (!itemId) {
+    return NextResponse.json({ error: "معرف القطعة مطلوب" }, { status: 400 });
+  }
+
+  const { id: orderId } = await params;
+
+  try {
+    const orderCheck = await db.execute({
+      sql: "SELECT invoice_id, stage FROM repair_orders WHERE id = ? AND company_id = ?",
+      args: [orderId, companyId],
+    });
+    if (orderCheck.rows.length === 0) return NextResponse.json({ error: "أمر الإصلاح غير موجود" }, { status: 404 });
+    if (orderCheck.rows[0]?.invoice_id) {
+      return NextResponse.json({ error: "لا يمكن التعديل بعد إصدار الفاتورة" }, { status: 400 });
+    }
+
+    const roiResult = await db.execute({
+      sql: "SELECT roi.id, roi.item_id, roi.quantity, roi.warehouse_id, roi.stock_movement_id FROM repair_order_items roi JOIN repair_orders ro ON roi.repair_order_id = ro.id WHERE roi.id = ? AND roi.repair_order_id = ? AND ro.company_id = ?",
+      args: [itemId, orderId, companyId],
+    });
+    if (roiResult.rows.length === 0) {
+      return NextResponse.json({ error: "القطعة غير موجودة" }, { status: 404 });
+    }
+
+    const row = roiResult.rows[0];
+    const qty = Number(row.quantity ?? 0);
+    const warehouseId = row.warehouse_id as string;
+    const dbItemId = row.item_id as string;
+
+    if (qty > 0 && warehouseId) {
+      const smId = randomUUID();
+      await db.execute({
+        sql: `INSERT INTO stock_movements (id, item_id, warehouse_id, quantity, movement_type, reference_type, reference_id, performed_by)
+              VALUES (?, ?, ?, ?, 'return', 'repair_order_item_remove', ?, ?)`,
+        args: [smId, dbItemId, warehouseId, qty, itemId, session.user.id],
+      });
+      const stockExisting = await db.execute({
+        sql: "SELECT id FROM item_warehouse_stock WHERE item_id = ? AND warehouse_id = ?",
+        args: [dbItemId, warehouseId],
+      });
+      if (stockExisting.rows.length > 0) {
+        await db.execute({
+          sql: "UPDATE item_warehouse_stock SET quantity = quantity + ?, updated_at = datetime('now') WHERE item_id = ? AND warehouse_id = ?",
+          args: [qty, dbItemId, warehouseId],
+        });
+      } else {
+        await db.execute({
+          sql: "INSERT INTO item_warehouse_stock (id, item_id, warehouse_id, quantity) VALUES (?, ?, ?, ?)",
+          args: [randomUUID(), dbItemId, warehouseId, qty],
+        });
+      }
+    }
+
+    await db.execute({
+      sql: "DELETE FROM repair_order_items WHERE id = ?",
+      args: [itemId],
+    });
+
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    console.error("Remove item error:", error);
+    return NextResponse.json({ error: "فشل في إزالة القطعة" }, { status: 500 });
   }
 }
