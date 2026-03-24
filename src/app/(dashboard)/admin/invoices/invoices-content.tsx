@@ -57,6 +57,7 @@ export function InvoicesContent() {
   const [page, setPage] = useState(1);
   const [totalInvoices, setTotalInvoices] = useState(0);
   const [searchQuery, setSearchQuery] = useState("");
+  const [searchDebounced, setSearchDebounced] = useState("");
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
 
@@ -65,8 +66,13 @@ export function InvoicesContent() {
   }, [statusFromUrl]);
 
   useEffect(() => {
+    const t = setTimeout(() => setSearchDebounced(searchQuery), 350);
+    return () => clearTimeout(t);
+  }, [searchQuery]);
+
+  useEffect(() => {
     setPage(1);
-  }, [typeFilter, statusFilter, searchQuery, dateFrom, dateTo]);
+  }, [typeFilter, statusFilter, searchDebounced, dateFrom, dateTo]);
 
   const totalPages = Math.max(1, Math.ceil(totalInvoices / ROWS_PER_PAGE));
 
@@ -79,7 +85,7 @@ export function InvoicesContent() {
       params.set("offset", String((p - 1) * ROWS_PER_PAGE));
       if (typeFilter !== "all") params.set("type", typeFilter);
       if (statusFilter !== "all") params.set("status", statusFilter);
-      if (searchQuery.trim()) params.set("search", searchQuery.trim());
+      if (searchDebounced.trim()) params.set("search", searchDebounced.trim());
       if (dateFrom) params.set("from", dateFrom);
       if (dateTo) params.set("to", dateTo);
       const res = await fetch(`/api/admin/invoices?${params}`);
@@ -101,27 +107,19 @@ export function InvoicesContent() {
 
   useEffect(() => {
     fetchInvoices({ page });
-  }, [page, typeFilter, statusFilter, searchQuery, dateFrom, dateTo]);
+  }, [page, typeFilter, statusFilter, searchDebounced, dateFrom, dateTo]);
 
-  if (loading) {
-    return (
-      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden">
-        <div className="p-4 border-b border-gray-100 dark:border-gray-700">
-          <div className="h-6 w-32 bg-gray-200 dark:bg-gray-700 animate-pulse rounded" />
-        </div>
-        <TableSkeleton rows={8} cols={6} />
-      </div>
-    );
-  }
+  const showFullSkeleton = loading && invoices.length === 0;
 
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap gap-2 items-center">
         <input
-          type="text"
+          type="search"
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
           placeholder="بحث برقم الفاتورة، العميل، اللوحة..."
+          autoComplete="off"
           className="px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100 text-sm w-56 placeholder-gray-400"
         />
         <input
@@ -181,8 +179,12 @@ export function InvoicesContent() {
         ))}
       </div>
 
-      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden">
+      <div className={`bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden transition-opacity ${loading ? "opacity-70" : ""}`}>
       <div className="overflow-x-auto">
+        {showFullSkeleton ? (
+          <TableSkeleton rows={8} cols={6} />
+        ) : (
+        <>
         <table className="w-full">
           <thead>
             <tr className="bg-gray-50 dark:bg-gray-700/50 border-b border-gray-100 dark:border-gray-600">
@@ -262,6 +264,8 @@ export function InvoicesContent() {
               التالي
             </button>
           </div>
+        )}
+        </>
         )}
       </div>
       </div>

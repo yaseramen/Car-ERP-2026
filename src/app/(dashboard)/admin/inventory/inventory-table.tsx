@@ -41,7 +41,12 @@ export function InventoryTable() {
   const [editingCell, setEditingCell] = useState<{ itemId: string; field: "category" | "min_quantity" } | null>(null);
   const [page, setPage] = useState(1);
   const [searchQuery, setSearchQuery] = useState("");
+  const [searchDebounced, setSearchDebounced] = useState("");
   const inventoryFormRef = useRef<HTMLFormElement>(null);
+  const pageRef = useRef(page);
+  const searchDebouncedRef = useRef(searchDebounced);
+  pageRef.current = page;
+  searchDebouncedRef.current = searchDebounced;
   const [form, setForm] = useState({
     name: "",
     code: "",
@@ -56,7 +61,7 @@ export function InventoryTable() {
   async function fetchItems(opts?: { page?: number; search?: string }) {
     try {
       const page = opts?.page ?? 1;
-      const search = opts?.search ?? searchQuery;
+      const search = opts?.search ?? searchDebounced;
       const limit = 50;
       const offset = (page - 1) * limit;
       const url = `/api/admin/inventory/items?limit=${limit}&offset=${offset}${search ? `&search=${encodeURIComponent(search)}` : ""}`;
@@ -117,12 +122,12 @@ export function InventoryTable() {
 
   useEffect(() => {
     const handleOnline = () => {
-      fetchItems({ page, search: searchQuery });
+      fetchItems({ page: pageRef.current, search: searchDebouncedRef.current });
       fetchCategories();
       fetchLowStock();
     };
     const handleRefresh = () => {
-      fetchItems({ page, search: searchQuery });
+      fetchItems({ page: pageRef.current, search: searchDebouncedRef.current });
       fetchCategories();
       fetchLowStock();
     };
@@ -135,11 +140,16 @@ export function InventoryTable() {
   }, []);
 
   useEffect(() => {
-    const p = searchQuery ? 1 : page;
-    if (searchQuery) setPage(1);
+    const t = setTimeout(() => setSearchDebounced(searchQuery), 350);
+    return () => clearTimeout(t);
+  }, [searchQuery]);
+
+  useEffect(() => {
+    const p = searchDebounced ? 1 : page;
+    if (searchDebounced) setPage(1);
     setLoading(true);
-    fetchItems({ page: p, search: searchQuery });
-  }, [page, searchQuery]);
+    fetchItems({ page: p, search: searchDebounced });
+  }, [page, searchDebounced]);
 
   useKeyboardShortcut({
     onSave: () => modalOpen && !saving && inventoryFormRef.current?.requestSubmit(),
@@ -345,7 +355,7 @@ export function InventoryTable() {
           return;
         }
         const newItem = await res.json();
-        fetchItems({ page: 1, search: searchQuery });
+        fetchItems({ page: 1, search: searchDebounced });
         fetchLowStock();
         fetchCategories();
       }
@@ -409,7 +419,7 @@ export function InventoryTable() {
         alert(err.error || "فشل في الحذف");
         return;
       }
-      fetchItems({ page, search: searchQuery });
+      fetchItems({ page, search: searchDebounced });
       fetchLowStock();
       setDeleteConfirm(null);
     } catch (err) {
@@ -430,19 +440,9 @@ export function InventoryTable() {
   const inputClass =
     "w-full px-4 py-2.5 rounded-lg border border-gray-300 bg-white text-gray-900 placeholder-gray-500 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none";
 
-  if (loading) {
-    return (
-      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden">
-        <div className="p-4 border-b border-gray-100 dark:border-gray-700">
-          <div className="h-6 w-40 bg-gray-200 dark:bg-gray-700 animate-pulse rounded" />
-        </div>
-        <TableSkeleton rows={10} cols={8} />
-      </div>
-    );
-  }
-
   const ROWS_PER_PAGE = 50;
   const totalPages = Math.max(1, Math.ceil(totalItems / ROWS_PER_PAGE));
+  const showFullTableSkeleton = loading && items.length === 0 && page === 1 && !searchDebounced;
 
   function handlePageChange(newPage: number) {
     if (newPage === page) return;
@@ -496,12 +496,13 @@ export function InventoryTable() {
         </div>
       )}
 
-      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden">
+      <div className={`bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden ${loading ? "opacity-90" : ""}`}>
         <div className="p-4 border-b border-gray-100 dark:border-gray-700 flex flex-wrap gap-3 justify-between items-center">
           <h2 className="font-medium text-gray-900 dark:text-gray-100">الأصناف</h2>
           <div className="flex gap-2 items-center">
             <input
-              type="text"
+              type="search"
+              autoComplete="off"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="بحث بالاسم، الكود، الباركود، القسم..."
@@ -520,6 +521,10 @@ export function InventoryTable() {
         </div>
 
         <div className="overflow-x-auto">
+          {showFullTableSkeleton ? (
+            <TableSkeleton rows={10} cols={8} />
+          ) : (
+            <>
           <table className="w-full">
             <thead>
               <tr className="bg-gray-50 dark:bg-gray-700/50 border-b border-gray-100 dark:border-gray-700">
@@ -537,7 +542,7 @@ export function InventoryTable() {
               {items.length === 0 ? (
                 <tr>
                   <td colSpan={8} className="px-4 py-12 text-center text-gray-500 dark:text-gray-400">
-                    {searchQuery ? "لا توجد نتائج للبحث. جرّب كلمات أخرى." : "لا توجد أصناف. اضغط \"إضافة صنف جديد\" للبدء."}
+                    {searchDebounced ? "لا توجد نتائج للبحث. جرّب كلمات أخرى." : "لا توجد أصناف. اضغط \"إضافة صنف جديد\" للبدء."}
                   </td>
                 </tr>
               ) : (
@@ -681,6 +686,8 @@ export function InventoryTable() {
                 التالي
               </button>
             </div>
+          )}
+            </>
           )}
         </div>
       </div>
