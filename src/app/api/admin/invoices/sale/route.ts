@@ -103,88 +103,118 @@ export async function POST(request: Request) {
     const paid = Number(paid_amount ?? 0);
     const status = paid >= total ? "paid" : paid > 0 ? "partial" : "pending";
 
-    await db.execute({
-      sql: `INSERT INTO invoices (id, company_id, invoice_number, type, status, customer_id, warehouse_id, subtotal, discount, tax, digital_service_fee, total, paid_amount, notes, created_by)
+    let walletRow: { id: string; balance: number } | null = null;
+    if (digitalFee > 0) {
+      const walletCheck = await db.execute({
+        sql: "SELECT id, balance FROM company_wallets WHERE company_id = ?",
+        args: [companyId],
+      });
+      if (walletCheck.rows.length === 0) {
+        return NextResponse.json(
+          { error: "لا يمكن إصدار الفاتورة: رسوم الخدمة الرقمية تتطلب وجود محفظة للشركة." },
+          { status: 400 }
+        );
+      }
+      const bal = Number(walletCheck.rows[0].balance ?? 0);
+      if (bal < digitalFee) {
+        return NextResponse.json(
+          {
+            error: `رصيد المحفظة غير كافٍ لخصم رسوم الخدمة الرقمية (مطلوب ${digitalFee.toFixed(2)} ج.م — متاح ${bal.toFixed(2)} ج.م). يرجى شحن المحفظة ثم إعادة المحاولة.`,
+          },
+          { status: 400 }
+        );
+      }
+      walletRow = { id: String(walletCheck.rows[0].id), balance: bal };
+    }
+
+    let salesTreasuryId: string | null = null;
+    if (paid > 0) {
+      if (!payment_method_id) {
+        return NextResponse.json({ error: "يجب اختيار طريقة الدفع عند تسجيل مبلغ مدفوع." }, { status: 400 });
+      }
+      await ensureTreasuries(companyId);
+      salesTreasuryId = await getTreasuryIdByType(companyId, "sales");
+      if (!salesTreasuryId) {
+        return NextResponse.json(
+          { error: "لا يمكن تسجيل الدفع: خزينة المبيعات غير متاحة. تأكد من إعداد الخزائن في الإعدادات." },
+          { status: 400 }
+        );
+      }
+    }
+
+    const commitStmts: { sql: string; args: (string | number | null)[] }[] = [
+      {
+        sql: `INSERT INTO invoices (id, company_id, invoice_number, type, status, customer_id, warehouse_id, subtotal, discount, tax, digital_service_fee, total, paid_amount, notes, created_by)
             VALUES (?, ?, ?, 'sale', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      args: [
-        invoiceId,
-        companyId,
-        invNum,
-        status,
-        customer_id?.trim() || null,
-        warehouseId,
-        subtotal,
-        discountAmount,
-        taxAmount,
-        digitalFee,
-        total,
-        paid,
-        notes?.trim() || null,
-        session.user.id,
-      ],
-    });
+        args: [
+          invoiceId,
+          companyId,
+          invNum,
+          status,
+          customer_id?.trim() || null,
+          warehouseId,
+          subtotal,
+          discountAmount,
+          taxAmount,
+          digitalFee,
+          total,
+          paid,
+          notes?.trim() || null,
+          session.user.id,
+        ],
+      },
+    ];
 
     for (let i = 0; i < validItems.length; i++) {
       const it = validItems[i];
       const smId = randomUUID();
       const iiId = randomUUID();
-
-      await db.execute({
+      commitStmts.push({
         sql: `INSERT INTO stock_movements (id, item_id, warehouse_id, quantity, movement_type, reference_type, reference_id, performed_by)
               VALUES (?, ?, ?, ?, 'out', 'invoice', ?, ?)`,
         args: [smId, it.item_id, warehouseId, -it.quantity, invoiceId, session.user.id],
       });
-
-      await db.execute({
+      commitStmts.push({
         sql: "UPDATE item_warehouse_stock SET quantity = quantity - ?, updated_at = datetime('now') WHERE item_id = ? AND warehouse_id = ?",
         args: [it.quantity, it.item_id, warehouseId],
       });
-
-      await db.execute({
+      commitStmts.push({
         sql: "INSERT INTO invoice_items (id, invoice_id, item_id, quantity, unit_price, total, sort_order) VALUES (?, ?, ?, ?, ?, ?, ?)",
         args: [iiId, invoiceId, it.item_id, it.quantity, it.unit_price, it.total, i],
       });
     }
 
-    if (paid > 0 && payment_method_id) {
-      let treasuryId: string | null = null;
-      await ensureTreasuries(companyId);
-      treasuryId = await getTreasuryIdByType(companyId, "sales");
-
-      if (treasuryId) {
-        await db.execute({
-          sql: "UPDATE treasuries SET balance = balance + ?, updated_at = datetime('now') WHERE id = ?",
-          args: [paid, treasuryId],
-        });
-        await db.execute({
-          sql: `INSERT INTO treasury_transactions (id, treasury_id, amount, type, description, reference_type, reference_id, payment_method_id, performed_by)
-                VALUES (?, ?, ?, 'in', ?, 'invoice', ?, ?, ?)`,
-          args: [randomUUID(), treasuryId, paid, `فاتورة بيع ${invNum}`, invoiceId, payment_method_id, session.user.id],
-        });
-      }
-
-      await db.execute({
+    if (paid > 0 && salesTreasuryId && payment_method_id) {
+      const payTxId = randomUUID();
+      commitStmts.push({
+        sql: "UPDATE treasuries SET balance = balance + ?, updated_at = datetime('now') WHERE id = ?",
+        args: [paid, salesTreasuryId],
+      });
+      commitStmts.push({
+        sql: `INSERT INTO treasury_transactions (id, treasury_id, amount, type, description, reference_type, reference_id, payment_method_id, performed_by)
+              VALUES (?, ?, ?, 'in', ?, 'invoice', ?, ?, ?)`,
+        args: [payTxId, salesTreasuryId, paid, `فاتورة بيع ${invNum}`, invoiceId, payment_method_id, session.user.id],
+      });
+      commitStmts.push({
         sql: `INSERT INTO invoice_payments (id, invoice_id, amount, payment_method_id, treasury_id, created_by)
               VALUES (?, ?, ?, ?, ?, ?)`,
-        args: [randomUUID(), invoiceId, paid, payment_method_id, treasuryId, session.user.id],
+        args: [randomUUID(), invoiceId, paid, payment_method_id, salesTreasuryId, session.user.id],
       });
     }
 
-    const walletResult = await db.execute({
-      sql: "SELECT id, balance FROM company_wallets WHERE company_id = ?",
-      args: [companyId],
-    });
-    if (walletResult.rows.length > 0 && Number(walletResult.rows[0].balance ?? 0) >= digitalFee) {
-      await db.execute({
+    if (digitalFee > 0 && walletRow) {
+      commitStmts.push({
         sql: "UPDATE company_wallets SET balance = balance - ? WHERE company_id = ?",
         args: [digitalFee, companyId],
       });
-      await db.execute({
+      commitStmts.push({
         sql: `INSERT INTO wallet_transactions (id, wallet_id, amount, type, description, reference_type, reference_id, performed_by)
               VALUES (?, ?, ?, 'digital_service', ?, 'invoice', ?, ?)`,
-        args: [randomUUID(), walletResult.rows[0].id, digitalFee, `خدمة رقمية - فاتورة ${invNum}`, invoiceId, session.user.id],
+        args: [randomUUID(), walletRow.id, digitalFee, `خدمة رقمية - فاتورة ${invNum}`, invoiceId, session.user.id],
       });
     }
+
+    await db.batch(commitStmts, "write");
 
     return NextResponse.json({
       id: invoiceId,

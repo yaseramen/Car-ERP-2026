@@ -55,9 +55,44 @@ export async function PATCH(
 
       const invoiceId = randomUUID();
       let subtotal = 0;
+      for (const row of itemsResult.rows) {
+        subtotal += Number(row.total ?? 0);
+      }
+      for (const row of servicesResult.rows) {
+        subtotal += Number(row.total ?? 0);
+      }
 
       const order = orderResult.rows[0];
       const customerId = order.customer_id || null;
+      const orderType = order.order_type ?? "maintenance";
+
+      const { getDigitalFeeConfig, calcDigitalFee } = await import("@/lib/digital-fee");
+      const feeConfig = await getDigitalFeeConfig(companyId);
+      const digitalFeePreview = calcDigitalFee(subtotal, feeConfig);
+
+      if (digitalFeePreview > 0) {
+        const walletCheck = await db.execute({
+          sql: "SELECT id, balance FROM company_wallets WHERE company_id = ?",
+          args: [companyId],
+        });
+        if (walletCheck.rows.length === 0) {
+          return NextResponse.json(
+            { error: "لا يمكن إتمام أمر الصيانة: رسوم الخدمة الرقمية تتطلب وجود محفظة للشركة." },
+            { status: 400 }
+          );
+        }
+        const bal = Number(walletCheck.rows[0].balance ?? 0);
+        if (bal < digitalFeePreview) {
+          return NextResponse.json(
+            {
+              error: `رصيد المحفظة غير كافٍ لخصم رسوم الخدمة الرقمية (مطلوب ${digitalFeePreview.toFixed(2)} ج.م — متاح ${bal.toFixed(2)} ج.م). يرجى شحن المحفظة ثم المحاولة مرة أخرى.`,
+            },
+            { status: 400 }
+          );
+        }
+      }
+
+      subtotal = 0;
 
       await db.execute({
         sql: `INSERT INTO invoices (id, company_id, invoice_number, type, status, customer_id, repair_order_id, warehouse_id, subtotal, total, paid_amount, created_by)
@@ -66,7 +101,6 @@ export async function PATCH(
       });
 
       let sortOrder = 0;
-      const orderType = order.order_type ?? "maintenance";
 
       for (let i = 0; i < itemsResult.rows.length; i++) {
         const item = itemsResult.rows[i];
@@ -94,9 +128,7 @@ export async function PATCH(
         });
       }
 
-      const { getDigitalFeeConfig, calcDigitalFee } = await import("@/lib/digital-fee");
-      const feeConfig = await getDigitalFeeConfig(companyId);
-      const digitalFee = calcDigitalFee(subtotal, feeConfig);
+      const digitalFee = digitalFeePreview;
       const total = subtotal + digitalFee;
 
       await db.execute({
@@ -109,19 +141,21 @@ export async function PATCH(
         args: [invoiceId, id, companyId],
       });
 
-      const walletResult = await db.execute({
-        sql: "SELECT id, balance FROM company_wallets WHERE company_id = ?",
-        args: [companyId],
-      });
-      if (walletResult.rows.length > 0 && Number(walletResult.rows[0].balance ?? 0) >= digitalFee) {
-        await db.execute({
-          sql: "UPDATE company_wallets SET balance = balance - ? WHERE company_id = ?",
-          args: [digitalFee, companyId],
+      if (digitalFee > 0) {
+        const walletResult = await db.execute({
+          sql: "SELECT id FROM company_wallets WHERE company_id = ?",
+          args: [companyId],
         });
-        await db.execute({
-          sql: "INSERT INTO wallet_transactions (id, wallet_id, amount, type, description, reference_type, reference_id, performed_by) VALUES (?, ?, ?, 'digital_service', ?, 'invoice', ?, ?)",
-          args: [randomUUID(), walletResult.rows[0].id, digitalFee, `خدمة رقمية - فاتورة ${invNum}`, invoiceId, session.user.id],
-        });
+        if (walletResult.rows.length > 0) {
+          await db.execute({
+            sql: "UPDATE company_wallets SET balance = balance - ? WHERE company_id = ?",
+            args: [digitalFee, companyId],
+          });
+          await db.execute({
+            sql: "INSERT INTO wallet_transactions (id, wallet_id, amount, type, description, reference_type, reference_id, performed_by) VALUES (?, ?, ?, 'digital_service', ?, 'invoice', ?, ?)",
+            args: [randomUUID(), walletResult.rows[0].id, digitalFee, `خدمة رقمية - فاتورة ${invNum}`, invoiceId, session.user.id],
+          });
+        }
       }
 
       return NextResponse.json({ success: true, invoice_id: invoiceId, invoice_number: invNum });
