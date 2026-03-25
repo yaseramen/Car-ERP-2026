@@ -38,7 +38,15 @@ export function TeamContent() {
   const [screens, setScreens] = useState<{ id: string; name_ar: string; module: string }[]>([]);
   const [perms, setPerms] = useState<ScreenPerm[]>([]);
 
-  const [form, setForm] = useState({ email: "", password: "", name: "", phone: "", role: "employee" });
+  const [form, setForm] = useState({
+    email: "",
+    password: "",
+    newPassword: "",
+    confirmPassword: "",
+    name: "",
+    phone: "",
+    role: "employee",
+  });
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
 
@@ -77,9 +85,25 @@ export function TeamContent() {
     try {
       const url = editingUser ? `/api/admin/users/${editingUser.id}` : "/api/admin/users";
       const method = editingUser ? "PATCH" : "POST";
-      const body = editingUser
-        ? { name: form.name, phone: form.phone || null }
-        : { email: form.email, password: form.password, name: form.name, phone: form.phone || null, role: form.role };
+      let body: Record<string, unknown>;
+      if (editingUser) {
+        body = { name: form.name, phone: form.phone || null };
+        if (form.newPassword.trim()) {
+          if (form.newPassword !== form.confirmPassword) {
+            setError("تأكيد كلمة المرور لا يطابق الجديدة");
+            setSubmitting(false);
+            return;
+          }
+          if (form.newPassword.length < 6) {
+            setError("كلمة المرور الجديدة 6 أحرف على الأقل");
+            setSubmitting(false);
+            return;
+          }
+          body.password = form.newPassword;
+        }
+      } else {
+        body = { email: form.email, password: form.password, name: form.name, phone: form.phone || null, role: form.role };
+      }
 
       const res = await fetch(url, { method, headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
       const data = await res.json();
@@ -90,7 +114,7 @@ export function TeamContent() {
       }
       setShowForm(false);
       setEditingUser(null);
-      setForm({ email: "", password: "", name: "", phone: "", role: "employee" });
+      setForm({ email: "", password: "", newPassword: "", confirmPassword: "", name: "", phone: "", role: "employee" });
       loadUsers();
     } finally {
       setSubmitting(false);
@@ -149,7 +173,7 @@ export function TeamContent() {
           onClick={() => {
             setShowForm(true);
             setEditingUser(null);
-            setForm({ email: "", password: "", name: "", phone: "", role: "employee" });
+            setForm({ email: "", password: "", newPassword: "", confirmPassword: "", name: "", phone: "", role: "employee" });
           }}
           className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 text-sm font-medium"
         >
@@ -216,6 +240,38 @@ export function TeamContent() {
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg"
               />
             </div>
+            {editingUser && (
+              <>
+                <div className="pt-2 border-t border-gray-100">
+                  <p className="text-sm text-gray-500 mb-3">تغيير كلمة مرور الموظف (اختياري — اتركه فارغاً للإبقاء على الحالية)</p>
+                  <div className="space-y-3">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">كلمة المرور الجديدة</label>
+                      <input
+                        type="password"
+                        minLength={6}
+                        autoComplete="new-password"
+                        value={form.newPassword}
+                        onChange={(e) => setForm((f) => ({ ...f, newPassword: e.target.value }))}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                        placeholder="اتركه فارغاً إذا لم ترد التغيير"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">تأكيد كلمة المرور</label>
+                      <input
+                        type="password"
+                        minLength={6}
+                        autoComplete="new-password"
+                        value={form.confirmPassword}
+                        onChange={(e) => setForm((f) => ({ ...f, confirmPassword: e.target.value }))}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                      />
+                    </div>
+                  </div>
+                </div>
+              </>
+            )}
             {error && <p className="text-red-600 text-sm">{error}</p>}
             <div className="flex gap-2">
               <button type="submit" disabled={submitting} className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 disabled:opacity-50">
@@ -266,7 +322,15 @@ export function TeamContent() {
                     <button
                       onClick={() => {
                         setEditingUser(u);
-                        setForm({ email: u.email, password: "", name: u.name, phone: u.phone || "", role: u.role });
+                        setForm({
+                          email: u.email,
+                          password: "",
+                          newPassword: "",
+                          confirmPassword: "",
+                          name: u.name,
+                          phone: u.phone || "",
+                          role: u.role,
+                        });
                         setShowForm(true);
                       }}
                       className="text-sm text-blue-600 hover:underline"
