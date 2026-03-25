@@ -77,7 +77,7 @@ export default function HomePage() {
         dangerouslySetInnerHTML={{ __html: JSON.stringify(JSON_LD) }}
       />
       {/* Hero */}
-      <section className="relative bg-gradient-to-b from-emerald-50 to-white py-16 sm:py-24 px-6">
+      <section className="marketing-hero relative bg-gradient-to-b from-emerald-50 to-white py-16 sm:py-24 px-6">
         <div className="max-w-4xl mx-auto text-center">
           <h1 className="text-4xl sm:text-5xl font-extrabold text-emerald-900 mb-4 tracking-tight">
             EFCT
@@ -147,7 +147,7 @@ export default function HomePage() {
       </section>
 
       {/* لمن هذا البرنامج */}
-      <section className="py-12 px-6 bg-emerald-50/50">
+      <section className="marketing-emerald-tint py-12 px-6 bg-emerald-50/50">
         <div className="max-w-4xl mx-auto">
           <h2 className="text-2xl font-bold text-gray-900 mb-6 text-center">
             لمن هذا البرنامج؟

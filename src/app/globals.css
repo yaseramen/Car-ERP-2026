@@ -126,6 +126,36 @@ html.dark .light-section .hover\:text-emerald-700:hover {
   color: #047857 !important;
 }
 
+/*
+ * الصفحة الرئيسية (light-section): في الوضع الليلي تُحوَّل bg-white و bg-gray-50 إلى خلفيات داكنة
+ * بينما النص يبقى داكنًا — فيختفي النص. نُبقي الخلفيات فاتحة داخل light-section فقط.
+ */
+html.dark .light-section {
+  background-color: #ffffff !important;
+  color: #171717 !important;
+}
+html.dark .light-section .bg-gray-50 {
+  background-color: #f9fafb !important;
+}
+html.dark .light-section .bg-white.rounded-xl,
+html.dark .light-section .bg-white.rounded-lg,
+html.dark .light-section .bg-white.rounded-md {
+  background-color: #ffffff !important;
+  border-color: #e5e7eb !important;
+}
+html.dark .light-section .border-gray-100 {
+  border-color: #f3f4f6 !important;
+}
+html.dark .light-section .border-gray-200 {
+  border-color: #e5e7eb !important;
+}
+html.dark .light-section .marketing-hero {
+  background: linear-gradient(to bottom, #ecfdf5, #ffffff) !important;
+}
+html.dark .light-section .marketing-emerald-tint {
+  background-color: rgba(236, 253, 245, 0.5) !important;
+}
+
 /* إجبار جميع نصوص gray على اللون الفاتح في الوضع الليلي */
 html.dark [class*="text-gray-900"],
 html.dark [class*="text-gray-950"],
