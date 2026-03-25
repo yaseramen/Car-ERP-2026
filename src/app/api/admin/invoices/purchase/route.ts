@@ -5,6 +5,7 @@ import { getCompanyId } from "@/lib/company";
 import { ensureCompanyWarehouse } from "@/lib/warehouse";
 import { randomUUID } from "crypto";
 import { allocateInvoiceNumber } from "@/lib/invoice-numbers";
+import { logAudit } from "@/lib/audit";
 
 const ALLOWED_ROLES = ["super_admin", "tenant_owner", "employee"] as const;
 
@@ -116,6 +117,16 @@ export async function POST(request: Request) {
         args: [it.unit_price, it.item_id, companyId],
       });
     }
+
+    await logAudit({
+      companyId,
+      userId: session.user.id,
+      userName: session.user.name ?? session.user.email ?? undefined,
+      action: "invoice_create",
+      entityType: "invoice",
+      entityId: invoiceId,
+      details: `إنشاء فاتورة شراء ${invNum}`,
+    });
 
     return NextResponse.json({
       id: invoiceId,

@@ -5,6 +5,7 @@ import { getCompanyId } from "@/lib/company";
 import { randomUUID } from "crypto";
 import { WALLET_CHARGE_MESSAGE, walletInsufficientError } from "@/lib/wallet-charge-contact";
 import { allocateInvoiceNumber } from "@/lib/invoice-numbers";
+import { logAudit } from "@/lib/audit";
 
 const ALLOWED_ROLES = ["super_admin", "tenant_owner", "employee"] as const;
 
@@ -151,6 +152,16 @@ export async function PATCH(
           });
         }
       }
+
+      await logAudit({
+        companyId,
+        userId: session.user.id,
+        userName: session.user.name ?? session.user.email ?? undefined,
+        action: "invoice_create",
+        entityType: "invoice",
+        entityId: invoiceId,
+        details: `إنشاء فاتورة صيانة ${invNum} من أمر الإصلاح`,
+      });
 
       return NextResponse.json({ success: true, invoice_id: invoiceId, invoice_number: invNum });
     }

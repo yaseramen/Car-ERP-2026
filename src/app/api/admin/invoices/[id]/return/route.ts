@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { db } from "@/lib/db/client";
 import { getCompanyId } from "@/lib/company";
+import { logAudit } from "@/lib/audit";
 import { randomUUID } from "crypto";
 
 const ALLOWED_ROLES = ["super_admin", "tenant_owner", "employee"] as const;
@@ -133,6 +134,16 @@ export async function POST(
     await db.execute({
       sql: "UPDATE invoices SET status = 'returned', updated_at = datetime('now') WHERE id = ? AND company_id = ?",
       args: [invoiceId, companyId],
+    });
+
+    await logAudit({
+      companyId,
+      userId: session.user.id,
+      userName: session.user.name ?? session.user.email ?? undefined,
+      action: "invoice_return",
+      entityType: "invoice",
+      entityId: invoiceId,
+      details: `مرتجع كامل للفاتورة ${invNum}`,
     });
 
     return NextResponse.json({ success: true, message: "تم تحويل الفاتورة إلى مرتجع" });

@@ -4,6 +4,7 @@ import { db } from "@/lib/db/client";
 import { getCompanyId } from "@/lib/company";
 import { randomUUID } from "crypto";
 import { allocateReturnInvoiceNumber } from "@/lib/invoice-numbers";
+import { logAudit } from "@/lib/audit";
 
 const ALLOWED_ROLES = ["super_admin", "tenant_owner", "employee"] as const;
 
@@ -217,6 +218,16 @@ export async function POST(
         }
       }
     }
+
+    await logAudit({
+      companyId,
+      userId: session.user.id,
+      userName: session.user.name ?? session.user.email ?? undefined,
+      action: "invoice_return",
+      entityType: "invoice",
+      entityId: returnInvoiceId,
+      details: `مرتجع جزئي ${returnInvNum} عن ${invNum}`,
+    });
 
     return NextResponse.json({
       success: true,

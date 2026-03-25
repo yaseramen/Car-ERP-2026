@@ -32,12 +32,14 @@ export default async function InvoiceDetailPage({
             comp.tax_number as company_tax_number, comp.commercial_registration as company_commercial_registration,
             c.name as customer_name, c.phone as customer_phone,
             s.name as supplier_name, s.phone as supplier_phone,
-            ro.order_number, ro.vehicle_plate, ro.vehicle_model
+            ro.order_number, ro.vehicle_plate, ro.vehicle_model,
+            u.name as created_by_name, u.email as created_by_email
             FROM invoices inv
             LEFT JOIN companies comp ON inv.company_id = comp.id
             LEFT JOIN customers c ON inv.customer_id = c.id
             LEFT JOIN suppliers s ON inv.supplier_id = s.id
             LEFT JOIN repair_orders ro ON inv.repair_order_id = ro.id
+            LEFT JOIN users u ON inv.created_by = u.id
             WHERE inv.id = ? AND inv.company_id = ?`,
       args: [id, companyId],
     });
@@ -73,6 +75,8 @@ export default async function InvoiceDetailPage({
       repair_order_id: row.repair_order_id ? String(row.repair_order_id) : null,
       notes: row.notes ? String(row.notes) : null,
       created_at: String(row.created_at ?? ""),
+      created_by_name: row.created_by_name ? String(row.created_by_name) : null,
+      created_by_email: row.created_by_email ? String(row.created_by_email) : null,
     };
 
     const itemsResult = await db.execute({
@@ -146,6 +150,8 @@ export default async function InvoiceDetailPage({
             companyName={data.company_name}
             customerName={data.customer_name}
             supplierName={data.supplier_name}
+            issuedByName={data.created_by_name}
+            issuedByEmail={data.created_by_email}
             items={items}
           />
         </div>
@@ -230,6 +236,17 @@ export default async function InvoiceDetailPage({
                 {new Date(data.created_at).toLocaleString("ar-EG")}
               </dd>
             </div>
+            {(data.created_by_name || data.created_by_email) && (
+              <div className="flex justify-between gap-2">
+                <dt className="text-gray-500 dark:text-gray-400 shrink-0">أصدرها</dt>
+                <dd className="text-gray-900 dark:text-gray-100 text-right">
+                  {data.created_by_name || data.created_by_email}
+                  {data.created_by_name && data.created_by_email ? (
+                    <span className="block text-xs text-gray-500 dark:text-gray-400 mt-0.5">{data.created_by_email}</span>
+                  ) : null}
+                </dd>
+              </div>
+            )}
           </dl>
         </div>
 

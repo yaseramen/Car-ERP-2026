@@ -19,6 +19,9 @@ type InvoiceActionsProps = {
   companyName?: string | null;
   customerName?: string | null;
   supplierName?: string | null;
+  /** من أصدر الفاتورة (للطباعة وواتساب) */
+  issuedByName?: string | null;
+  issuedByEmail?: string | null;
   items?: InvoiceItem[];
 };
 
@@ -39,14 +42,21 @@ function buildWhatsAppText(props: InvoiceActionsProps): string {
     companyName,
     customerName,
     supplierName,
+    issuedByName,
+    issuedByEmail,
     items = [],
   } = props;
   const typeLabel = TYPE_LABELS[invoiceType] || invoiceType;
+  const issuerLine =
+    issuedByName || issuedByEmail
+      ? `👤 أصدرها: ${issuedByName || issuedByEmail}${issuedByName && issuedByEmail ? ` (${issuedByEmail})` : ""}`
+      : null;
 
   const lines: string[] = [
     `📄 فاتورة ${typeLabel} رقم ${invoiceNumber}`,
     companyName ? `🏢 ${companyName}` : null,
     customerName ? `👤 العميل: ${customerName}` : supplierName ? `🏭 المورد: ${supplierName}` : null,
+    issuerLine,
     "",
     "── البنود ──",
   ].filter(Boolean) as string[];

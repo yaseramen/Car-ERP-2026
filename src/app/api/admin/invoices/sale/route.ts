@@ -7,6 +7,7 @@ import { ensureTreasuries, getTreasuryIdByType } from "@/lib/treasuries";
 import { getDigitalFeeConfig, calcDigitalFee } from "@/lib/digital-fee";
 import { WALLET_CHARGE_MESSAGE, walletInsufficientError } from "@/lib/wallet-charge-contact";
 import { allocateInvoiceNumber } from "@/lib/invoice-numbers";
+import { logAudit } from "@/lib/audit";
 import { randomUUID } from "crypto";
 
 const ALLOWED_ROLES = ["super_admin", "tenant_owner", "employee"] as const;
@@ -210,6 +211,17 @@ export async function POST(request: Request) {
     }
 
     await db.batch(commitStmts, "write");
+
+    const issuerName = session.user.name ?? session.user.email ?? undefined;
+    await logAudit({
+      companyId,
+      userId: session.user.id,
+      userName: issuerName,
+      action: "invoice_create",
+      entityType: "invoice",
+      entityId: invoiceId,
+      details: `إنشاء فاتورة بيع ${invNum}`,
+    });
 
     return NextResponse.json({
       id: invoiceId,
