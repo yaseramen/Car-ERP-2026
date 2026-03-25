@@ -69,28 +69,31 @@ const JSON_LD = {
   offers: { "@type": "Offer", price: "0", priceCurrency: "EGP" },
 };
 
+/** حواف أفقية متجاوبة: هاتف مريح، تابلت/سطح مكتب يستغل العرض دون إرهاق العين */
+const SECTION_X = "px-4 sm:px-6 md:px-10 lg:px-12";
+
 export default function HomePage() {
   return (
-    <div className="light-section min-h-screen bg-white" dir="rtl">
+    <div className="light-section min-h-screen bg-white text-gray-900 antialiased" dir="rtl">
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(JSON_LD) }}
       />
       {/* Hero */}
-      <section className="marketing-hero relative bg-gradient-to-b from-emerald-50 to-white py-16 sm:py-24 px-6">
-        <div className="max-w-4xl mx-auto text-center">
-          <h1 className="text-4xl sm:text-5xl font-extrabold text-emerald-900 mb-4 tracking-tight">
+      <section className={`marketing-hero relative bg-gradient-to-b from-emerald-50 to-white py-14 sm:py-20 md:py-24 ${SECTION_X}`}>
+        <div className="max-w-3xl sm:max-w-4xl md:max-w-4xl mx-auto text-center">
+          <h1 className="text-4xl sm:text-5xl md:text-6xl font-extrabold text-emerald-900 mb-4 md:mb-5 tracking-tight text-pretty">
             EFCT
           </h1>
-          <p className="text-xl text-gray-600 mb-2">
-            منصة متكاملة لإدارة <strong>مراكز خدمة السيارات</strong> و{" "}
-            <strong>محلات بيع قطع الغيار</strong>
+          <p className="text-lg sm:text-xl md:text-2xl text-gray-800 mb-3 md:mb-4 font-medium leading-snug text-pretty">
+            منصة متكاملة لإدارة <strong className="font-bold">مراكز خدمة السيارات</strong> و{" "}
+            <strong className="font-bold">محلات بيع قطع الغيار</strong>
           </p>
-          <p className="text-gray-500 mb-10 max-w-2xl mx-auto">
-            أفضل <strong>برامج ادارة مراكز الصيانة</strong> و{" "}
-            <strong>ادارة محلات قطع غيار السيارات</strong> — مخزون، فواتير، ورشة، كاشير، عملاء، موردين، تقارير
+          <p className="text-sm sm:text-base md:text-lg text-gray-700 mb-10 md:mb-12 max-w-2xl mx-auto leading-relaxed text-pretty">
+            أفضل <strong className="font-semibold text-gray-900">برامج ادارة مراكز الصيانة</strong> و{" "}
+            <strong className="font-semibold text-gray-900">ادارة محلات قطع غيار السيارات</strong> — مخزون، فواتير، ورشة، كاشير، عملاء، موردين، تقارير
           </p>
-          <div className="flex flex-col sm:flex-row gap-4 justify-center">
+          <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 justify-center max-w-md sm:max-w-none mx-auto">
             <Link
               href="/login"
               className="inline-flex items-center justify-center px-8 py-4 bg-emerald-600 hover:bg-emerald-700 text-white font-medium rounded-xl transition-colors shadow-lg shadow-emerald-600/25"
@@ -108,17 +111,17 @@ export default function HomePage() {
       </section>
 
       {/* مقدمة */}
-      <section className="py-12 px-6 bg-gray-50">
-        <div className="max-w-4xl mx-auto">
-          <h2 className="text-2xl font-bold text-gray-900 mb-6 text-center">
+      <section className={`py-10 sm:py-12 md:py-14 bg-gray-50 ${SECTION_X}`}>
+        <div className="max-w-3xl sm:max-w-4xl mx-auto">
+          <h2 className="text-xl sm:text-2xl md:text-3xl font-bold text-gray-900 mb-5 md:mb-6 text-center text-pretty">
             برنامج إدارة مراكز الصيانة ومحلات قطع الغيار
           </h2>
-          <p className="text-gray-600 leading-relaxed mb-4">
+          <p className="text-gray-800 text-[15px] sm:text-base md:text-lg leading-relaxed mb-4 md:mb-5">
             <strong>EFCT</strong> هو نظام <strong>إدارة مراكز خدمة السيارات</strong> و{" "}
             <strong>محلات قطع الغيار</strong> مصمم خصيصاً لاحتياجات السوق المصري. يساعدك في إدارة المخزون،
             الفواتير، الورشة، العملاء، الموردين، والتقارير من مكان واحد.
           </p>
-          <p className="text-gray-600 leading-relaxed">
+          <p className="text-gray-800 text-[15px] sm:text-base md:text-lg leading-relaxed">
             سواء كنت تدير <strong>مركز صيانة سيارات</strong> أو <strong>محل قطع غيار</strong> أو كليهما،
             يوفر البرنامج وحدات متكاملة تغطي كل جوانب العمل: من استلام السيارة وفحصها إلى إصدار الفاتورة
             وتتبع المدفوعات.
@@ -127,19 +130,19 @@ export default function HomePage() {
       </section>
 
       {/* المميزات */}
-      <section className="py-16 px-6">
-        <div className="max-w-5xl mx-auto">
-          <h2 className="text-2xl font-bold text-gray-900 mb-10 text-center">
+      <section className={`py-12 sm:py-16 md:py-20 ${SECTION_X}`}>
+        <div className="max-w-5xl xl:max-w-6xl mx-auto">
+          <h2 className="text-xl sm:text-2xl md:text-3xl font-bold text-gray-900 mb-8 md:mb-10 text-center text-pretty px-1">
             مميزات برنامج إدارة مراكز الصيانة وقطع الغيار
           </h2>
-          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5 sm:gap-6 md:gap-8">
             {FEATURES.map((f, i) => (
               <div
                 key={i}
-                className="bg-white rounded-xl p-6 shadow-sm border border-gray-100 hover:border-emerald-100 transition-colors"
+                className="bg-white rounded-xl p-5 sm:p-6 md:p-7 shadow-sm border border-gray-100 hover:border-emerald-100 transition-colors"
               >
-                <h3 className="font-bold text-gray-900 mb-3">{f.title}</h3>
-                <p className="text-gray-600 text-sm leading-relaxed">{f.desc}</p>
+                <h3 className="font-bold text-gray-900 mb-2 md:mb-3 text-base sm:text-lg">{f.title}</h3>
+                <p className="text-gray-700 text-sm sm:text-base leading-relaxed">{f.desc}</p>
               </div>
             ))}
           </div>
@@ -147,12 +150,12 @@ export default function HomePage() {
       </section>
 
       {/* لمن هذا البرنامج */}
-      <section className="marketing-emerald-tint py-12 px-6 bg-emerald-50/50">
-        <div className="max-w-4xl mx-auto">
-          <h2 className="text-2xl font-bold text-gray-900 mb-6 text-center">
+      <section className={`marketing-emerald-tint py-10 sm:py-12 md:py-14 bg-emerald-50/50 ${SECTION_X}`}>
+        <div className="max-w-3xl sm:max-w-4xl mx-auto">
+          <h2 className="text-xl sm:text-2xl md:text-3xl font-bold text-gray-900 mb-5 md:mb-6 text-center text-pretty">
             لمن هذا البرنامج؟
           </h2>
-          <ul className="space-y-3 text-gray-700">
+          <ul className="space-y-3 md:space-y-4 text-gray-800 text-[15px] sm:text-base md:text-lg">
             <li className="flex items-start gap-2">
               <span className="text-emerald-600 mt-1">✓</span>
               <span>
@@ -176,8 +179,8 @@ export default function HomePage() {
       </section>
 
       {/* روابط إضافية */}
-      <section className="py-8 px-6 border-t border-gray-100">
-        <div className="max-w-2xl mx-auto flex flex-wrap justify-center gap-6 text-emerald-600">
+      <section className={`py-8 md:py-10 border-t border-gray-100 ${SECTION_X}`}>
+        <div className="max-w-2xl mx-auto flex flex-wrap justify-center gap-5 sm:gap-6 md:gap-8 text-emerald-600 text-sm sm:text-base">
           <Link href="/how-it-works" className="hover:text-emerald-700 font-medium">
             كيف يعمل البرنامج
           </Link>
@@ -191,12 +194,12 @@ export default function HomePage() {
       </section>
 
       {/* CTA */}
-      <section className="py-16 px-6">
+      <section className={`py-12 sm:py-16 md:py-20 ${SECTION_X}`}>
         <div className="max-w-2xl mx-auto text-center">
-          <h2 className="text-2xl font-bold text-gray-900 mb-4">
+          <h2 className="text-xl sm:text-2xl md:text-3xl font-bold text-gray-900 mb-4 md:mb-5 text-pretty">
             ابدأ إدارة مركزك أو محلّك اليوم
           </h2>
-          <p className="text-gray-600 mb-8">
+          <p className="text-gray-800 text-[15px] sm:text-base md:text-lg mb-8 md:mb-10 leading-relaxed">
             سجّل شركتك مجاناً واستخدم برنامج <strong>إدارة مراكز الصيانة</strong> و{" "}
             <strong>محلات قطع الغيار</strong> بكل مميزاته.
           </p>
@@ -210,7 +213,7 @@ export default function HomePage() {
       </section>
 
       {/* Footer */}
-      <footer className="py-8 px-6 border-t border-gray-200 text-center text-sm text-gray-500">
+      <footer className={`py-8 md:py-10 border-t border-gray-200 text-center text-sm sm:text-base text-gray-600 ${SECTION_X}`}>
         <p className="mb-2">EFCT — إدارة مراكز الصيانة ومحلات قطع الغيار</p>
         <p>
           <Link href="/how-it-works" className="text-emerald-600 hover:text-emerald-700">
