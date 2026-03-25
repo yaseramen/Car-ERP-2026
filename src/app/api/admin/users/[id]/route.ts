@@ -118,18 +118,18 @@ export async function PATCH(
 }
 
 /**
- * حذف موظف نهائياً — للمالك فقط؛ لا يمكن حذف المالك أو سوبر الإدارة على شركة النظام هنا.
+ * حذف موظف نهائياً — المالك أو Super Admin (ضمن شركة النظام التجريبية أو شركة محددة).
  */
 export async function DELETE(
   _request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
   const session = await auth();
-  if (!session?.user || session.user.role !== "tenant_owner") {
-    return NextResponse.json({ error: "غير مصرح — الحذف النهائي للمالك فقط" }, { status: 403 });
+  if (!session?.user || !["super_admin", "tenant_owner"].includes(session.user.role ?? "")) {
+    return NextResponse.json({ error: "غير مصرح" }, { status: 403 });
   }
 
-  const companyId = session.user.companyId ?? null;
+  const companyId = getCompanyId(session);
   if (!companyId) return NextResponse.json({ error: "غير مصرح" }, { status: 401 });
 
   const { id: targetId } = await params;
@@ -149,7 +149,13 @@ export async function DELETE(
       return NextResponse.json({ error: "يمكن حذف الموظفين فقط" }, { status: 400 });
     }
 
-    const ownerId = session.user.id;
+    const ownerRow = await db.execute({
+      sql: "SELECT id FROM users WHERE company_id = ? AND role = 'tenant_owner' LIMIT 1",
+      args: [companyId],
+    });
+    const reassignTo = ownerRow.rows[0]?.id
+      ? String(ownerRow.rows[0].id)
+      : session.user.id;
     const label = `${target.rows[0].name} (${target.rows[0].email})`;
 
     await db.execute({
@@ -173,9 +179,9 @@ export async function DELETE(
     ] as const;
     for (const [table, col] of reassignTables) {
       try {
-        await db.execute({
-          sql: `UPDATE ${table} SET ${col} = ? WHERE ${col} = ?`,
-          args: [ownerId, targetId],
+    await db.execute({
+      sql: `UPDATE ${table} SET ${col} = ? WHERE ${col} = ?`,
+          args: [reassignTo, targetId],
         });
       } catch {
         /* جدول قد لا يوجد في نسخ قديمة */

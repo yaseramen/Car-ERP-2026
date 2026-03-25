@@ -17,7 +17,9 @@ export default async function TeamPage() {
         </p>
       </div>
 
-      <TeamContent isTenantOwner={session.user.role === "tenant_owner"} />
+      <TeamContent
+        canDeleteEmployee={session.user.role === "tenant_owner" || session.user.role === "super_admin"}
+      />
     </div>
   );
 }

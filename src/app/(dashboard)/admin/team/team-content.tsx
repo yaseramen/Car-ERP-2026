@@ -29,7 +29,7 @@ const ROLE_LABELS: Record<string, string> = {
   employee: "موظف",
 };
 
-export function TeamContent({ isTenantOwner = false }: { isTenantOwner?: boolean }) {
+export function TeamContent({ canDeleteEmployee = false }: { canDeleteEmployee?: boolean }) {
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
@@ -122,7 +122,7 @@ export function TeamContent({ isTenantOwner = false }: { isTenantOwner?: boolean
   };
 
   const handleDeletePermanent = async (u: User) => {
-    if (!isTenantOwner || u.role !== "employee") return;
+    if (!canDeleteEmployee || u.role !== "employee") return;
     if (
       !confirm(
         `حذف المستخدم "${u.name}" نهائياً؟ لا يمكن التراجع. تأكد أنه لم يعد يحتاج للدخول.`
@@ -361,7 +361,7 @@ export function TeamContent({ isTenantOwner = false }: { isTenantOwner?: boolean
                       {u.is_blocked ? "إلغاء الحظر" : "حظر"}
                     </button>
                   )}
-                  {isTenantOwner && u.role === "employee" && (
+                  {canDeleteEmployee && u.role === "employee" && (
                     <button
                       type="button"
                       onClick={() => handleDeletePermanent(u)}
