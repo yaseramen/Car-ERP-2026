@@ -3,6 +3,7 @@ import { auth } from "@/auth";
 import { db } from "@/lib/db/client";
 import { getCompanyId } from "@/lib/company";
 import { randomUUID } from "crypto";
+import { allocateReturnInvoiceNumber } from "@/lib/invoice-numbers";
 
 const ALLOWED_ROLES = ["super_admin", "tenant_owner", "employee"] as const;
 
@@ -84,11 +85,6 @@ export async function POST(
       });
     }
 
-    const returnInvoicesResult = await db.execute({
-      sql: `SELECT id FROM invoices WHERE original_invoice_id = ? AND is_return = 1`,
-      args: [invoiceId],
-    });
-
     const returnItemsResult = await db.execute({
       sql: `SELECT ii.item_id, ii.quantity FROM invoice_items ii
             JOIN invoices inv ON ii.invoice_id = inv.id
@@ -104,8 +100,8 @@ export async function POST(
     }
 
     const invNum = String(inv.invoice_number ?? "");
-    const returnInvNum = `RET-${invNum}-${returnInvoicesResult.rows.length + 1}`;
     const returnInvoiceId = randomUUID();
+    const returnInvNum = await allocateReturnInvoiceNumber(companyId, invoiceId, invNum);
 
     let subtotal = 0;
     const itemsToProcess: { item_id: string; quantity: number; unit_price: number; total: number; name: string }[] = [];

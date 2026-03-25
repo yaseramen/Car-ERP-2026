@@ -410,6 +410,26 @@ CREATE TABLE IF NOT EXISTS obd_searches (
     FOREIGN KEY (created_by) REFERENCES users(id)
 );
 
+-- تسلسل أرقام الفواتير (ذري، آمن مع التزامن)
+CREATE TABLE IF NOT EXISTS invoice_number_sequences (
+    company_id TEXT NOT NULL,
+    seq_type TEXT NOT NULL CHECK (seq_type IN ('sale', 'purchase')),
+    next_num INTEGER NOT NULL DEFAULT 1,
+    updated_at TEXT DEFAULT (datetime('now')),
+    PRIMARY KEY (company_id, seq_type),
+    FOREIGN KEY (company_id) REFERENCES companies(id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS invoice_return_sequences (
+    company_id TEXT NOT NULL,
+    original_invoice_id TEXT NOT NULL,
+    next_num INTEGER NOT NULL DEFAULT 1,
+    updated_at TEXT DEFAULT (datetime('now')),
+    PRIMARY KEY (company_id, original_invoice_id),
+    FOREIGN KEY (company_id) REFERENCES companies(id) ON DELETE CASCADE,
+    FOREIGN KEY (original_invoice_id) REFERENCES invoices(id) ON DELETE CASCADE
+);
+
 -- ==================== الفهارس ====================
 
 CREATE INDEX IF NOT EXISTS idx_users_company ON users(company_id);

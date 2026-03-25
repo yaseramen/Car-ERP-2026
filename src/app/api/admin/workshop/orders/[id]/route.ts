@@ -4,6 +4,7 @@ import { db } from "@/lib/db/client";
 import { getCompanyId } from "@/lib/company";
 import { randomUUID } from "crypto";
 import { WALLET_CHARGE_MESSAGE, walletInsufficientError } from "@/lib/wallet-charge-contact";
+import { allocateInvoiceNumber } from "@/lib/invoice-numbers";
 
 const ALLOWED_ROLES = ["super_admin", "tenant_owner", "employee"] as const;
 
@@ -47,14 +48,8 @@ export async function PATCH(
         args: [id],
       });
 
-      const invCountResult = await db.execute({
-        sql: "SELECT COUNT(*) as cnt FROM invoices WHERE company_id = ?",
-        args: [companyId],
-      });
-      const invCount = (invCountResult.rows[0]?.cnt as number) ?? 0;
-      const invNum = `INV-${String(invCount + 1).padStart(4, "0")}`;
-
       const invoiceId = randomUUID();
+      const invNum = await allocateInvoiceNumber(companyId, "sale");
       let subtotal = 0;
       for (const row of itemsResult.rows) {
         subtotal += Number(row.total ?? 0);

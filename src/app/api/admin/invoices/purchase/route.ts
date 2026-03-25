@@ -4,6 +4,7 @@ import { db } from "@/lib/db/client";
 import { getCompanyId } from "@/lib/company";
 import { ensureCompanyWarehouse } from "@/lib/warehouse";
 import { randomUUID } from "crypto";
+import { allocateInvoiceNumber } from "@/lib/invoice-numbers";
 
 const ALLOWED_ROLES = ["super_admin", "tenant_owner", "employee"] as const;
 
@@ -30,13 +31,8 @@ export async function POST(request: Request) {
       }
     }
 
-    const purCountResult = await db.execute({
-      sql: "SELECT COUNT(*) as cnt FROM invoices WHERE company_id = ? AND type = 'purchase'",
-      args: [companyId],
-    });
-    const purCount = (purCountResult.rows[0]?.cnt as number) ?? 0;
-    const invNum = `PUR-${String(purCount + 1).padStart(4, "0")}`;
     const invoiceId = randomUUID();
+    const invNum = await allocateInvoiceNumber(companyId, "purchase");
 
     let subtotal = 0;
     const validItems: { item_id: string; quantity: number; unit_price: number; total: number }[] = [];

@@ -3,6 +3,7 @@
  */
 import type { InArgs } from "@libsql/core/api";
 import { db } from "./db/client";
+import { syncInvoiceNumberSequencesFromInvoices } from "./invoice-numbers";
 
 function toInValue(v: unknown): string | number | null {
   if (v == null) return null;
@@ -676,6 +677,8 @@ export async function restoreBackup(
         }
       }
     }
+
+    await syncInvoiceNumberSequencesFromInvoices(companyId);
 
     return { success: true, message: "تمت الاستعادة بنجاح", counts };
   } catch (err) {
