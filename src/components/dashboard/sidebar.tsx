@@ -30,6 +30,7 @@ const navItems: {
   { href: "/admin/super/password-reset", label: "أكواد المالكين", module: "wallets", superAdminOnly: true },
   { href: "/admin/team", label: "المستخدمون", ownerOrAdmin: true },
   { href: "/admin/settings", label: "إعدادات الشركة", ownerOrAdmin: true },
+  { href: "/admin/account/password", label: "تغيير كلمة المرور" },
 ];
 
 export function Sidebar({ role = "super_admin", businessType, companyName: initialCompanyName, onNavigate, onClose }: { role?: string; businessType?: string | null; companyName?: string | null; onNavigate?: () => void; onClose?: () => void }) {
