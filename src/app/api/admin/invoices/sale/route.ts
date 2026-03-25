@@ -5,6 +5,7 @@ import { getCompanyId } from "@/lib/company";
 import { ensureCompanyWarehouse } from "@/lib/warehouse";
 import { ensureTreasuries, getTreasuryIdByType } from "@/lib/treasuries";
 import { getDigitalFeeConfig, calcDigitalFee } from "@/lib/digital-fee";
+import { WALLET_CHARGE_MESSAGE, walletInsufficientError } from "@/lib/wallet-charge-contact";
 import { randomUUID } from "crypto";
 
 const ALLOWED_ROLES = ["super_admin", "tenant_owner", "employee"] as const;
@@ -111,16 +112,14 @@ export async function POST(request: Request) {
       });
       if (walletCheck.rows.length === 0) {
         return NextResponse.json(
-          { error: "لا يمكن إصدار الفاتورة: رسوم الخدمة الرقمية تتطلب وجود محفظة للشركة." },
+          { error: `لا يمكن إصدار الفاتورة: لا توجد محفظة للشركة. ${WALLET_CHARGE_MESSAGE}` },
           { status: 400 }
         );
       }
       const bal = Number(walletCheck.rows[0].balance ?? 0);
       if (bal < digitalFee) {
         return NextResponse.json(
-          {
-            error: `رصيد المحفظة غير كافٍ لخصم رسوم الخدمة الرقمية (مطلوب ${digitalFee.toFixed(2)} ج.م — متاح ${bal.toFixed(2)} ج.م). يرجى شحن المحفظة ثم إعادة المحاولة.`,
-          },
+          { error: walletInsufficientError(digitalFee, bal) },
           { status: 400 }
         );
       }

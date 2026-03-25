@@ -3,6 +3,7 @@ import { auth } from "@/auth";
 import { db } from "@/lib/db/client";
 import { getCompanyId } from "@/lib/company";
 import { randomUUID } from "crypto";
+import { WALLET_CHARGE_MESSAGE, walletInsufficientError } from "@/lib/wallet-charge-contact";
 
 const ALLOWED_ROLES = ["super_admin", "tenant_owner", "employee"] as const;
 
@@ -77,16 +78,14 @@ export async function PATCH(
         });
         if (walletCheck.rows.length === 0) {
           return NextResponse.json(
-            { error: "لا يمكن إتمام أمر الصيانة: رسوم الخدمة الرقمية تتطلب وجود محفظة للشركة." },
+            { error: `لا يمكن إتمام أمر الصيانة: لا توجد محفظة للشركة. ${WALLET_CHARGE_MESSAGE}` },
             { status: 400 }
           );
         }
         const bal = Number(walletCheck.rows[0].balance ?? 0);
         if (bal < digitalFeePreview) {
           return NextResponse.json(
-            {
-              error: `رصيد المحفظة غير كافٍ لخصم رسوم الخدمة الرقمية (مطلوب ${digitalFeePreview.toFixed(2)} ج.م — متاح ${bal.toFixed(2)} ج.م). يرجى شحن المحفظة ثم المحاولة مرة أخرى.`,
-            },
+            { error: walletInsufficientError(digitalFeePreview, bal) },
             { status: 400 }
           );
         }

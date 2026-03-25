@@ -15,6 +15,7 @@ export default async function AdminLayout({
     redirect("/login");
   }
 
+  /** رصيد المحفظة ≤ 0: إيقاف البرنامج للمستأجر (عدا super_admin) — انظر ChargeRequiredBlock */
   let showChargeRequired = false;
   if (session.user.role !== "super_admin" && session.user.companyId) {
     const wallet = await db.execute({
