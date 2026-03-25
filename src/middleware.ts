@@ -12,7 +12,7 @@ export default auth((req) => {
   }
 
   // صفحات عامة (SEO، PWA، لا تتطلب تسجيل دخول)
-  const publicPaths = ["/login", "/register", "/how-it-works", "/faq", "/terms", "/manifest.webmanifest"];
+  const publicPaths = ["/login", "/register", "/reset-password", "/how-it-works", "/faq", "/terms", "/manifest.webmanifest"];
   if (publicPaths.includes(path)) {
     if (path === "/login" || path === "/register") {
       if (isLoggedIn && ["super_admin", "tenant_owner", "employee"].includes(req.auth?.user?.role ?? "")) {

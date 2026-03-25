@@ -27,6 +27,7 @@ const navItems: {
   { href: "/admin/reports", label: "التقارير", module: "reports" },
   { href: "/admin/treasuries", label: "الخزائن", module: "treasuries" },
   { href: "/admin/wallets", label: "المحافظ", module: "wallets", superAdminOnly: true },
+  { href: "/admin/super/password-reset", label: "أكواد المالكين", module: "wallets", superAdminOnly: true },
   { href: "/admin/team", label: "المستخدمون", ownerOrAdmin: true },
   { href: "/admin/settings", label: "إعدادات الشركة", ownerOrAdmin: true },
 ];

@@ -107,6 +107,12 @@ function LoginForm() {
             تسجيل شركة جديدة
           </Link>
         </p>
+        <p className="text-center text-sm text-gray-500 mt-2">
+          نسيت كلمة المرور (مالك شركة)؟{" "}
+          <Link href="/reset-password" className="text-emerald-600 hover:underline">
+            استعادة عبر كود
+          </Link>
+        </p>
       </form>
     </div>
   );

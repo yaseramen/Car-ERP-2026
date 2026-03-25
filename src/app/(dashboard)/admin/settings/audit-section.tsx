@@ -23,6 +23,7 @@ const ACTION_LABELS: Record<string, string> = {
   treasury_transaction: "حركة خزينة",
   treasury_expense: "إضافة مصروف",
   treasury_income: "إضافة إيراد",
+  password_reset_code_issue: "إصدار كود استعادة كلمة مرور (مالك شركة)",
 };
 
 export function AuditSection() {
