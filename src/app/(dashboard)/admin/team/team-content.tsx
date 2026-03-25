@@ -29,7 +29,7 @@ const ROLE_LABELS: Record<string, string> = {
   employee: "موظف",
 };
 
-export function TeamContent() {
+export function TeamContent({ isTenantOwner = false }: { isTenantOwner?: boolean }) {
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
@@ -118,6 +118,24 @@ export function TeamContent() {
       loadUsers();
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  const handleDeletePermanent = async (u: User) => {
+    if (!isTenantOwner || u.role !== "employee") return;
+    if (
+      !confirm(
+        `حذف المستخدم "${u.name}" نهائياً؟ لا يمكن التراجع. تأكد أنه لم يعد يحتاج للدخول.`
+      )
+    ) {
+      return;
+    }
+    const res = await fetch(`/api/admin/users/${u.id}`, { method: "DELETE" });
+    const data = await res.json().catch(() => ({}));
+    if (res.ok) {
+      loadUsers();
+    } else {
+      alert((data as { error?: string }).error || "فشل الحذف");
     }
   };
 
@@ -341,6 +359,15 @@ export function TeamContent() {
                   {u.role === "employee" && (
                     <button onClick={() => handleBlock(u)} className="text-sm text-amber-600 hover:underline">
                       {u.is_blocked ? "إلغاء الحظر" : "حظر"}
+                    </button>
+                  )}
+                  {isTenantOwner && u.role === "employee" && (
+                    <button
+                      type="button"
+                      onClick={() => handleDeletePermanent(u)}
+                      className="text-sm text-red-600 hover:underline"
+                    >
+                      حذف نهائي
                     </button>
                   )}
                 </td>

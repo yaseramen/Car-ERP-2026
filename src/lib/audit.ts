@@ -22,7 +22,8 @@ export type AuditAction =
   | "treasury_income"
   | "backup_export"
   | "backup_restore"
-  | "password_reset_code_issue";
+  | "password_reset_code_issue"
+  | "user_delete";
 
 export async function logAudit(params: {
   companyId: string;

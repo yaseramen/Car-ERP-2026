@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { db } from "@/lib/db/client";
 import bcrypt from "bcryptjs";
+import { logAudit } from "@/lib/audit";
 
 const SYSTEM_COMPANY_ID = "company-system";
 
@@ -113,5 +114,92 @@ export async function PATCH(
   } catch (error) {
     console.error("User PATCH error:", error);
     return NextResponse.json({ error: "فشل في التحديث" }, { status: 500 });
+  }
+}
+
+/**
+ * حذف موظف نهائياً — للمالك فقط؛ لا يمكن حذف المالك أو سوبر الإدارة على شركة النظام هنا.
+ */
+export async function DELETE(
+  _request: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const session = await auth();
+  if (!session?.user || session.user.role !== "tenant_owner") {
+    return NextResponse.json({ error: "غير مصرح — الحذف النهائي للمالك فقط" }, { status: 403 });
+  }
+
+  const companyId = session.user.companyId ?? null;
+  if (!companyId) return NextResponse.json({ error: "غير مصرح" }, { status: 401 });
+
+  const { id: targetId } = await params;
+  if (targetId === session.user.id) {
+    return NextResponse.json({ error: "لا يمكن حذف حسابك" }, { status: 400 });
+  }
+
+  try {
+    const target = await db.execute({
+      sql: "SELECT id, email, name, role FROM users WHERE id = ? AND company_id = ?",
+      args: [targetId, companyId],
+    });
+    if (target.rows.length === 0) {
+      return NextResponse.json({ error: "المستخدم غير موجود" }, { status: 404 });
+    }
+    if (String(target.rows[0].role ?? "") !== "employee") {
+      return NextResponse.json({ error: "يمكن حذف الموظفين فقط" }, { status: 400 });
+    }
+
+    const ownerId = session.user.id;
+    const label = `${target.rows[0].name} (${target.rows[0].email})`;
+
+    await db.execute({
+      sql: "UPDATE users SET blocked_by = NULL WHERE blocked_by = ?",
+      args: [targetId],
+    });
+    await db.execute({
+      sql: "UPDATE tenant_password_reset_codes SET created_by_super_admin_id = NULL WHERE created_by_super_admin_id = ?",
+      args: [targetId],
+    });
+
+    const reassignTables = [
+      ["wallet_transactions", "performed_by"],
+      ["treasury_transactions", "performed_by"],
+      ["stock_movements", "performed_by"],
+      ["invoices", "created_by"],
+      ["invoice_payments", "created_by"],
+      ["repair_orders", "created_by"],
+      ["obd_searches", "created_by"],
+      ["obd_reports", "created_by"],
+    ] as const;
+    for (const [table, col] of reassignTables) {
+      try {
+        await db.execute({
+          sql: `UPDATE ${table} SET ${col} = ? WHERE ${col} = ?`,
+          args: [ownerId, targetId],
+        });
+      } catch {
+        /* جدول قد لا يوجد في نسخ قديمة */
+      }
+    }
+
+    await db.execute({
+      sql: "DELETE FROM users WHERE id = ? AND company_id = ?",
+      args: [targetId, companyId],
+    });
+
+    await logAudit({
+      companyId,
+      userId: session.user.id,
+      userName: session.user.name ?? session.user.email ?? undefined,
+      action: "user_delete",
+      entityType: "user",
+      entityId: targetId,
+      details: `حذف نهائي لموظف: ${label}`,
+    });
+
+    return NextResponse.json({ ok: true });
+  } catch (error) {
+    console.error("User DELETE error:", error);
+    return NextResponse.json({ error: "فشل الحذف — قد تكون هناك بيانات مرتبطة" }, { status: 500 });
   }
 }

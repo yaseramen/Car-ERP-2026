@@ -17,7 +17,7 @@ export default async function TeamPage() {
         </p>
       </div>
 
-      <TeamContent />
+      <TeamContent isTenantOwner={session.user.role === "tenant_owner"} />
     </div>
   );
 }
