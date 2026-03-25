@@ -71,7 +71,7 @@ const JSON_LD = {
 
 export default function HomePage() {
   return (
-    <div className="min-h-screen bg-white" dir="rtl">
+    <div className="light-section min-h-screen bg-white" dir="rtl">
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(JSON_LD) }}
@@ -79,7 +79,7 @@ export default function HomePage() {
       {/* Hero */}
       <section className="relative bg-gradient-to-b from-emerald-50 to-white py-16 sm:py-24 px-6">
         <div className="max-w-4xl mx-auto text-center">
-          <h1 className="text-4xl sm:text-5xl font-bold text-gray-900 mb-4">
+          <h1 className="text-4xl sm:text-5xl font-extrabold text-emerald-900 mb-4 tracking-tight">
             EFCT
           </h1>
           <p className="text-xl text-gray-600 mb-2">

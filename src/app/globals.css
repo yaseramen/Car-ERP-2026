@@ -83,6 +83,49 @@ html.dark h6 {
   color: #f1f5f9 !important;
 }
 
+/* أقسام بخلفية فاتحة (مثل الصفحة الرئيسية): العناوين والنصوص الرمادية تبقى داكنة حتى في الوضع الليلي */
+html.dark .light-section h1,
+html.dark .light-section h2,
+html.dark .light-section h3,
+html.dark .light-section h4,
+html.dark .light-section h5,
+html.dark .light-section h6 {
+  color: #111827 !important;
+}
+/* عنوان العلامة بألوان الزمرد — لا يُجبر على الرمادي */
+html.dark .light-section h1.text-emerald-900,
+html.dark .light-section .text-emerald-900 {
+  color: #064e3b !important;
+}
+html.dark .light-section [class*="text-gray-900"],
+html.dark .light-section [class*="text-gray-950"],
+html.dark .light-section .text-gray-900,
+html.dark .light-section .text-gray-950 {
+  color: #111827 !important;
+}
+html.dark .light-section [class*="text-gray-800"],
+html.dark .light-section .text-gray-800 {
+  color: #1f2937 !important;
+}
+html.dark .light-section [class*="text-gray-700"],
+html.dark .light-section .text-gray-700 {
+  color: #374151 !important;
+}
+html.dark .light-section [class*="text-gray-600"],
+html.dark .light-section .text-gray-600 {
+  color: #4b5563 !important;
+}
+html.dark .light-section [class*="text-gray-500"],
+html.dark .light-section .text-gray-500 {
+  color: #6b7280 !important;
+}
+html.dark .light-section .text-emerald-600 {
+  color: #059669 !important;
+}
+html.dark .light-section .hover\:text-emerald-700:hover {
+  color: #047857 !important;
+}
+
 /* إجبار جميع نصوص gray على اللون الفاتح في الوضع الليلي */
 html.dark [class*="text-gray-900"],
 html.dark [class*="text-gray-950"],
