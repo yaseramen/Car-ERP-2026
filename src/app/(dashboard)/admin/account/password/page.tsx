@@ -5,8 +5,8 @@ import { ChangePasswordForm } from "./change-password-form";
 
 export default async function ChangePasswordPage() {
   const session = await auth();
-  if (!session?.user || !["super_admin", "tenant_owner", "employee"].includes(session.user.role ?? "")) {
-    redirect("/login");
+  if (!session?.user || !["super_admin", "tenant_owner"].includes(session.user.role ?? "")) {
+    redirect("/admin");
   }
 
   return (

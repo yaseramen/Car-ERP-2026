@@ -8,6 +8,10 @@ export async function POST(request: Request) {
   if (!session?.user?.id) {
     return NextResponse.json({ error: "يجب تسجيل الدخول" }, { status: 401 });
   }
+  const role = session.user.role ?? "";
+  if (role !== "super_admin" && role !== "tenant_owner") {
+    return NextResponse.json({ error: "غير مصرح — متاح لسوبر الإدارة ومالك الشركة فقط" }, { status: 403 });
+  }
 
   let body: { current_password?: string; new_password?: string };
   try {
