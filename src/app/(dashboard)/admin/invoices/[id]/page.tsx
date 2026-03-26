@@ -10,6 +10,7 @@ import { PartialReturnButton } from "./partial-return-button";
 import { ReturnButton } from "./return-button";
 import { CancelButton } from "./cancel-button";
 import { EditPurchaseInvoice } from "./edit-purchase-invoice";
+import { InvoicePaymentsList } from "./invoice-payments-list";
 
 export default async function InvoiceDetailPage({
   params,
@@ -152,9 +153,9 @@ export default async function InvoiceDetailPage({
               }
               blockReason={
                 data.paid_amount > 0
-                  ? "لا يمكن تعديل فاتورة شراء عليها دفعات مسجّلة. أزل المدفوعات أولاً."
+                  ? "لا يمكن التعديل طالما وُجدت دفعات. انزل إلى «سجل المدفوعات» واضغط «حذف الدفعة» لكل دفعة (يُعاد المبلغ للخزينة)، ثم يظهر زر التعديل."
                   : data.status !== "pending"
-                    ? "التعديل متاح لفاتورة الشراء في حالة «معلقة» فقط (ولم تُسجَّل دفعات)."
+                    ? "التعديل متاح لفاتورة الشراء في حالة «معلقة» فقط (بدون مدفوعات مسجّلة)."
                     : null
               }
               initialSupplierId={data.supplier_id}
@@ -424,18 +425,12 @@ export default async function InvoiceDetailPage({
             <h2 className="font-bold text-gray-900 dark:text-gray-100">سجل المدفوعات</h2>
           </div>
           <div className="p-4">
-            {payments.length > 0 ? (
-              <ul className="space-y-3">
-                {payments.map((p) => (
-                  <li key={p.id} className="flex justify-between items-center text-sm text-gray-900 dark:text-gray-100">
-                    <span>{p.method_name} — {new Date(p.created_at).toLocaleString("ar-EG")}</span>
-                    <span className="font-medium text-emerald-600 dark:text-emerald-400">+{p.amount.toFixed(2)} ج.م</span>
-                  </li>
-                ))}
-              </ul>
-            ) : (
-              <p className="text-gray-500 dark:text-gray-400 text-sm">لا توجد مدفوعات مسجلة</p>
-            )}
+            <InvoicePaymentsList
+              invoiceId={id}
+              invoiceType={data.type}
+              status={data.status}
+              payments={payments}
+            />
           </div>
         </div>
       </div>
