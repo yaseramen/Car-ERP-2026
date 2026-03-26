@@ -21,7 +21,7 @@ export async function POST(
 
   try {
     const invResult = await db.execute({
-      sql: "SELECT id, invoice_number, type, status, warehouse_id, subtotal, digital_service_fee FROM invoices WHERE id = ? AND company_id = ?",
+      sql: "SELECT id, invoice_number, type, status, warehouse_id, subtotal FROM invoices WHERE id = ? AND company_id = ?",
       args: [invoiceId, companyId],
     });
 
@@ -56,7 +56,6 @@ export async function POST(
     }
 
     const invNum = String(inv.invoice_number ?? "");
-    const digitalFee = Number(inv.digital_service_fee ?? 0);
 
     for (const row of itemsResult.rows) {
       const itemId = row.item_id as string;
@@ -113,23 +112,7 @@ export async function POST(
       }
     }
 
-    if (digitalFee > 0 && invType !== "purchase") {
-      const walletResult = await db.execute({
-        sql: "SELECT id FROM company_wallets WHERE company_id = ?",
-        args: [companyId],
-      });
-      if (walletResult.rows.length > 0) {
-        await db.execute({
-          sql: "UPDATE company_wallets SET balance = balance + ? WHERE company_id = ?",
-          args: [digitalFee, companyId],
-        });
-        await db.execute({
-          sql: `INSERT INTO wallet_transactions (id, wallet_id, amount, type, description, reference_type, reference_id, performed_by)
-                VALUES (?, ?, ?, 'credit', ?, 'invoice_return', ?, ?)`,
-          args: [randomUUID(), walletResult.rows[0].id, digitalFee, `إرجاع خدمة رقمية - فاتورة ${invNum}`, invoiceId, session.user.id],
-        });
-      }
-    }
+    /* سياسة المنصة: رسوم الخدمة الرقمية لا تُعاد للمحفظة عند المرتجع (تم خصمها عند الإصدار). */
 
     await db.execute({
       sql: "UPDATE invoices SET status = 'returned', updated_at = datetime('now') WHERE id = ? AND company_id = ?",
