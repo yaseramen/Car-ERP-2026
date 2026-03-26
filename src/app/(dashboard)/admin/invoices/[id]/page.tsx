@@ -230,9 +230,11 @@ export default async function InvoiceDetailPage({
               </div>
             )}
             {data.company_address && (
-              <div>
+              <div className="sm:col-span-2">
                 <dt className="text-gray-500 dark:text-gray-400">العنوان</dt>
-                <dd className="text-gray-900 dark:text-gray-100">{data.company_address}</dd>
+                <dd className="text-gray-900 dark:text-gray-100 invoice-print-address-one-line">
+                  {data.company_address}
+                </dd>
               </div>
             )}
             {data.company_tax_number && (
@@ -252,22 +254,25 @@ export default async function InvoiceDetailPage({
       )}
 
       <div className="mb-8 invoice-print-compact invoice-print-title-block">
-        <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">فاتورة {data.invoice_number}</h1>
-        <p className="text-sm text-gray-800 dark:text-gray-200 mt-2 font-medium print:text-gray-900">
-          تاريخ ووقت الإصدار: {issuedAtDisplay}
-        </p>
-        <p className="text-gray-500 dark:text-gray-400 mt-1">
-          {data.is_return && (
-            <span className="inline-block px-2 py-0.5 bg-amber-100 dark:bg-amber-900/50 text-amber-800 dark:text-amber-200 rounded text-sm font-medium mb-2">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-baseline sm:justify-between print:flex-row print:justify-between print:items-baseline print:gap-2">
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100 m-0 shrink-0">
+            فاتورة {data.invoice_number}
+          </h1>
+          <p className="text-sm text-gray-800 dark:text-gray-200 m-0 font-medium print:text-gray-900 sm:text-left print:text-left">
+            تاريخ ووقت الإصدار: {issuedAtDisplay}
+          </p>
+        </div>
+        {data.is_return && (
+          <p className="text-gray-500 dark:text-gray-400 mt-2 mb-0">
+            <span className="inline-block px-2 py-0.5 bg-amber-100 dark:bg-amber-900/50 text-amber-800 dark:text-amber-200 rounded text-sm font-medium">
               مرتجع
             </span>
-          )}{" "}
-          {TYPE_LABELS[data.type] || data.type} — {STATUS_LABELS[data.status] || data.status}
-        </p>
+          </p>
+        )}
         {data.is_return && data.original_invoice_id && (
           <Link
             href={`/admin/invoices/${data.original_invoice_id}`}
-            className="text-sm text-emerald-600 dark:text-emerald-400 hover:text-emerald-700 dark:hover:text-emerald-300 no-print"
+            className="text-sm text-emerald-600 dark:text-emerald-400 hover:text-emerald-700 dark:hover:text-emerald-300 no-print inline-block mt-2"
           >
             ← عرض الفاتورة الأصلية
           </Link>
@@ -278,32 +283,19 @@ export default async function InvoiceDetailPage({
         <div className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-sm border border-gray-100 dark:border-gray-700 invoice-print-card">
           <h2 className="font-bold text-gray-900 dark:text-gray-100 mb-4">بيانات الفاتورة</h2>
           <dl className="space-y-3 text-sm invoice-print-dl-tight">
-            <div className="flex justify-between">
-              <dt className="text-gray-500 dark:text-gray-400">رقم الفاتورة</dt>
-              <dd className="text-gray-900 dark:text-gray-100 font-medium">{data.invoice_number}</dd>
-            </div>
-            <div className="flex justify-between">
-              <dt className="text-gray-500 dark:text-gray-400">النوع</dt>
-              <dd className="text-gray-900 dark:text-gray-100">{TYPE_LABELS[data.type] || data.type}</dd>
-            </div>
-            <div className="flex justify-between">
-              <dt className="text-gray-500 dark:text-gray-400">الحالة</dt>
-              <dd className="text-gray-900 dark:text-gray-100">{STATUS_LABELS[data.status] || data.status}</dd>
-            </div>
-            <div className="flex justify-between">
-              <dt className="text-gray-500 dark:text-gray-400">التاريخ والوقت</dt>
-              <dd className="text-gray-900 dark:text-gray-100">
-                {issuedAtDisplay}
+            <div className="flex justify-between gap-2">
+              <dt className="text-gray-500 dark:text-gray-400 shrink-0">النوع والحالة</dt>
+              <dd className="text-gray-900 dark:text-gray-100 text-left">
+                {TYPE_LABELS[data.type] || data.type} — {STATUS_LABELS[data.status] || data.status}
               </dd>
             </div>
             {(data.created_by_name || data.created_by_email) && (
               <div className="flex justify-between gap-2">
                 <dt className="text-gray-500 dark:text-gray-400 shrink-0">أصدرها</dt>
-                <dd className="text-gray-900 dark:text-gray-100 text-right">
-                  {data.created_by_name || data.created_by_email}
-                  {data.created_by_name && data.created_by_email ? (
-                    <span className="block text-xs text-gray-500 dark:text-gray-400 mt-0.5">{data.created_by_email}</span>
-                  ) : null}
+                <dd className="text-gray-900 dark:text-gray-100 text-left break-words invoice-print-issuer-line">
+                  {data.created_by_name && data.created_by_email
+                    ? `${data.created_by_name} — ${data.created_by_email}`
+                    : (data.created_by_name || data.created_by_email)}
                 </dd>
               </div>
             )}
@@ -352,15 +344,18 @@ export default async function InvoiceDetailPage({
                   <dd className="text-gray-900 dark:text-gray-100">{data.vehicle_model || "—"}</dd>
                 </div>
                 {data.repair_order_id && (
-                  <div className="flex justify-between">
-                    <dt className="text-gray-500 dark:text-gray-400">أمر الإصلاح</dt>
-                    <dd>
+                  <div className="flex justify-between gap-2">
+                    <dt className="text-gray-500 dark:text-gray-400 shrink-0">أمر الإصلاح</dt>
+                    <dd className="text-left">
                       <Link
                         href={`/admin/workshop/${data.repair_order_id}`}
-                        className="text-emerald-600 dark:text-emerald-400 hover:text-emerald-700 dark:hover:text-emerald-300"
+                        className="text-emerald-600 dark:text-emerald-400 hover:text-emerald-700 dark:hover:text-emerald-300 no-print"
                       >
                         {data.order_number || "عرض"}
                       </Link>
+                      <span className="hidden print:inline text-gray-900 dark:text-gray-100">
+                        {data.order_number || "—"}
+                      </span>
                     </dd>
                   </div>
                 )}

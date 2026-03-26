@@ -267,6 +267,19 @@ html.dark table tbody tr:hover,
     margin-top: 0.15rem !important;
     line-height: 1.2 !important;
   }
+  /* عنوان الشركة: سطر واحد في الطباعة (قص إذا تجاوز عرض الورقة) */
+  #invoice-print-area .invoice-print-address-one-line {
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    max-width: 100% !important;
+  }
+  #invoice-print-area .invoice-print-issuer-line {
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    max-width: 55% !important;
+  }
   #invoice-print-area .invoice-print-compact {
     margin-bottom: 0.3rem !important;
     padding: 0.25rem 0.4rem !important;
