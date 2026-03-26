@@ -16,7 +16,19 @@ interface Item {
   quantity: number;
 }
 
-export function TransferStock() {
+type TransferStockProps = {
+  distributionMode?: boolean;
+  assignedWarehouseId?: string | null;
+  assignedWarehouseName?: string | null;
+  mainWarehouseId?: string | null;
+};
+
+export function TransferStock({
+  distributionMode = false,
+  assignedWarehouseId = null,
+  assignedWarehouseName = null,
+  mainWarehouseId = null,
+}: TransferStockProps) {
   const [open, setOpen] = useState(false);
   const [warehouses, setWarehouses] = useState<Warehouse[]>([]);
   const [items, setItems] = useState<Item[]>([]);
@@ -35,15 +47,21 @@ export function TransferStock() {
     if (open) {
       setLoadingWarehouses(true);
       Promise.all([
-        fetch("/api/admin/warehouses").then((r) => r.ok ? r.json() : []),
-        fetch("/api/admin/inventory/items?limit=500&offset=0").then((r) => r.ok ? r.json() : []),
-      ]).then(([wh, it]) => {
-        setWarehouses(Array.isArray(wh) ? wh : []);
-        setItems(Array.isArray(it) ? it : (it?.items ?? []));
-        setLoadingWarehouses(false);
-      }).catch(() => setLoadingWarehouses(false));
+        fetch("/api/admin/warehouses").then((r) => (r.ok ? r.json() : [])),
+        fetch("/api/admin/inventory/items?limit=500&offset=0").then((r) => (r.ok ? r.json() : [])),
+      ])
+        .then(([wh, it]) => {
+          setWarehouses(Array.isArray(wh) ? wh : []);
+          setItems(Array.isArray(it) ? it : it?.items ?? []);
+          if (distributionMode && mainWarehouseId && assignedWarehouseId) {
+            setFromId(mainWarehouseId);
+            setToId(assignedWarehouseId);
+          }
+          setLoadingWarehouses(false);
+        })
+        .catch(() => setLoadingWarehouses(false));
     }
-  }, [open]);
+  }, [open, distributionMode, mainWarehouseId, assignedWarehouseId]);
 
   useEffect(() => {
     if (itemId && fromId) {
@@ -168,7 +186,7 @@ export function TransferStock() {
         onClick={() => setOpen(true)}
         className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition-colors"
       >
-        نقل بين المخازن
+        {distributionMode ? "تحميل / إرجاع مخزون التوزيع" : "نقل بين المخازن"}
       </button>
 
       {open && (
@@ -211,7 +229,42 @@ export function TransferStock() {
             </div>
           ) : warehouses.length >= 2 ? (
           <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl max-w-md w-full p-6">
-            <h3 className="font-bold text-gray-900 dark:text-gray-100 mb-4">نقل بين المخازن</h3>
+            <h3 className="font-bold text-gray-900 dark:text-gray-100 mb-4">
+              {distributionMode ? "نقل للتوزيع أو إرجاع للرئيسي" : "نقل بين المخازن"}
+            </h3>
+            {distributionMode && assignedWarehouseName && (
+              <p className="text-sm text-gray-600 dark:text-gray-400 mb-3">
+                مخزنك: <strong>{assignedWarehouseName}</strong> — يمكن التحميل من الرئيسي أو إرجاع الفائض إليه.
+              </p>
+            )}
+            {distributionMode && (
+              <div className="mb-4 flex gap-2">
+                <button
+                  type="button"
+                  className={`flex-1 py-2 rounded-lg text-sm font-medium ${fromId === mainWarehouseId && toId === assignedWarehouseId ? "bg-emerald-600 text-white" : "bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200"}`}
+                  onClick={() => {
+                    if (mainWarehouseId && assignedWarehouseId) {
+                      setFromId(mainWarehouseId);
+                      setToId(assignedWarehouseId);
+                    }
+                  }}
+                >
+                  تحميل من الرئيسي
+                </button>
+                <button
+                  type="button"
+                  className={`flex-1 py-2 rounded-lg text-sm font-medium ${fromId === assignedWarehouseId && toId === mainWarehouseId ? "bg-amber-600 text-white" : "bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200"}`}
+                  onClick={() => {
+                    if (mainWarehouseId && assignedWarehouseId) {
+                      setFromId(assignedWarehouseId);
+                      setToId(mainWarehouseId);
+                    }
+                  }}
+                >
+                  إرجاع للرئيسي
+                </button>
+              </div>
+            )}
             <form onSubmit={handleSubmit} className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">الصنف</label>
@@ -231,8 +284,13 @@ export function TransferStock() {
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">من مخزن</label>
                 <select
                   value={fromId}
-                  onChange={(e) => { setFromId(e.target.value); setToId(""); setQuantity(""); }}
-                  className="w-full px-4 py-2.5 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
+                  onChange={(e) => {
+                    setFromId(e.target.value);
+                    if (!distributionMode) setToId("");
+                    setQuantity("");
+                  }}
+                  disabled={distributionMode}
+                  className="w-full px-4 py-2.5 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 disabled:opacity-70"
                   required
                 >
                   <option value="">اختر المخزن المصدر</option>
@@ -249,7 +307,8 @@ export function TransferStock() {
                 <select
                   value={toId}
                   onChange={(e) => setToId(e.target.value)}
-                  className="w-full px-4 py-2.5 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
+                  disabled={distributionMode}
+                  className="w-full px-4 py-2.5 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 disabled:opacity-70"
                   required
                 >
                   <option value="">اختر المخزن الهدف</option>

@@ -97,6 +97,14 @@ export function CashierContent() {
   const [saving, setSaving] = useState(false);
   const [lastInvoice, setLastInvoice] = useState<{ id: string; invoice_number: string } | null>(null);
 
+  const [distInfo, setDistInfo] = useState<{
+    warehouse_name: string;
+    treasury_balance: number;
+  } | null>(null);
+  const [settleAmount, setSettleAmount] = useState("");
+  const [settleNotes, setSettleNotes] = useState("");
+  const [settling, setSettling] = useState(false);
+
   const [feeConfig, setFeeConfig] = useState<{ rate: number; minFee: number }>({ rate: 0.0001, minFee: 0.5 });
   const [addItemId, setAddItemId] = useState("");
   const [addQty, setAddQty] = useState("1");
@@ -113,11 +121,12 @@ export function CashierContent() {
 
   async function fetchData() {
     try {
-      const [itemsRes, customersRes, methodsRes, feeRes] = await Promise.all([
+      const [itemsRes, customersRes, methodsRes, feeRes, distRes] = await Promise.all([
         fetch("/api/admin/inventory/items?limit=500&offset=0"),
         fetch("/api/admin/customers?limit=500&offset=0"),
         fetch("/api/admin/payment-methods"),
         fetch("/api/admin/digital-fee"),
+        fetch("/api/admin/me/distribution"),
       ]);
       if (itemsRes.ok) {
         const d = await itemsRes.json();
@@ -131,6 +140,17 @@ export function CashierContent() {
       if (feeRes.ok) {
         const d = await feeRes.json();
         setFeeConfig({ rate: Number(d.rate ?? 0.0001), minFee: Number(d.minFee ?? 0.5) });
+      }
+      if (distRes.ok) {
+        const d = await distRes.json();
+        if (d.distribution) {
+          setDistInfo({
+            warehouse_name: d.distribution.warehouse_name,
+            treasury_balance: Number(d.distribution.treasury_balance ?? 0),
+          });
+        } else {
+          setDistInfo(null);
+        }
       }
     } catch {}
   }
@@ -490,10 +510,84 @@ export function CashierContent() {
     }
   }
 
+  async function handleSettle(e: React.FormEvent) {
+    e.preventDefault();
+    const amt = Number(settleAmount);
+    if (!Number.isFinite(amt) || amt <= 0) {
+      alert("أدخل مبلغاً صالحاً");
+      return;
+    }
+    setSettling(true);
+    try {
+      const res = await fetch("/api/admin/distribution/settle", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ amount: amt, notes: settleNotes.trim() || undefined }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        alert(data.error || "فشل التسليم");
+        return;
+      }
+      setSettleAmount("");
+      setSettleNotes("");
+      setDistInfo((prev) =>
+        prev ? { ...prev, treasury_balance: Number(data.distribution_balance_after ?? 0) } : null
+      );
+      fetchData();
+      alert("تم تسليم المبلغ للخزينة الرئيسية.");
+    } catch {
+      alert("حدث خطأ");
+    } finally {
+      setSettling(false);
+    }
+  }
+
   const inputClass =
     "w-full px-4 py-2.5 rounded-lg border border-gray-300 bg-white text-gray-900 placeholder-gray-500 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none";
 
   return (
+    <div className="space-y-6">
+      {distInfo && (
+        <div className="bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800 rounded-xl p-4">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div>
+              <p className="font-semibold text-emerald-900 dark:text-emerald-100">وضع التوزيع: {distInfo.warehouse_name}</p>
+              <p className="text-sm text-emerald-800 dark:text-emerald-200 mt-1">
+                نقد اليوم في خزينتك: <strong>{distInfo.treasury_balance.toFixed(2)} ج.م</strong> — سجّل تسليماً للخزينة الرئيسية عند انتهاء الجولة.
+              </p>
+            </div>
+            <form onSubmit={handleSettle} className="flex flex-wrap items-end gap-2">
+              <div>
+                <label className="block text-xs text-emerald-800 dark:text-emerald-300 mb-0.5">مبلغ التسليم</label>
+                <input
+                  type="number"
+                  min="0.01"
+                  step="0.01"
+                  value={settleAmount}
+                  onChange={(e) => setSettleAmount(e.target.value)}
+                  className="w-32 px-2 py-1.5 rounded border border-emerald-300 dark:border-emerald-700 bg-white dark:bg-gray-800 text-sm"
+                  placeholder="0"
+                />
+              </div>
+              <input
+                type="text"
+                value={settleNotes}
+                onChange={(e) => setSettleNotes(e.target.value)}
+                className="px-2 py-1.5 rounded border border-emerald-300 dark:border-emerald-700 bg-white dark:bg-gray-800 text-sm min-w-[120px]"
+                placeholder="ملاحظة"
+              />
+              <button
+                type="submit"
+                disabled={settling}
+                className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-medium rounded-lg disabled:opacity-50"
+              >
+                {settling ? "..." : "تسليم للخزينة الرئيسية"}
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
       <div className="space-y-6">
         <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
@@ -859,6 +953,7 @@ export function CashierContent() {
           </div>
         </div>
       )}
+    </div>
     </div>
   );
 }

@@ -22,8 +22,10 @@ export async function GET() {
 
   try {
     const result = await db.execute({
-      sql: `SELECT u.id, u.email, u.name, u.phone, u.role, u.is_active, u.is_blocked, u.created_at
+      sql: `SELECT u.id, u.email, u.name, u.phone, u.role, u.is_active, u.is_blocked, u.created_at,
+            u.assigned_warehouse_id, w.name as assigned_warehouse_name
             FROM users u
+            LEFT JOIN warehouses w ON w.id = u.assigned_warehouse_id
             WHERE u.company_id = ?
             ORDER BY u.role DESC, u.name`,
       args: [companyId],
@@ -38,6 +40,8 @@ export async function GET() {
       is_active: Number(r.is_active ?? 1) === 1,
       is_blocked: Number(r.is_blocked ?? 0) === 1,
       created_at: r.created_at,
+      assigned_warehouse_id: r.assigned_warehouse_id ? String(r.assigned_warehouse_id) : null,
+      assigned_warehouse_name: r.assigned_warehouse_name ? String(r.assigned_warehouse_name) : null,
     }));
 
     return NextResponse.json(users);

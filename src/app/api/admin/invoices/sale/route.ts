@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { db } from "@/lib/db/client";
 import { getCompanyId } from "@/lib/company";
-import { ensureCompanyWarehouse } from "@/lib/warehouse";
+import { resolveSaleWarehouseId } from "@/lib/distribution";
 import { ensureTreasuries, getTreasuryIdByType } from "@/lib/treasuries";
 import { getDigitalFeeConfig, calcDigitalFee } from "@/lib/digital-fee";
 import { WALLET_CHARGE_MESSAGE, walletInsufficientError } from "@/lib/wallet-charge-contact";
@@ -29,13 +29,28 @@ export async function POST(request: Request) {
       discount,
       tax,
       notes,
+      warehouse_id: bodyWarehouseId,
     } = body;
 
     if (!items || !Array.isArray(items) || items.length === 0) {
       return NextResponse.json({ error: "يجب إضافة صنف واحد على الأقل" }, { status: 400 });
     }
 
-    const warehouseId = await ensureCompanyWarehouse(companyId);
+    let warehouseId: string;
+    let distributionTreasuryId: string | null = null;
+    try {
+      const resolved = await resolveSaleWarehouseId(
+        companyId,
+        session.user.id,
+        session.user.role ?? "employee",
+        typeof bodyWarehouseId === "string" ? bodyWarehouseId : null
+      );
+      warehouseId = resolved.warehouseId;
+      distributionTreasuryId = resolved.distributionTreasuryId;
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : "مخزن غير صالح";
+      return NextResponse.json({ error: msg }, { status: 400 });
+    }
 
     for (const it of items) {
       if (!it.item_id || !it.quantity || Number(it.quantity) <= 0) {
@@ -128,13 +143,15 @@ export async function POST(request: Request) {
       if (!payment_method_id) {
         return NextResponse.json({ error: "يجب اختيار طريقة الدفع عند تسجيل مبلغ مدفوع." }, { status: 400 });
       }
-      await ensureTreasuries(companyId);
-      salesTreasuryId = await getTreasuryIdByType(companyId, "sales");
-      if (!salesTreasuryId) {
-        return NextResponse.json(
-          { error: "لا يمكن تسجيل الدفع: خزينة المبيعات غير متاحة. تأكد من إعداد الخزائن في الإعدادات." },
-          { status: 400 }
-        );
+      if (!distributionTreasuryId) {
+        await ensureTreasuries(companyId);
+        salesTreasuryId = await getTreasuryIdByType(companyId, "sales");
+        if (!salesTreasuryId) {
+          return NextResponse.json(
+            { error: "لا يمكن تسجيل الدفع: خزينة المبيعات غير متاحة. تأكد من إعداد الخزائن في الإعدادات." },
+            { status: 400 }
+          );
+        }
       }
     }
 
@@ -180,22 +197,40 @@ export async function POST(request: Request) {
       });
     }
 
-    if (paid > 0 && salesTreasuryId && payment_method_id) {
+    if (paid > 0 && payment_method_id) {
       const payTxId = randomUUID();
-      commitStmts.push({
-        sql: "UPDATE treasuries SET balance = balance + ?, updated_at = datetime('now') WHERE id = ?",
-        args: [paid, salesTreasuryId],
-      });
-      commitStmts.push({
-        sql: `INSERT INTO treasury_transactions (id, treasury_id, amount, type, description, reference_type, reference_id, payment_method_id, performed_by)
-              VALUES (?, ?, ?, 'in', ?, 'invoice', ?, ?, ?)`,
-        args: [payTxId, salesTreasuryId, paid, `فاتورة بيع ${invNum}`, invoiceId, payment_method_id, session.user.id],
-      });
-      commitStmts.push({
-        sql: `INSERT INTO invoice_payments (id, invoice_id, amount, payment_method_id, treasury_id, created_by)
-              VALUES (?, ?, ?, ?, ?, ?)`,
-        args: [randomUUID(), invoiceId, paid, payment_method_id, salesTreasuryId, session.user.id],
-      });
+      const payId = randomUUID();
+      if (distributionTreasuryId) {
+        commitStmts.push({
+          sql: "UPDATE distribution_treasuries SET balance = balance + ?, updated_at = datetime('now') WHERE id = ?",
+          args: [paid, distributionTreasuryId],
+        });
+        commitStmts.push({
+          sql: `INSERT INTO distribution_treasury_transactions (id, distribution_treasury_id, amount, type, description, reference_type, reference_id, payment_method_id, performed_by)
+                VALUES (?, ?, ?, 'in', ?, 'invoice', ?, ?, ?)`,
+          args: [payTxId, distributionTreasuryId, paid, `فاتورة بيع ${invNum}`, invoiceId, payment_method_id, session.user.id],
+        });
+        commitStmts.push({
+          sql: `INSERT INTO invoice_payments (id, invoice_id, amount, payment_method_id, treasury_id, distribution_treasury_id, created_by)
+                VALUES (?, ?, ?, ?, NULL, ?, ?)`,
+          args: [payId, invoiceId, paid, payment_method_id, distributionTreasuryId, session.user.id],
+        });
+      } else if (salesTreasuryId) {
+        commitStmts.push({
+          sql: "UPDATE treasuries SET balance = balance + ?, updated_at = datetime('now') WHERE id = ?",
+          args: [paid, salesTreasuryId],
+        });
+        commitStmts.push({
+          sql: `INSERT INTO treasury_transactions (id, treasury_id, amount, type, description, reference_type, reference_id, payment_method_id, performed_by)
+                VALUES (?, ?, ?, 'in', ?, 'invoice', ?, ?, ?)`,
+          args: [payTxId, salesTreasuryId, paid, `فاتورة بيع ${invNum}`, invoiceId, payment_method_id, session.user.id],
+        });
+        commitStmts.push({
+          sql: `INSERT INTO invoice_payments (id, invoice_id, amount, payment_method_id, treasury_id, distribution_treasury_id, created_by)
+                VALUES (?, ?, ?, ?, ?, NULL, ?)`,
+          args: [payId, invoiceId, paid, payment_method_id, salesTreasuryId, session.user.id],
+        });
+      }
     }
 
     if (digitalFee > 0 && walletRow) {

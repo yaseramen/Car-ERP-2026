@@ -3,6 +3,7 @@ import { auth } from "@/auth";
 import { db } from "@/lib/db/client";
 import { getCompanyId } from "@/lib/company";
 import { ensureCompanyWarehouse } from "@/lib/warehouse";
+import { getDistributionContext } from "@/lib/distribution";
 import { randomUUID } from "crypto";
 
 const ALLOWED_ROLES = ["super_admin", "tenant_owner", "employee"] as const;
@@ -25,11 +26,16 @@ export async function GET(request: Request) {
   const search = searchParams.get("search")?.trim() || "";
 
   try {
+    const dist = await getDistributionContext(session.user.id, companyId);
+    const qtyExpr = dist
+      ? `(SELECT COALESCE(quantity, 0) FROM item_warehouse_stock WHERE item_id = items.id AND warehouse_id = ?)`
+      : `COALESCE((SELECT SUM(quantity) FROM item_warehouse_stock WHERE item_id = items.id), 0)`;
+
     let sql = `SELECT id, name, code, barcode, category, unit, purchase_price, sale_price, min_quantity,
-            COALESCE((SELECT SUM(quantity) FROM item_warehouse_stock WHERE item_id = items.id), 0) as quantity
+            ${qtyExpr} as quantity
             FROM items 
             WHERE company_id = ? AND is_active = 1`;
-    const args: (string | number)[] = [companyId];
+    const args: (string | number)[] = dist ? [dist.assignedWarehouseId, companyId] : [companyId];
     if (search) {
       sql += ` AND (LOWER(name) LIKE ? OR LOWER(COALESCE(code,'')) LIKE ? OR LOWER(COALESCE(barcode,'')) LIKE ? OR LOWER(COALESCE(category,'')) LIKE ?)`;
       const q = `%${search.toLowerCase()}%`;
@@ -40,9 +46,12 @@ export async function GET(request: Request) {
 
     let total = 0;
     if (usePagination) {
+      const countArgs: (string | number)[] = [companyId];
       const countResult = await db.execute({
         sql: `SELECT COUNT(*) as cnt FROM items WHERE company_id = ? AND is_active = 1${search ? ` AND (LOWER(name) LIKE ? OR LOWER(COALESCE(code,'')) LIKE ? OR LOWER(COALESCE(barcode,'')) LIKE ? OR LOWER(COALESCE(category,'')) LIKE ?)` : ""}`,
-        args: search ? [companyId, `%${search.toLowerCase()}%`, `%${search.toLowerCase()}%`, `%${search.toLowerCase()}%`, `%${search.toLowerCase()}%`] : [companyId],
+        args: search
+          ? [...countArgs, `%${search.toLowerCase()}%`, `%${search.toLowerCase()}%`, `%${search.toLowerCase()}%`, `%${search.toLowerCase()}%`]
+          : countArgs,
       });
       total = Number(countResult.rows[0]?.cnt ?? 0);
     }

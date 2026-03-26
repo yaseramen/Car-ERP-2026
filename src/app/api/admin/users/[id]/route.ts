@@ -27,7 +27,11 @@ export async function GET(
 
   try {
     const result = await db.execute({
-      sql: "SELECT id, email, name, phone, role, is_active, is_blocked FROM users WHERE id = ? AND company_id = ?",
+      sql: `SELECT u.id, u.email, u.name, u.phone, u.role, u.is_active, u.is_blocked, u.assigned_warehouse_id,
+            w.name as assigned_warehouse_name
+            FROM users u
+            LEFT JOIN warehouses w ON w.id = u.assigned_warehouse_id
+            WHERE u.id = ? AND u.company_id = ?`,
       args: [id, companyId],
     });
 
@@ -42,6 +46,8 @@ export async function GET(
       role: String(row.role ?? ""),
       is_active: Number(row.is_active ?? 1) === 1,
       is_blocked: Number(row.is_blocked ?? 0) === 1,
+      assigned_warehouse_id: row.assigned_warehouse_id ? String(row.assigned_warehouse_id) : null,
+      assigned_warehouse_name: row.assigned_warehouse_name ? String(row.assigned_warehouse_name) : null,
     });
   } catch (error) {
     console.error("User GET error:", error);
@@ -95,6 +101,37 @@ export async function PATCH(
       } else {
         updates.push("blocked_at = NULL");
         updates.push("blocked_by = NULL");
+      }
+    }
+
+    if (body.assigned_warehouse_id !== undefined) {
+      const raw = body.assigned_warehouse_id;
+      if (raw === null || raw === "") {
+        updates.push("assigned_warehouse_id = NULL");
+      } else {
+        const roleCheck = await db.execute({
+          sql: "SELECT role FROM users WHERE id = ? AND company_id = ?",
+          args: [id, companyId],
+        });
+        if (String(roleCheck.rows[0]?.role ?? "") !== "employee") {
+          return NextResponse.json({ error: "الإسناد للموظفين فقط" }, { status: 400 });
+        }
+        const wh = await db.execute({
+          sql: "SELECT id FROM warehouses WHERE id = ? AND company_id = ? AND type = 'distribution' AND is_active = 1",
+          args: [String(raw).trim(), companyId],
+        });
+        if (wh.rows.length === 0) {
+          return NextResponse.json({ error: "مخزن التوزيع غير صالح أو غير موجود" }, { status: 400 });
+        }
+        const other = await db.execute({
+          sql: "SELECT id FROM users WHERE company_id = ? AND assigned_warehouse_id = ? AND id != ?",
+          args: [companyId, String(raw).trim(), id],
+        });
+        if (other.rows.length > 0) {
+          return NextResponse.json({ error: "هذا المخزن مسند لمستخدم آخر" }, { status: 400 });
+        }
+        updates.push("assigned_warehouse_id = ?");
+        args.push(String(raw).trim());
       }
     }
 

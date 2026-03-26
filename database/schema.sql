@@ -34,10 +34,12 @@ CREATE TABLE IF NOT EXISTS users (
     blocked_at TEXT,
     blocked_by TEXT,
     last_login_at TEXT,
+    assigned_warehouse_id TEXT,
     created_at TEXT DEFAULT (datetime('now')),
     updated_at TEXT DEFAULT (datetime('now')),
     FOREIGN KEY (company_id) REFERENCES companies(id) ON DELETE CASCADE,
-    FOREIGN KEY (blocked_by) REFERENCES users(id)
+    FOREIGN KEY (blocked_by) REFERENCES users(id),
+    FOREIGN KEY (assigned_warehouse_id) REFERENCES warehouses(id) ON DELETE SET NULL
 );
 
 -- الشاشات/الوحدات في النظام
@@ -104,6 +106,36 @@ CREATE TABLE IF NOT EXISTS treasuries (
     updated_at TEXT DEFAULT (datetime('now')),
     UNIQUE(company_id, type),
     FOREIGN KEY (company_id) REFERENCES companies(id) ON DELETE CASCADE
+);
+
+-- خزائن موزّعين (نقد اليوم قبل التسليم للخزينة الرئيسية)
+CREATE TABLE IF NOT EXISTS distribution_treasuries (
+    id TEXT PRIMARY KEY,
+    company_id TEXT NOT NULL,
+    user_id TEXT NOT NULL UNIQUE,
+    warehouse_id TEXT NOT NULL,
+    balance REAL DEFAULT 0,
+    created_at TEXT DEFAULT (datetime('now')),
+    updated_at TEXT DEFAULT (datetime('now')),
+    FOREIGN KEY (company_id) REFERENCES companies(id) ON DELETE CASCADE,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY (warehouse_id) REFERENCES warehouses(id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS distribution_treasury_transactions (
+    id TEXT PRIMARY KEY,
+    distribution_treasury_id TEXT NOT NULL,
+    amount REAL NOT NULL,
+    type TEXT NOT NULL CHECK(type IN ('in', 'out', 'transfer')),
+    description TEXT,
+    reference_type TEXT,
+    reference_id TEXT,
+    payment_method_id TEXT,
+    performed_by TEXT NOT NULL,
+    created_at TEXT DEFAULT (datetime('now')),
+    FOREIGN KEY (distribution_treasury_id) REFERENCES distribution_treasuries(id) ON DELETE CASCADE,
+    FOREIGN KEY (payment_method_id) REFERENCES payment_methods(id),
+    FOREIGN KEY (performed_by) REFERENCES users(id)
 );
 
 -- معاملات الخزائن
@@ -308,10 +340,12 @@ CREATE TABLE IF NOT EXISTS invoice_payments (
     reference_number TEXT,
     notes TEXT,
     created_by TEXT NOT NULL,
+    distribution_treasury_id TEXT,
     created_at TEXT DEFAULT (datetime('now')),
     FOREIGN KEY (invoice_id) REFERENCES invoices(id) ON DELETE CASCADE,
     FOREIGN KEY (payment_method_id) REFERENCES payment_methods(id),
     FOREIGN KEY (treasury_id) REFERENCES treasuries(id),
+    FOREIGN KEY (distribution_treasury_id) REFERENCES distribution_treasuries(id),
     FOREIGN KEY (created_by) REFERENCES users(id)
 );
 

@@ -11,6 +11,8 @@ type User = {
   is_active: boolean;
   is_blocked: boolean;
   created_at?: string;
+  assigned_warehouse_id?: string | null;
+  assigned_warehouse_name?: string | null;
 };
 
 type ScreenPerm = {
@@ -49,6 +51,8 @@ export function TeamContent({ canDeleteEmployee = false }: { canDeleteEmployee?:
   });
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
+  const [distWarehouses, setDistWarehouses] = useState<{ id: string; name: string; assigned_user_id: string | null }[]>([]);
+  const [assignedWarehouseId, setAssignedWarehouseId] = useState("");
 
   const loadUsers = () => {
     fetch("/api/admin/users")
@@ -61,6 +65,17 @@ export function TeamContent({ canDeleteEmployee = false }: { canDeleteEmployee?:
   useEffect(() => {
     loadUsers();
   }, []);
+
+  useEffect(() => {
+    if (showForm && editingUser?.role === "employee") {
+      fetch("/api/admin/warehouses/distribution-list")
+        .then((r) => r.json())
+        .then((d) => setDistWarehouses(Array.isArray(d.warehouses) ? d.warehouses : []))
+        .catch(() => setDistWarehouses([]));
+    } else {
+      setDistWarehouses([]);
+    }
+  }, [showForm, editingUser?.id, editingUser?.role]);
 
   useEffect(() => {
     if (permUser) {
@@ -88,6 +103,9 @@ export function TeamContent({ canDeleteEmployee = false }: { canDeleteEmployee?:
       let body: Record<string, unknown>;
       if (editingUser) {
         body = { name: form.name, phone: form.phone || null };
+        if (editingUser.role === "employee") {
+          body.assigned_warehouse_id = assignedWarehouseId.trim() || null;
+        }
         if (form.newPassword.trim()) {
           if (form.newPassword !== form.confirmPassword) {
             setError("تأكيد كلمة المرور لا يطابق الجديدة");
@@ -191,6 +209,7 @@ export function TeamContent({ canDeleteEmployee = false }: { canDeleteEmployee?:
           onClick={() => {
             setShowForm(true);
             setEditingUser(null);
+            setAssignedWarehouseId("");
             setForm({ email: "", password: "", newPassword: "", confirmPassword: "", name: "", phone: "", role: "employee" });
           }}
           className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 text-sm font-medium"
@@ -258,6 +277,31 @@ export function TeamContent({ canDeleteEmployee = false }: { canDeleteEmployee?:
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg"
               />
             </div>
+            {editingUser && editingUser.role === "employee" && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">مخزن توزيع / سيارة (موزّع)</label>
+                <select
+                  value={assignedWarehouseId}
+                  onChange={(e) => setAssignedWarehouseId(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                >
+                  <option value="">— بدون (وصول عادي للمخزن الرئيسي) —</option>
+                  {distWarehouses.map((w) => (
+                    <option
+                      key={w.id}
+                      value={w.id}
+                      disabled={!!w.assigned_user_id && w.assigned_user_id !== editingUser.id}
+                    >
+                      {w.name}
+                      {w.assigned_user_id && w.assigned_user_id !== editingUser.id ? " (مسند لمستخدم آخر)" : ""}
+                    </option>
+                  ))}
+                </select>
+                <p className="text-xs text-gray-500 mt-1">
+                  عند الإسناد يرى الموظف مخزونه فقط، ويبيع منه، ويجمع النقد في خزينته اليومية حتى التسليم للخزينة الرئيسية.
+                </p>
+              </div>
+            )}
             {editingUser && (
               <>
                 <div className="pt-2 border-t border-gray-100">
@@ -310,6 +354,7 @@ export function TeamContent({ canDeleteEmployee = false }: { canDeleteEmployee?:
               <th className="px-4 py-3 text-sm font-medium text-gray-700">الاسم</th>
               <th className="px-4 py-3 text-sm font-medium text-gray-700">البريد</th>
               <th className="px-4 py-3 text-sm font-medium text-gray-700">الدور</th>
+              <th className="px-4 py-3 text-sm font-medium text-gray-700">التوزيع</th>
               <th className="px-4 py-3 text-sm font-medium text-gray-700">الحالة</th>
               <th className="px-4 py-3 text-sm font-medium text-gray-700">إجراءات</th>
             </tr>
@@ -320,6 +365,13 @@ export function TeamContent({ canDeleteEmployee = false }: { canDeleteEmployee?:
                 <td className="px-4 py-3">{u.name}</td>
                 <td className="px-4 py-3 text-gray-600">{u.email}</td>
                 <td className="px-4 py-3">{ROLE_LABELS[u.role] || u.role}</td>
+                <td className="px-4 py-3 text-sm text-gray-600">
+                  {u.role === "employee" && u.assigned_warehouse_name ? (
+                    <span title={u.assigned_warehouse_id ?? ""}>{u.assigned_warehouse_name}</span>
+                  ) : (
+                    "—"
+                  )}
+                </td>
                 <td className="px-4 py-3">
                   {u.is_blocked ? (
                     <span className="text-red-600 font-medium">محظور</span>
@@ -340,6 +392,7 @@ export function TeamContent({ canDeleteEmployee = false }: { canDeleteEmployee?:
                     <button
                       onClick={() => {
                         setEditingUser(u);
+                        setAssignedWarehouseId(u.assigned_warehouse_id || "");
                         setForm({
                           email: u.email,
                           password: "",

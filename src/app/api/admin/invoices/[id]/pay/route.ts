@@ -34,7 +34,7 @@ export async function POST(
     const amt = Number(amount);
 
     const invResult = await db.execute({
-      sql: "SELECT total, paid_amount, status, type, invoice_number FROM invoices WHERE id = ? AND company_id = ?",
+      sql: "SELECT total, paid_amount, status, type, invoice_number, warehouse_id FROM invoices WHERE id = ? AND company_id = ?",
       args: [invoiceId, companyId],
     });
 
@@ -56,9 +56,31 @@ export async function POST(
     const status = newPaid >= total ? "paid" : "partial";
 
     let treasuryId: string | null = null;
+    let distributionTreasuryId: string | null = null;
+
+    if (invType === "sale" && inv.warehouse_id) {
+      const dist = await db.execute({
+        sql: "SELECT id FROM distribution_treasuries WHERE warehouse_id = ? AND company_id = ? LIMIT 1",
+        args: [String(inv.warehouse_id), companyId],
+      });
+      if (dist.rows.length > 0) {
+        distributionTreasuryId = String(dist.rows[0].id);
+      }
+    }
+
     await ensureTreasuries(companyId);
 
-    if (invType === "sale" || invType === "maintenance") {
+    if (invType === "sale" && distributionTreasuryId) {
+      await db.execute({
+        sql: "UPDATE distribution_treasuries SET balance = balance + ?, updated_at = datetime('now') WHERE id = ?",
+        args: [amt, distributionTreasuryId],
+      });
+      await db.execute({
+        sql: `INSERT INTO distribution_treasury_transactions (id, distribution_treasury_id, amount, type, description, reference_type, reference_id, payment_method_id, performed_by)
+              VALUES (?, ?, ?, 'in', ?, 'invoice', ?, ?, ?)`,
+        args: [randomUUID(), distributionTreasuryId, amt, `دفعة فاتورة ${invNum}`, invoiceId, payment_method_id, session.user.id],
+      });
+    } else if (invType === "sale" || invType === "maintenance") {
       treasuryId = invType === "sale" ? await getTreasuryIdByType(companyId, "sales") : await getTreasuryIdByType(companyId, "workshop");
       if (treasuryId) {
         await db.execute({
@@ -97,13 +119,15 @@ export async function POST(
     }
 
     await db.execute({
-      sql: "INSERT INTO invoice_payments (id, invoice_id, amount, payment_method_id, treasury_id, reference_number, notes, created_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+      sql: `INSERT INTO invoice_payments (id, invoice_id, amount, payment_method_id, treasury_id, distribution_treasury_id, reference_number, notes, created_by)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       args: [
         randomUUID(),
         invoiceId,
         amt,
         payment_method_id,
         treasuryId,
+        distributionTreasuryId,
         reference_number?.trim() || null,
         notes?.trim() || null,
         session.user.id,

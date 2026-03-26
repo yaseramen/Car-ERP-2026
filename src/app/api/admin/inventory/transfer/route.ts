@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { db } from "@/lib/db/client";
 import { getCompanyId } from "@/lib/company";
+import { ensureCompanyWarehouse } from "@/lib/warehouse";
+import { getDistributionContext } from "@/lib/distribution";
 import { randomUUID } from "crypto";
 
 const ALLOWED_ROLES = ["super_admin", "tenant_owner", "employee"] as const;
@@ -43,11 +45,24 @@ export async function POST(request: Request) {
     }
 
     const whCheck = await db.execute({
-      sql: "SELECT id FROM warehouses WHERE id IN (?, ?) AND company_id = ?",
+      sql: "SELECT id, type FROM warehouses WHERE id IN (?, ?) AND company_id = ?",
       args: [from_warehouse_id, to_warehouse_id, companyId],
     });
     if (whCheck.rows.length < 2) {
       return NextResponse.json({ error: "أحد المخازن غير موجود أو لا ينتمي للشركة" }, { status: 404 });
+    }
+
+    const mainId = await ensureCompanyWarehouse(companyId);
+    const distCtx = await getDistributionContext(session.user.id, companyId);
+    if (distCtx) {
+      const okLoad = from_warehouse_id === mainId && to_warehouse_id === distCtx.assignedWarehouseId;
+      const okReturn = from_warehouse_id === distCtx.assignedWarehouseId && to_warehouse_id === mainId;
+      if (!okLoad && !okReturn) {
+        return NextResponse.json(
+          { error: "يمكنك النقل فقط بين المخزن الرئيسي ومخزن التوزيع المسند لك (تحميل أو إرجاع بضاعة)" },
+          { status: 403 }
+        );
+      }
     }
 
     const stockResult = await db.execute({
