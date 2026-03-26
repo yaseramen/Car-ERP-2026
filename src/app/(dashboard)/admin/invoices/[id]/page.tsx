@@ -133,6 +133,12 @@ export default async function InvoiceDetailPage({
       cancelled: "ملغاة",
     };
 
+    const issuedAt = new Date(data.created_at);
+    const issuedAtInvalid = Number.isNaN(issuedAt.getTime());
+    const issuedAtDisplay = issuedAtInvalid
+      ? data.created_at
+      : issuedAt.toLocaleString("ar-EG", { dateStyle: "long", timeStyle: "short" });
+
     return (
     <div className="p-4 md:p-8">
       <div className="mb-6 flex justify-between items-center flex-wrap gap-2">
@@ -187,6 +193,7 @@ export default async function InvoiceDetailPage({
             issuedByName={data.created_by_name}
             issuedByEmail={data.created_by_email}
             warehouseName={data.warehouse_name}
+            createdAt={data.created_at}
             items={items}
           />
         </div>
@@ -194,7 +201,7 @@ export default async function InvoiceDetailPage({
 
       <div id="invoice-print-area">
       {data.company_name && (
-        <div className="mb-6 p-4 bg-gray-50 dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700">
+        <div className="mb-6 p-4 bg-gray-50 dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 invoice-print-compact">
           <h2 className="font-bold text-gray-900 dark:text-gray-100 mb-3 text-lg">بيانات الشركة</h2>
           <dl className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm">
             <div>
@@ -229,8 +236,11 @@ export default async function InvoiceDetailPage({
         </div>
       )}
 
-      <div className="mb-8">
+      <div className="mb-8 invoice-print-compact">
         <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">فاتورة {data.invoice_number}</h1>
+        <p className="text-sm text-gray-800 dark:text-gray-200 mt-2 font-medium print:text-gray-900">
+          تاريخ ووقت الإصدار: {issuedAtDisplay}
+        </p>
         <p className="text-gray-500 dark:text-gray-400 mt-1">
           {data.is_return && (
             <span className="inline-block px-2 py-0.5 bg-amber-100 dark:bg-amber-900/50 text-amber-800 dark:text-amber-200 rounded text-sm font-medium mb-2">
@@ -249,8 +259,8 @@ export default async function InvoiceDetailPage({
         )}
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-        <div className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-sm border border-gray-100 dark:border-gray-700">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8 invoice-print-grid">
+        <div className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-sm border border-gray-100 dark:border-gray-700 invoice-print-card">
           <h2 className="font-bold text-gray-900 dark:text-gray-100 mb-4">بيانات الفاتورة</h2>
           <dl className="space-y-3 text-sm">
             <div className="flex justify-between">
@@ -266,9 +276,9 @@ export default async function InvoiceDetailPage({
               <dd className="text-gray-900 dark:text-gray-100">{STATUS_LABELS[data.status] || data.status}</dd>
             </div>
             <div className="flex justify-between">
-              <dt className="text-gray-500 dark:text-gray-400">التاريخ</dt>
+              <dt className="text-gray-500 dark:text-gray-400">التاريخ والوقت</dt>
               <dd className="text-gray-900 dark:text-gray-100">
-                {new Date(data.created_at).toLocaleString("ar-EG")}
+                {issuedAtDisplay}
               </dd>
             </div>
             {(data.created_by_name || data.created_by_email) && (
@@ -291,7 +301,7 @@ export default async function InvoiceDetailPage({
           </dl>
         </div>
 
-        <div className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-sm border border-gray-100 dark:border-gray-700">
+        <div className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-sm border border-gray-100 dark:border-gray-700 invoice-print-card">
           {data.type === "purchase" ? (
             <>
               <h2 className="font-bold text-gray-900 dark:text-gray-100 mb-4">المورد</h2>
@@ -345,14 +355,19 @@ export default async function InvoiceDetailPage({
         </div>
       </div>
 
-      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden mb-8">
-        <div className="p-4 border-b border-gray-100 dark:border-gray-700">
-          <h2 className="font-bold text-gray-900 dark:text-gray-100">بنود الفاتورة</h2>
-        </div>
-        <div className="overflow-x-auto">
+      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden mb-8 invoice-print-card">
+        <div className="overflow-x-auto invoice-print-items-wrap">
           {items.length > 0 ? (
-            <table className="w-full">
+            <table className="w-full invoice-lines-table">
               <thead>
+                <tr className="bg-gray-50 dark:bg-gray-700/50">
+                  <th
+                    colSpan={4}
+                    className="text-right px-4 py-2 text-base font-bold text-gray-900 dark:text-gray-100 border-b border-gray-100 dark:border-gray-700"
+                  >
+                    بنود الفاتورة
+                  </th>
+                </tr>
                 <tr className="bg-gray-50 dark:bg-gray-700/50">
                   <th className="text-right px-4 py-3 text-sm font-medium text-gray-600 dark:text-gray-300">الصنف</th>
                   <th className="text-right px-4 py-3 text-sm font-medium text-gray-600 dark:text-gray-300">الكمية</th>
@@ -369,8 +384,6 @@ export default async function InvoiceDetailPage({
                     <td className="px-4 py-3 text-sm font-medium text-gray-900 dark:text-gray-100">{item.total?.toFixed(2)} ج.م</td>
                   </tr>
                 ))}
-              </tbody>
-              <tfoot>
                 <tr className="bg-gray-50 dark:bg-gray-700/50">
                   <td colSpan={3} className="px-4 py-3 text-sm text-right text-gray-900 dark:text-gray-100">المجموع الفرعي</td>
                   <td className="px-4 py-3 text-sm font-medium text-gray-900 dark:text-gray-100">{data.subtotal?.toFixed(2)} ج.م</td>
@@ -403,7 +416,7 @@ export default async function InvoiceDetailPage({
                     <td className="px-4 py-3 text-sm text-gray-900 dark:text-gray-100">{data.paid_amount?.toFixed(2)} ج.م</td>
                   </tr>
                 )}
-              </tfoot>
+              </tbody>
             </table>
           ) : (
             <div className="p-8 text-center text-gray-500 dark:text-gray-400">لا توجد بنود</div>
@@ -442,7 +455,7 @@ export default async function InvoiceDetailPage({
         </div>
       )}
 
-      <div className="mt-8 pt-4 border-t border-gray-200 dark:border-gray-700 text-center text-sm text-gray-500 dark:text-gray-400">
+      <div className="mt-8 pt-4 border-t border-gray-200 dark:border-gray-700 text-center text-sm text-gray-500 dark:text-gray-400 invoice-print-footer">
         <p className="font-medium text-gray-600 dark:text-gray-400">برمجة وتطوير البرنامج</p>
         <p className="mt-1">{DEVELOPER_INFO.name}</p>
         <p>هاتف: {DEVELOPER_INFO.phone}</p>

@@ -230,4 +230,69 @@ html.dark table tbody tr:hover,
   main {
     width: 100% !important;
   }
+  /* فواتير A4: تقليل الهوامش والمسافات لاستيعاب أكبر عدد من البنود */
+  @page {
+    size: a4;
+    margin: 12mm;
+  }
+  .min-h-screen {
+    min-height: auto !important;
+  }
+  #invoice-print-area {
+    overflow: visible !important;
+    font-size: 11px;
+    line-height: 1.35;
+  }
+  #invoice-print-area .invoice-print-compact {
+    margin-bottom: 0.75rem !important;
+    padding: 0.5rem 0.75rem !important;
+  }
+  #invoice-print-area .invoice-print-compact h1 {
+    font-size: 1.25rem !important;
+    margin-bottom: 0.25rem !important;
+  }
+  #invoice-print-area .invoice-print-compact h2 {
+    font-size: 0.95rem !important;
+    margin-bottom: 0.35rem !important;
+  }
+  #invoice-print-area .invoice-print-grid {
+    display: block !important;
+    gap: 0.5rem !important;
+    margin-bottom: 0.75rem !important;
+  }
+  #invoice-print-area .invoice-print-grid > * {
+    width: 100% !important;
+    max-width: 100% !important;
+    margin-bottom: 0.5rem;
+    padding: 0.5rem 0.75rem !important;
+  }
+  #invoice-print-area .invoice-print-items-wrap {
+    overflow: visible !important;
+  }
+  #invoice-print-area .invoice-print-card {
+    overflow: visible !important;
+    margin-bottom: 0.75rem !important;
+  }
+  #invoice-print-area table.invoice-lines-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: inherit;
+  }
+  #invoice-print-area table.invoice-lines-table th,
+  #invoice-print-area table.invoice-lines-table td {
+    padding: 0.35rem 0.5rem !important;
+  }
+  #invoice-print-area table.invoice-lines-table thead {
+    display: table-header-group;
+  }
+  /* السماح بانقسام الصفوف الطويلة بين الصفحات (لا نفرض avoid على كل صف) */
+  #invoice-print-area table.invoice-lines-table tbody tr {
+    break-inside: auto;
+    page-break-inside: auto;
+  }
+  #invoice-print-area .invoice-print-footer {
+    margin-top: 0.75rem !important;
+    padding-top: 0.5rem !important;
+    font-size: 10px !important;
+  }
 }
