@@ -424,7 +424,7 @@ export default async function InvoiceDetailPage({
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8 invoice-print-payments-row">
         <div className="no-print">
           <AddPayment
             invoiceId={id}
@@ -433,17 +433,32 @@ export default async function InvoiceDetailPage({
             status={data.status}
           />
         </div>
-        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden">
+        {/* الشاشة: قائمة تفاعلية. الطباعة: ملخص نصي فقط (بدون أزرار/تعليمات) لتجنب صفحة ثانية فارغة */}
+        <div
+          className={`bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden invoice-print-payments-card ${payments.length === 0 ? "no-print" : ""}`}
+        >
           <div className="p-4 border-b border-gray-100 dark:border-gray-700">
             <h2 className="font-bold text-gray-900 dark:text-gray-100">سجل المدفوعات</h2>
           </div>
           <div className="p-4">
-            <InvoicePaymentsList
-              invoiceId={id}
-              invoiceType={data.type}
-              status={data.status}
-              payments={payments}
-            />
+            <div className="no-print">
+              <InvoicePaymentsList
+                invoiceId={id}
+                invoiceType={data.type}
+                status={data.status}
+                payments={payments}
+              />
+            </div>
+            {payments.length > 0 && (
+              <ul className="hidden print:block space-y-1 text-sm text-gray-900 dark:text-gray-100 list-none p-0 m-0">
+                {payments.map((p) => (
+                  <li key={p.id}>
+                    {p.method_name} — {new Date(p.created_at).toLocaleString("ar-EG")} — +
+                    {p.amount.toFixed(2)} ج.م
+                  </li>
+                ))}
+              </ul>
+            )}
           </div>
         </div>
       </div>

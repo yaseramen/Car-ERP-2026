@@ -294,5 +294,22 @@ html.dark table tbody tr:hover,
     margin-top: 0.75rem !important;
     padding-top: 0.5rem !important;
     font-size: 10px !important;
+    page-break-inside: avoid;
+    break-inside: avoid;
+  }
+  #invoice-print-area .invoice-print-payments-row {
+    display: block !important;
+    margin-bottom: 0.5rem !important;
+  }
+  #invoice-print-area .invoice-print-payments-card {
+    padding: 0 !important;
+    margin-bottom: 0.35rem !important;
+  }
+  #invoice-print-area .invoice-print-payments-card .p-4 {
+    padding: 0.35rem 0.5rem !important;
+  }
+  #invoice-print-area .invoice-print-payments-card .border-b {
+    padding-top: 0.25rem !important;
+    padding-bottom: 0.25rem !important;
   }
 }
