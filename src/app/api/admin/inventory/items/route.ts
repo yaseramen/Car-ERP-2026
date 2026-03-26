@@ -21,11 +21,13 @@ export async function GET(request: Request) {
 
   const { searchParams } = new URL(request.url);
   const categoryParam = searchParams.get("category")?.trim() || "";
+  const inStockOnly = searchParams.get("in_stock") === "1" || searchParams.get("in_stock") === "true";
   const usePagination =
     searchParams.has("limit") ||
     searchParams.has("offset") ||
     searchParams.get("search") ||
-    categoryParam;
+    categoryParam ||
+    inStockOnly;
   const limit = usePagination ? Math.min(200, Math.max(1, Number(searchParams.get("limit")) || 50)) : 10000;
   const offset = usePagination ? Math.max(0, Number(searchParams.get("offset")) || 0) : 0;
   const search = searchParams.get("search")?.trim() || "";
@@ -36,11 +38,25 @@ export async function GET(request: Request) {
       ? `(SELECT COALESCE(quantity, 0) FROM item_warehouse_stock WHERE item_id = items.id AND warehouse_id = ?)`
       : `COALESCE((SELECT SUM(quantity) FROM item_warehouse_stock WHERE item_id = items.id), 0)`;
 
+    const stockPositive = dist
+      ? `(SELECT COALESCE(quantity, 0) FROM item_warehouse_stock WHERE item_id = items.id AND warehouse_id = ?) > 0`
+      : `COALESCE((SELECT SUM(quantity) FROM item_warehouse_stock WHERE item_id = items.id), 0) > 0`;
+
     let sql = `SELECT id, name, code, barcode, category, unit, purchase_price, sale_price, min_quantity,
             ${qtyExpr} as quantity
             FROM items 
             WHERE company_id = ? AND is_active = 1`;
-    const args: (string | number)[] = dist ? [dist.assignedWarehouseId, companyId] : [companyId];
+    const args: (string | number)[] = [];
+    if (dist) {
+      args.push(dist.assignedWarehouseId);
+    }
+    args.push(companyId);
+    if (inStockOnly) {
+      sql += ` AND ${stockPositive}`;
+      if (dist) {
+        args.push(dist.assignedWarehouseId);
+      }
+    }
     if (categoryParam === "__uncategorized__") {
       sql += ` AND (category IS NULL OR TRIM(category) = '')`;
     } else if (categoryParam) {
@@ -57,8 +73,15 @@ export async function GET(request: Request) {
 
     let total = 0;
     if (usePagination) {
-      const countArgs: (string | number)[] = [companyId];
+      const countArgs: (string | number)[] = [];
       let countWhere = "company_id = ? AND is_active = 1";
+      countArgs.push(companyId);
+      if (inStockOnly) {
+        countWhere += ` AND ${stockPositive}`;
+        if (dist) {
+          countArgs.push(dist.assignedWarehouseId);
+        }
+      }
       if (categoryParam === "__uncategorized__") {
         countWhere += " AND (category IS NULL OR TRIM(category) = '')";
       } else if (categoryParam) {

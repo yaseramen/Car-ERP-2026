@@ -17,6 +17,7 @@ const navItems: {
 }[] = [
   { href: "/admin", label: "الرئيسية", module: "dashboard" },
   { href: "/admin/inventory", label: "المخزن", module: "inventory" },
+  { href: "/admin/inventory/price-list", label: "عرض أسعار", module: "inventory" },
   { href: "/admin/workshop", label: "الورشة", module: "workshop", serviceOnly: true },
   { href: "/admin/obd", label: "OBD", module: "obd", serviceOnly: true },
   { href: "/admin/cashier", label: "الكاشير", module: "cashier", salesOnly: true },

@@ -4,6 +4,7 @@ import { canAccess } from "@/lib/permissions";
 import { getDistributionContext } from "@/lib/distribution";
 import { getCompanyId } from "@/lib/company";
 import { ensureCompanyWarehouse } from "@/lib/warehouse";
+import Link from "next/link";
 import { InventoryTable } from "./inventory-table";
 import { TransferStock } from "./transfer-stock";
 
@@ -23,10 +24,16 @@ export default async function InventoryPage() {
 
   return (
     <div className="p-4 md:p-8">
-      <div className="mb-8 flex justify-between items-start">
+      <div className="mb-8 flex flex-wrap justify-between items-start gap-4">
         <div>
           <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">المخزن</h1>
           <p className="text-gray-500 dark:text-gray-400 mt-1">إدارة الأصناف والمخزون</p>
+          <Link
+            href="/admin/inventory/price-list"
+            className="inline-block mt-3 text-sm font-medium text-emerald-600 dark:text-emerald-400 hover:underline"
+          >
+            عرض أسعار وطباعة →
+          </Link>
         </div>
         <TransferStock
           distributionMode={!!dist}
