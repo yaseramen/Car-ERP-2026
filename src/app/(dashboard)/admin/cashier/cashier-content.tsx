@@ -554,7 +554,7 @@ export function CashierContent() {
             <div>
               <p className="font-semibold text-emerald-900 dark:text-emerald-100">وضع التوزيع: {distInfo.warehouse_name}</p>
               <p className="text-sm text-emerald-800 dark:text-emerald-200 mt-1">
-                نقد اليوم في خزينتك: <strong>{distInfo.treasury_balance.toFixed(2)} ج.م</strong> — سجّل تسليماً للخزينة الرئيسية عند انتهاء الجولة.
+                رصيد نقد عندك الآن: <strong>{distInfo.treasury_balance.toFixed(2)} ج.م</strong> — التسليم للخزينة الرئيسية <strong>مرن</strong> (ليس إلزامياً يومياً؛ سلّم عندما يناسبك أو لفترة).
               </p>
             </div>
             <form onSubmit={handleSettle} className="flex flex-wrap items-end gap-2">

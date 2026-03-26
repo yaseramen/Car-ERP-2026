@@ -24,7 +24,7 @@ const MOVEMENT_LABELS: Record<string, string> = {
 
 const ROWS_PER_PAGE = 50;
 
-type Tab = "summary" | "sales" | "profit" | "inventory" | "workshop" | "expenses" | "suppliers";
+type Tab = "summary" | "sales" | "profit" | "inventory" | "workshop" | "distribution" | "expenses" | "suppliers";
 
 function PaginationControls({
   page,
@@ -70,6 +70,19 @@ export function ReportsContent() {
   const [expenseNameFilter, setExpenseNameFilter] = useState("");
   const [expenseTypeFilter, setExpenseTypeFilter] = useState<"" | "expense" | "income">("");
   const [suppliersReport, setSuppliersReport] = useState<Record<string, unknown> | null>(null);
+  const [distributionReport, setDistributionReport] = useState<{
+    flexible_policy?: boolean;
+    policy_note?: string;
+    distributors?: Array<{
+      user_name: string;
+      warehouse_name: string;
+      treasury_balance_now: number;
+      stock_quantity_total: number;
+      period_cash_in: number | null;
+      period_settled_to_main: number | null;
+    }>;
+    not_a_distributor?: boolean;
+  } | null>(null);
   const [loading, setLoading] = useState(true);
   const [tabLoading, setTabLoading] = useState(false);
   const [dateFrom, setDateFrom] = useState(() => {
@@ -175,6 +188,15 @@ export function ReportsContent() {
     } catch {}
   }
 
+  async function fetchDistribution() {
+    try {
+      const res = await fetch(`/api/admin/reports/distribution?from=${dateFrom}&to=${dateTo}`);
+      if (res.ok) setDistributionReport(await res.json());
+    } catch {
+      setDistributionReport(null);
+    }
+  }
+
   useEffect(() => {
     setLoading(true);
     fetchSummary().finally(() => setLoading(false));
@@ -188,6 +210,7 @@ export function ReportsContent() {
       tab === "profit" ? fetchProfit() :
       tab === "inventory" ? fetchInventory() :
       tab === "workshop" ? fetchWorkshop() :
+      tab === "distribution" ? fetchDistribution() :
       tab === "expenses" ? Promise.all([fetchExpenseIncomeNames(), fetchExpensesIncome()]) :
       fetchSuppliersReport();
     p.finally(() => setTabLoading(false));
@@ -199,6 +222,7 @@ export function ReportsContent() {
     { id: "profit" as Tab, label: "الأرباح" },
     { id: "inventory" as Tab, label: "المخزون" },
     { id: "workshop" as Tab, label: "الورشة" },
+    { id: "distribution" as Tab, label: "التوزيع والموزّعين" },
     { id: "expenses" as Tab, label: "المصروفات والإيرادات" },
     { id: "suppliers" as Tab, label: "مقارنة الموردين" },
   ];
@@ -291,6 +315,16 @@ export function ReportsContent() {
         "متوسط السعر": r.avg_price.toFixed(2),
       }));
       exportToExcel(data, `مقارنة-موردين-${dateFrom}-${dateTo}`, "مقارنة الموردين");
+    } else if (tab === "distribution" && distributionReport?.distributors && distributionReport.distributors.length > 0) {
+      const data = distributionReport.distributors.map((d) => ({
+        الموظف: d.user_name,
+        "مخزن التوزيع": d.warehouse_name,
+        "رصيد النقد عند الموزّع الآن": d.treasury_balance_now,
+        "إجمالي وحدات المخزون بالمخزن": d.stock_quantity_total,
+        "نقد دخل في الفترة": d.period_cash_in ?? "—",
+        "تسليم للرئيسية في الفترة": d.period_settled_to_main ?? "—",
+      }));
+      exportToExcel(data, `توزيع-${dateFrom}-${dateTo}`, "التوزيع");
     } else {
       alert("لا توجد بيانات للتصدير");
     }
@@ -302,6 +336,7 @@ export function ReportsContent() {
       profit: "report-profit",
       inventory: "report-inventory",
       workshop: "report-workshop",
+      distribution: "report-distribution",
       expenses: "report-expenses",
       suppliers: "report-suppliers",
     };
@@ -346,7 +381,7 @@ export function ReportsContent() {
         </div>
       )}
 
-      {(tab === "sales" || tab === "profit" || tab === "inventory" || tab === "workshop" || tab === "expenses" || tab === "suppliers") && (
+      {(tab === "sales" || tab === "profit" || tab === "inventory" || tab === "workshop" || tab === "distribution" || tab === "expenses" || tab === "suppliers") && (
         <div className="flex flex-wrap gap-4 items-center">
           <div className="flex gap-2">
             {[
@@ -392,7 +427,7 @@ export function ReportsContent() {
               className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100 placeholder-gray-400"
             />
           </div>
-          {(tab === "sales" || tab === "profit" || tab === "inventory" || tab === "workshop" || tab === "expenses" || tab === "suppliers") && (
+          {(tab === "sales" || tab === "profit" || tab === "inventory" || tab === "workshop" || tab === "distribution" || tab === "expenses" || tab === "suppliers") && (
             <>
               <button
                 type="button"
@@ -697,6 +732,64 @@ export function ReportsContent() {
             <div className="bg-white dark:bg-gray-800 rounded-xl p-8 shadow-sm border border-gray-100 dark:border-gray-700 text-center">
               <p className="text-gray-500 dark:text-gray-400">لا توجد أصناف في المخزون</p>
               <p className="text-sm text-gray-400 dark:text-gray-500 mt-1">أضف أصنافاً من المخزون أو فواتير الشراء</p>
+            </div>
+          )}
+        </div>
+      )}
+
+      {tab === "distribution" && !tabLoading && (
+        <div id="report-distribution" className="space-y-4">
+          {distributionReport?.policy_note && (
+            <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-xl p-4 text-sm text-amber-900 dark:text-amber-100">
+              {distributionReport.policy_note}
+            </div>
+          )}
+          {distributionReport?.not_a_distributor ? (
+            <div className="bg-white dark:bg-gray-800 rounded-xl p-8 border border-gray-100 dark:border-gray-700 text-center text-gray-600 dark:text-gray-400">
+              هذا التقرير للموظفين المسند لهم مخزن توزيع. يمكنك استخدام تبويبات أخرى.
+            </div>
+          ) : distributionReport?.distributors && distributionReport.distributors.length > 0 ? (
+            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden">
+              <div className="p-4 border-b border-gray-100 dark:border-gray-700">
+                <h2 className="font-bold text-gray-900 dark:text-gray-100">ملخص الموزّعين للفترة {dateFrom} — {dateTo}</h2>
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                  الأرقام بالفترة تعرض حركة النقد؛ رصيد النقد والمخزون هو الوضع الحالي (قد يشمل عملاً سابقاً — التسليم ليس يومياً).
+                </p>
+              </div>
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead>
+                    <tr className="bg-gray-50 dark:bg-gray-700/50">
+                      <th className="text-right px-4 py-3 text-sm font-medium text-gray-600 dark:text-gray-300">الموظف</th>
+                      <th className="text-right px-4 py-3 text-sm font-medium text-gray-600 dark:text-gray-300">مخزن التوزيع</th>
+                      <th className="text-right px-4 py-3 text-sm font-medium text-gray-600 dark:text-gray-300">رصيد النقد الآن</th>
+                      <th className="text-right px-4 py-3 text-sm font-medium text-gray-600 dark:text-gray-300">وحدات بالمخزن</th>
+                      <th className="text-right px-4 py-3 text-sm font-medium text-gray-600 dark:text-gray-300">نقد بالفترة</th>
+                      <th className="text-right px-4 py-3 text-sm font-medium text-gray-600 dark:text-gray-300">تسليم للرئيسية بالفترة</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {distributionReport.distributors.map((d, i) => (
+                      <tr key={i} className="border-b border-gray-50 dark:border-gray-700">
+                        <td className="px-4 py-3 text-sm text-gray-900 dark:text-gray-100">{d.user_name}</td>
+                        <td className="px-4 py-3 text-sm text-gray-900 dark:text-gray-100">{d.warehouse_name}</td>
+                        <td className="px-4 py-3 text-sm font-medium">{d.treasury_balance_now.toFixed(2)} ج.م</td>
+                        <td className="px-4 py-3 text-sm">{d.stock_quantity_total.toFixed(2)}</td>
+                        <td className="px-4 py-3 text-sm">
+                          {d.period_cash_in != null ? `${d.period_cash_in.toFixed(2)} ج.م` : "—"}
+                        </td>
+                        <td className="px-4 py-3 text-sm">
+                          {d.period_settled_to_main != null ? `${d.period_settled_to_main.toFixed(2)} ج.م` : "—"}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          ) : (
+            <div className="bg-white dark:bg-gray-800 rounded-xl p-8 border text-center text-gray-500 dark:text-gray-400">
+              لا يوجد موزّعون بمخازن مسندة.
             </div>
           )}
         </div>

@@ -33,13 +33,15 @@ export default async function InvoiceDetailPage({
             c.name as customer_name, c.phone as customer_phone,
             s.name as supplier_name, s.phone as supplier_phone,
             ro.order_number, ro.vehicle_plate, ro.vehicle_model,
-            u.name as created_by_name, u.email as created_by_email
+            u.name as created_by_name, u.email as created_by_email,
+            wh.name as warehouse_name
             FROM invoices inv
             LEFT JOIN companies comp ON inv.company_id = comp.id
             LEFT JOIN customers c ON inv.customer_id = c.id
             LEFT JOIN suppliers s ON inv.supplier_id = s.id
             LEFT JOIN repair_orders ro ON inv.repair_order_id = ro.id
             LEFT JOIN users u ON inv.created_by = u.id
+            LEFT JOIN warehouses wh ON inv.warehouse_id = wh.id
             WHERE inv.id = ? AND inv.company_id = ?`,
       args: [id, companyId],
     });
@@ -77,6 +79,7 @@ export default async function InvoiceDetailPage({
       created_at: String(row.created_at ?? ""),
       created_by_name: row.created_by_name ? String(row.created_by_name) : null,
       created_by_email: row.created_by_email ? String(row.created_by_email) : null,
+      warehouse_name: row.warehouse_name ? String(row.warehouse_name) : null,
     };
 
     const itemsResult = await db.execute({
@@ -152,6 +155,7 @@ export default async function InvoiceDetailPage({
             supplierName={data.supplier_name}
             issuedByName={data.created_by_name}
             issuedByEmail={data.created_by_email}
+            warehouseName={data.warehouse_name}
             items={items}
           />
         </div>
@@ -245,6 +249,12 @@ export default async function InvoiceDetailPage({
                     <span className="block text-xs text-gray-500 dark:text-gray-400 mt-0.5">{data.created_by_email}</span>
                   ) : null}
                 </dd>
+              </div>
+            )}
+            {data.type === "sale" && data.warehouse_name && (
+              <div className="flex justify-between gap-2">
+                <dt className="text-gray-500 dark:text-gray-400 shrink-0">المخزن</dt>
+                <dd className="text-gray-900 dark:text-gray-100 text-right">{data.warehouse_name}</dd>
               </div>
             )}
           </dl>
