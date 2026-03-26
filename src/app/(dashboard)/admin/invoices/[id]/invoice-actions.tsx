@@ -24,6 +24,8 @@ type InvoiceActionsProps = {
   issuedByEmail?: string | null;
   /** مخزن صرف البضاعة (بيع / توزيع) */
   warehouseName?: string | null;
+  /** وقت إصدار الفاتورة (ISO) — للواتساب */
+  createdAt?: string;
   items?: InvoiceItem[];
 };
 
@@ -47,9 +49,16 @@ function buildWhatsAppText(props: InvoiceActionsProps): string {
     issuedByName,
     issuedByEmail,
     warehouseName,
+    createdAt,
     items = [],
   } = props;
   const typeLabel = TYPE_LABELS[invoiceType] || invoiceType;
+  const issuedAtLine = (() => {
+    if (!createdAt) return null;
+    const d = new Date(createdAt);
+    if (Number.isNaN(d.getTime())) return `🕐 الإصدار: ${createdAt}`;
+    return `🕐 الإصدار: ${d.toLocaleString("ar-EG", { dateStyle: "long", timeStyle: "short" })}`;
+  })();
   const issuerLine =
     issuedByName || issuedByEmail
       ? `👤 أصدرها: ${issuedByName || issuedByEmail}${issuedByName && issuedByEmail ? ` (${issuedByEmail})` : ""}`
@@ -62,6 +71,7 @@ function buildWhatsAppText(props: InvoiceActionsProps): string {
     companyName ? `🏢 ${companyName}` : null,
     customerName ? `👤 العميل: ${customerName}` : supplierName ? `🏭 المورد: ${supplierName}` : null,
     warehouseLine,
+    issuedAtLine,
     issuerLine,
     "",
     "── البنود ──",
