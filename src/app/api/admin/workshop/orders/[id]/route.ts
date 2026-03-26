@@ -32,11 +32,27 @@ export async function PATCH(
 
     if (stage === "completed") {
       const orderResult = await db.execute({
-        sql: "SELECT order_number, warehouse_id, customer_id, order_type FROM repair_orders WHERE id = ? AND company_id = ?",
+        sql: `SELECT ro.order_number, ro.warehouse_id, ro.customer_id, ro.order_type, ro.invoice_id, inv.invoice_number AS existing_invoice_number
+              FROM repair_orders ro
+              LEFT JOIN invoices inv ON ro.invoice_id = inv.id
+              WHERE ro.id = ? AND ro.company_id = ?`,
         args: [id, companyId],
       });
       if (orderResult.rows.length === 0) {
         return NextResponse.json({ error: "أمر غير موجود" }, { status: 404 });
+      }
+
+      const existingInvId = orderResult.rows[0].invoice_id ? String(orderResult.rows[0].invoice_id) : null;
+      const existingInvNum = orderResult.rows[0].existing_invoice_number
+        ? String(orderResult.rows[0].existing_invoice_number)
+        : null;
+      if (existingInvId && existingInvNum) {
+        return NextResponse.json({
+          success: true,
+          invoice_id: existingInvId,
+          invoice_number: existingInvNum,
+          already_completed: true,
+        });
       }
 
       const itemsResult = await db.execute({
@@ -62,6 +78,17 @@ export async function PATCH(
       const order = orderResult.rows[0];
       const customerId = order.customer_id || null;
       const orderType = order.order_type ?? "maintenance";
+
+      if (
+        orderType === "maintenance" &&
+        itemsResult.rows.length === 0 &&
+        servicesResult.rows.length === 0
+      ) {
+        return NextResponse.json(
+          { error: "لا يمكن إصدار فاتورة: أضف قطعة أو خدمة على الأقل قبل الإكمال." },
+          { status: 400 }
+        );
+      }
 
       const { getDigitalFeeConfig, calcDigitalFee } = await import("@/lib/digital-fee");
       const feeConfig = await getDigitalFeeConfig(companyId);

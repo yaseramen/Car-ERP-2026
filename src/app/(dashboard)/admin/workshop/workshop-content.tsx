@@ -479,6 +479,13 @@ export function WorkshopContent() {
     const body: { stage: string; inspection_notes?: string } = { stage: newStage };
     if (inspectionNotes !== undefined) body.inspection_notes = inspectionNotes;
 
+    if (newStage === "completed") {
+      const ok = window.confirm(
+        "سيتم إنشاء فاتورة صيانة وربطها بالأمر، ثم نقل الأمر إلى «مكتمل». هل تريد المتابعة؟"
+      );
+      if (!ok) return;
+    }
+
     try {
       if (!navigator.onLine) {
         addToQueue({ type: "update_repair_order_stage", orderId, data: body });
@@ -496,6 +503,20 @@ export function WorkshopContent() {
         const err = await res.json();
         alert(err.error || "فشل في التحديث");
         return;
+      }
+
+      const data = await res.json().catch(() => ({}));
+      if (newStage === "completed" && data?.invoice_number) {
+        const invId = data.invoice_id as string | undefined;
+        const already = data.already_completed === true;
+        const msg = already
+          ? `الأمر مكتمل مسبقاً. الفاتورة: ${data.invoice_number}`
+          : `تم إنشاء الفاتورة ${data.invoice_number} وإكمال الأمر.`;
+        if (invId && window.confirm(`${msg}\n\nفتح صفحة الفاتورة الآن؟`)) {
+          window.location.href = `/admin/invoices/${invId}`;
+          return;
+        }
+        alert(msg);
       }
 
       await fetchOrders();
@@ -850,7 +871,9 @@ export function WorkshopContent() {
                             }}
                             className="w-full py-1.5 text-xs bg-emerald-600 hover:bg-emerald-700 text-white rounded transition"
                           >
-                            ← {next.label}
+                            {order.stage === "ready"
+                              ? "← إكمال وإصدار الفاتورة"
+                              : `← ${next.label}`}
                           </button>
                         )}
                       </div>
