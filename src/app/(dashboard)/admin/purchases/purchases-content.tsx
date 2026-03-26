@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { SearchableSelect } from "@/components/ui/searchable-select";
 import { BarcodeScanner } from "@/components/inventory/barcode-scanner";
+import { BarcodeTextInput } from "@/components/ui/barcode-text-input";
 import { addToQueue } from "@/lib/offline-queue";
 
 interface CartItem {
@@ -46,6 +47,7 @@ export function PurchasesContent({
   const [itemSuppliers, setItemSuppliers] = useState<ItemSupplier[]>([]);
   const [showSupplierCompare, setShowSupplierCompare] = useState(false);
   const initialApplied = useRef(false);
+  const newProductBarcodeRef = useRef<HTMLInputElement>(null);
   const [cart, setCart] = useState<CartItem[]>([]);
   const [supplierId, setSupplierId] = useState("");
   const [notes, setNotes] = useState("");
@@ -116,6 +118,12 @@ export function PurchasesContent({
   useEffect(() => {
     fetchData();
   }, []);
+
+  useEffect(() => {
+    if (!addProductOpen || showBarcodeScanner) return;
+    const id = window.setTimeout(() => newProductBarcodeRef.current?.focus(), 50);
+    return () => window.clearTimeout(id);
+  }, [addProductOpen, showBarcodeScanner]);
 
   useEffect(() => {
     const handleOnline = () => fetchData();
@@ -850,9 +858,10 @@ export function PurchasesContent({
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">الباركود (تلقائي إن تُرك فارغاً)</label>
+                    <p className="text-xs text-gray-500 mb-1">انقر في الخانة ثم امسح بالماسح الضوئي (أو «مسح» للكاميرا).</p>
                     <div className="flex gap-2">
-                      <input
-                        type="text"
+                      <BarcodeTextInput
+                        ref={newProductBarcodeRef}
                         value={newProductForm.barcode}
                         onChange={(e) => setNewProductForm((f) => ({ ...f, barcode: e.target.value }))}
                         className={inputClass}

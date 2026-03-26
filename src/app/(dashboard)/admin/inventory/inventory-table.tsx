@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useKeyboardShortcut } from "@/hooks/use-keyboard-shortcut";
 import { TableSkeleton } from "@/components/ui/skeleton";
 import { BarcodeScanner } from "@/components/inventory/barcode-scanner";
+import { BarcodeTextInput } from "@/components/ui/barcode-text-input";
 import { BarcodeLabelPrint } from "@/components/inventory/barcode-label-print";
 import { addToQueue } from "@/lib/offline-queue";
 import { getErrorMessage } from "@/lib/error-messages";
@@ -43,6 +44,7 @@ export function InventoryTable() {
   const [searchQuery, setSearchQuery] = useState("");
   const [searchDebounced, setSearchDebounced] = useState("");
   const inventoryFormRef = useRef<HTMLFormElement>(null);
+  const barcodeInputRef = useRef<HTMLInputElement>(null);
   const pageRef = useRef(page);
   const searchDebouncedRef = useRef(searchDebounced);
   pageRef.current = page;
@@ -156,6 +158,13 @@ export function InventoryTable() {
     onEscape: () => modalOpen && setModalOpen(false),
     enabled: modalOpen,
   });
+
+  /** الماسح الضوئي يكتب في الحقل ذي التركيز — نركّز خانة الباركود عند فتح النموذج */
+  useEffect(() => {
+    if (!modalOpen || showScanner) return;
+    const id = window.setTimeout(() => barcodeInputRef.current?.focus(), 50);
+    return () => window.clearTimeout(id);
+  }, [modalOpen, showScanner]);
 
   function resetForm() {
     setForm({
@@ -727,9 +736,10 @@ export function InventoryTable() {
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">الباركود (تلقائي إن تُرك فارغاً)</label>
+                <p className="text-xs text-gray-500 mb-1">انقر في الخانة ثم امسح بالماسح الضوئي (أو استخدم «مسح» للكاميرا).</p>
                 <div className="flex gap-2">
-                  <input
-                    type="text"
+                  <BarcodeTextInput
+                    ref={barcodeInputRef}
                     value={form.barcode}
                     onChange={(e) => setForm((f) => ({ ...f, barcode: e.target.value }))}
                     className={inputClass}
