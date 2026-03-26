@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { db } from "@/lib/db/client";
 import { getCompanyId } from "@/lib/company";
+import { getPurchaseDigitalServiceFee } from "@/lib/purchase-digital-fee";
 import { randomUUID } from "crypto";
 import { logAudit } from "@/lib/audit";
 
@@ -239,7 +240,9 @@ export async function PATCH(
       subtotal += n.quantity * n.unit_price;
     }
     const afterDiscount = Math.max(0, subtotal - discountAmount);
-    const finalTotal = afterDiscount + taxAmount;
+    const afterTax = afterDiscount + taxAmount;
+    const digitalFee = getPurchaseDigitalServiceFee(companyId);
+    const finalTotal = afterTax + digitalFee;
 
     const supplierId =
       body.supplier_id === undefined
@@ -250,13 +253,14 @@ export async function PATCH(
 
     if (supplierId !== undefined) {
       await db.execute({
-        sql: `UPDATE invoices SET supplier_id = ?, subtotal = ?, discount = ?, tax = ?, total = ?, notes = ?, updated_at = datetime('now')
+        sql: `UPDATE invoices SET supplier_id = ?, subtotal = ?, discount = ?, tax = ?, digital_service_fee = ?, total = ?, notes = ?, updated_at = datetime('now')
               WHERE id = ? AND company_id = ?`,
         args: [
           supplierId,
           subtotal,
           discountAmount,
           taxAmount,
+          digitalFee,
           finalTotal,
           notes?.trim() || null,
           invoiceId,
@@ -265,9 +269,9 @@ export async function PATCH(
       });
     } else {
       await db.execute({
-        sql: `UPDATE invoices SET subtotal = ?, discount = ?, tax = ?, total = ?, notes = ?, updated_at = datetime('now')
+        sql: `UPDATE invoices SET subtotal = ?, discount = ?, tax = ?, digital_service_fee = ?, total = ?, notes = ?, updated_at = datetime('now')
               WHERE id = ? AND company_id = ?`,
-        args: [subtotal, discountAmount, taxAmount, finalTotal, notes?.trim() || null, invoiceId, companyId],
+        args: [subtotal, discountAmount, taxAmount, digitalFee, finalTotal, notes?.trim() || null, invoiceId, companyId],
       });
     }
 
@@ -300,6 +304,7 @@ export async function PATCH(
       subtotal,
       discount: discountAmount,
       tax: taxAmount,
+      digital_service_fee: digitalFee,
       total: finalTotal,
     });
   } catch (e: unknown) {
