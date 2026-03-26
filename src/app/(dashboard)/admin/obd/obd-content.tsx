@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 
 type ObdResult = {
   code: string;
@@ -11,6 +11,27 @@ type ObdResult = {
   symptoms: string | null;
   source: string;
   cost: number;
+};
+
+type IntegratedStep = {
+  priority: number;
+  title: string;
+  detail: string;
+  related_codes?: string[];
+};
+
+type CodeRelation = {
+  from: string;
+  to: string;
+  relation_ar: string;
+};
+
+type IntegratedAnalysis = {
+  summary_ar: string;
+  cascade_ar: string;
+  prioritized_steps: IntegratedStep[];
+  code_relations: CodeRelation[];
+  disclaimer_ar: string;
 };
 
 export function ObdContent() {
@@ -24,6 +45,7 @@ export function ObdContent() {
     totalCost: number;
     codesFound: number;
     vehicle?: { brand: string; model: string; year: number | null; vin: string };
+    integrated_analysis?: IntegratedAnalysis | null;
   } | null>(null);
   const [file, setFile] = useState<File | null>(null);
   const [dragOver, setDragOver] = useState(false);
@@ -43,6 +65,19 @@ export function ObdContent() {
       .then((r) => r.json())
       .then((d) => setAiStatus({ aiAvailable: d.aiAvailable, message: d.message, providers: d.providers }))
       .catch(() => setAiStatus({ aiAvailable: false, message: "تعذر التحقق" }));
+  }, []);
+
+  const handlePrintObdAnalysis = useCallback(() => {
+    document.body.classList.add("obd-printing-root");
+    const cleanup = () => {
+      document.body.classList.remove("obd-printing-root");
+      window.removeEventListener("afterprint", cleanup);
+    };
+    window.addEventListener("afterprint", cleanup);
+    window.print();
+    window.setTimeout(() => {
+      if (document.body.classList.contains("obd-printing-root")) cleanup();
+    }, 3000);
   }, []);
 
   async function handleSearch(e: React.FormEvent) {
@@ -90,7 +125,14 @@ export function ObdContent() {
       });
 
       const text = await res.text();
-      let data: { error?: string; results?: ObdResult[]; totalCost?: number; codesFound?: number; vehicle?: { brand: string; model: string; year: number | null; vin: string } } = {};
+      let data: {
+        error?: string;
+        results?: ObdResult[];
+        totalCost?: number;
+        codesFound?: number;
+        vehicle?: { brand: string; model: string; year: number | null; vin: string };
+        integrated_analysis?: IntegratedAnalysis | null;
+      } = {};
       try {
         data = JSON.parse(text);
       } catch {
@@ -107,6 +149,7 @@ export function ObdContent() {
           totalCost: data.totalCost,
           codesFound: data.codesFound,
           vehicle: data.vehicle,
+          integrated_analysis: data.integrated_analysis ?? null,
         });
         setMode("logs");
       }
@@ -457,18 +500,98 @@ export function ObdContent() {
       {result && <ResultCard r={result} />}
 
       {analyzeResults && (
-        <div className="space-y-4">
+        <div id="obd-print-area" className="space-y-4">
           <div className="flex flex-wrap justify-between items-center gap-3 bg-emerald-50 dark:bg-emerald-900/30 rounded-lg px-4 py-3 border border-emerald-100 dark:border-emerald-800">
             <span className="font-medium text-gray-900 dark:text-gray-100">
               تم العثور على {analyzeResults.codesFound} كود — إجمالي التكلفة: {analyzeResults.totalCost} ج.م
             </span>
+            <div className="flex flex-wrap items-center gap-2 no-print">
+              <button
+                type="button"
+                onClick={handlePrintObdAnalysis}
+                className="px-4 py-2 text-sm font-medium rounded-lg bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-600"
+              >
+                طباعة التحليل
+              </button>
+            </div>
             {analyzeResults.vehicle && (analyzeResults.vehicle.brand || analyzeResults.vehicle.model || analyzeResults.vehicle.year) && (
-              <span className="text-sm text-gray-600 dark:text-gray-300">
+              <span className="text-sm text-gray-600 dark:text-gray-300 w-full sm:w-auto">
                 {[analyzeResults.vehicle.brand, analyzeResults.vehicle.model, analyzeResults.vehicle.year].filter(Boolean).join(" · ")}
                 {analyzeResults.vehicle.vin && ` · VIN: ${analyzeResults.vehicle.vin}`}
               </span>
             )}
           </div>
+
+          {!analyzeResults.integrated_analysis && analyzeResults.codesFound >= 1 && (
+            <p className="text-xs text-gray-500 dark:text-gray-400 no-print">
+              إذا لم يظهر «تحليل موحّد للتقرير»، تأكد من تفعيل GEMINI_API_KEY في الخادم — لا تكلفة إضافية على المحفظة.
+            </p>
+          )}
+          {analyzeResults.integrated_analysis && (
+            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-emerald-200 dark:border-emerald-800 overflow-hidden print:border-gray-300">
+              <div className="p-4 border-b border-emerald-100 dark:border-emerald-800 bg-emerald-50/80 dark:bg-emerald-900/20">
+                <h2 className="font-bold text-lg text-emerald-900 dark:text-emerald-100">تحليل موحّد للتقرير (ذكاء اصطناعي)</h2>
+                <p className="text-xs text-gray-600 dark:text-gray-400 mt-1">
+                  يربط الأكواد ببعض ويقترح أولوية الفحص — يُكمّل جداول التفاصيل لكل كود أدناه.
+                </p>
+              </div>
+              <div className="p-6 space-y-5 text-gray-900 dark:text-gray-100">
+                {analyzeResults.integrated_analysis.summary_ar && (
+                  <div>
+                    <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">ملخص الأعطال</h3>
+                    <p className="leading-relaxed whitespace-pre-wrap">{analyzeResults.integrated_analysis.summary_ar}</p>
+                  </div>
+                )}
+                {analyzeResults.integrated_analysis.cascade_ar && (
+                  <div>
+                    <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">سلسلة العطل المحتملة</h3>
+                    <p className="leading-relaxed whitespace-pre-wrap">{analyzeResults.integrated_analysis.cascade_ar}</p>
+                  </div>
+                )}
+                {analyzeResults.integrated_analysis.code_relations?.length > 0 && (
+                  <div>
+                    <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">علاقة بين الأكواد</h3>
+                    <ul className="space-y-2 text-sm">
+                      {analyzeResults.integrated_analysis.code_relations.map((rel, i) => (
+                        <li key={i} className="border-r-2 border-emerald-400 pr-3" dir="rtl">
+                          <span className="font-mono text-xs" dir="ltr">
+                            {rel.from} → {rel.to}
+                          </span>
+                          {rel.relation_ar && <p className="mt-1">{rel.relation_ar}</p>}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+                {analyzeResults.integrated_analysis.prioritized_steps?.length > 0 && (
+                  <div>
+                    <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">ابدأ بالترتيب (الأولوية)</h3>
+                    <ol className="space-y-3 list-decimal list-inside pr-1">
+                      {[...analyzeResults.integrated_analysis.prioritized_steps]
+                        .sort((a, b) => a.priority - b.priority)
+                        .map((step, i) => (
+                          <li key={i} className="border border-gray-200 dark:border-gray-600 rounded-lg p-3 bg-gray-50/50 dark:bg-gray-900/30">
+                            <span className="font-medium">{step.title}</span>
+                            <p className="mt-1 text-sm leading-relaxed">{step.detail}</p>
+                            {step.related_codes && step.related_codes.length > 0 && (
+                              <p className="text-xs text-gray-500 dark:text-gray-400 mt-2" dir="ltr">
+                                أكواد مرتبطة: {step.related_codes.join(", ")}
+                              </p>
+                            )}
+                          </li>
+                        ))}
+                    </ol>
+                  </div>
+                )}
+                {analyzeResults.integrated_analysis.disclaimer_ar && (
+                  <p className="text-xs text-amber-800 dark:text-amber-200 bg-amber-50 dark:bg-amber-900/30 border border-amber-200 dark:border-amber-800 rounded-lg p-3">
+                    {analyzeResults.integrated_analysis.disclaimer_ar}
+                  </p>
+                )}
+              </div>
+            </div>
+          )}
+
           <div className="space-y-4">
             {analyzeResults.results.map((r, i) => (
               <ResultCard key={i} r={r} />

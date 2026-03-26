@@ -8,6 +8,7 @@ import {
   extractCodesFromFile,
   type ObdResult,
 } from "@/lib/obd";
+import { analyzeIntegratedObdReport } from "@/lib/obd-integrated-analysis";
 import { ensureVehicleBrand, ensureVehicleModel } from "@/lib/obd-vehicles";
 import { randomUUID } from "crypto";
 
@@ -142,6 +143,15 @@ export async function POST(request: Request) {
       });
     }
 
+    let integratedAnalysis: Awaited<ReturnType<typeof analyzeIntegratedObdReport>> = null;
+    try {
+      integratedAnalysis = await analyzeIntegratedObdReport(
+        results.map(({ cost: _c, ...r }) => r)
+      );
+    } catch (e) {
+      console.warn("OBD integrated analysis:", e);
+    }
+
     let vehicleBrandId: string | null = null;
     let vehicleModelId: string | null = null;
     try {
@@ -204,6 +214,7 @@ export async function POST(request: Request) {
       totalCost,
       codesFound: uniqueCodes.length,
       vehicle: vehicle || undefined,
+      integrated_analysis: integratedAnalysis || undefined,
     });
   } catch (error) {
     console.error("OBD analyze error:", error);

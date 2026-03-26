@@ -438,4 +438,27 @@ html.dark table tbody tr:hover,
     padding-top: 0.25rem !important;
     padding-bottom: 0.25rem !important;
   }
+
+  /* طباعة تحليل OBD: إظهار منطقة التحليل فقط */
+  body.obd-printing-root * {
+    visibility: hidden;
+  }
+  body.obd-printing-root #obd-print-area,
+  body.obd-printing-root #obd-print-area * {
+    visibility: visible;
+  }
+  body.obd-printing-root #obd-print-area {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    color: #000 !important;
+    background: #fff !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  body.obd-printing-root #obd-print-area .no-print {
+    display: none !important;
+    visibility: hidden !important;
+  }
 }
