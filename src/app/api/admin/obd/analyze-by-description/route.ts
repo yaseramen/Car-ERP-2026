@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { db } from "@/lib/db/client";
-import { getCompanyId } from "@/lib/company";
+import { getCompanyId, isPlatformOwnerCompany } from "@/lib/company";
 import { randomUUID } from "crypto";
 
 const OBD_SEARCH_COST = 1;
@@ -133,12 +133,14 @@ export async function POST(request: Request) {
       .join("، ");
     const vehicleInfoStr = vehicleInfo ? `معلومات المركبة: ${vehicleInfo}` : "";
 
+    const skipWallet = isPlatformOwnerCompany(companyId);
+
     let walletResult = await db.execute({
       sql: "SELECT id, balance FROM company_wallets WHERE company_id = ?",
       args: [companyId],
     });
 
-    if (walletResult.rows.length === 0) {
+    if (!skipWallet && walletResult.rows.length === 0) {
       await db.execute({
         sql: "INSERT INTO company_wallets (id, company_id, balance, currency) VALUES (?, ?, 0, 'EGP')",
         args: [randomUUID(), companyId],
@@ -150,7 +152,7 @@ export async function POST(request: Request) {
     }
 
     const balance = Number(walletResult.rows[0]?.balance ?? 0);
-    if (walletResult.rows.length === 0 || balance < OBD_SEARCH_COST) {
+    if (!skipWallet && (walletResult.rows.length === 0 || balance < OBD_SEARCH_COST)) {
       return NextResponse.json(
         { error: `رصيد المحفظة غير كافٍ (${OBD_SEARCH_COST} ج.م)` },
         { status: 400 }
@@ -165,21 +167,23 @@ export async function POST(request: Request) {
       );
     }
 
-    const walletId = walletResult.rows[0].id;
-    const wtId = randomUUID();
-    await db.execute({
-      sql: "UPDATE company_wallets SET balance = balance - ? WHERE company_id = ?",
-      args: [OBD_SEARCH_COST, companyId],
-    });
-    await db.execute({
-      sql: `INSERT INTO wallet_transactions (id, wallet_id, amount, type, description, reference_type, reference_id, performed_by)
+    if (!skipWallet && walletResult.rows[0]) {
+      const walletId = walletResult.rows[0].id;
+      const wtId = randomUUID();
+      await db.execute({
+        sql: "UPDATE company_wallets SET balance = balance - ? WHERE company_id = ?",
+        args: [OBD_SEARCH_COST, companyId],
+      });
+      await db.execute({
+        sql: `INSERT INTO wallet_transactions (id, wallet_id, amount, type, description, reference_type, reference_id, performed_by)
             VALUES (?, ?, ?, 'obd_search', ?, 'obd_search', ?, ?)`,
-      args: [wtId, walletId, OBD_SEARCH_COST, `تحليل بالوصف: ${description.slice(0, 50)}...`, wtId, session.user.id],
-    });
+        args: [wtId, walletId, OBD_SEARCH_COST, `تحليل بالوصف: ${description.slice(0, 50)}...`, wtId, session.user.id],
+      });
+    }
 
     return NextResponse.json({
       ...result,
-      cost: OBD_SEARCH_COST,
+      cost: skipWallet ? 0 : OBD_SEARCH_COST,
     });
   } catch (error) {
     console.error("OBD analyze-by-description error:", error);

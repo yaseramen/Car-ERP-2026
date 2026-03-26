@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { db } from "@/lib/db/client";
-import { getCompanyId } from "@/lib/company";
+import { getCompanyId, isPlatformOwnerCompany } from "@/lib/company";
 import {
   OBD_SEARCH_COST,
   resolveCode,
@@ -63,12 +63,14 @@ export async function POST(request: Request) {
       });
     }
 
+    const skipWallet = isPlatformOwnerCompany(companyId);
+
     let walletResult = await db.execute({
       sql: "SELECT id, balance FROM company_wallets WHERE company_id = ?",
       args: [companyId],
     });
 
-    if (walletResult.rows.length === 0) {
+    if (!skipWallet && walletResult.rows.length === 0) {
       await db.execute({
         sql: "INSERT INTO company_wallets (id, company_id, balance, currency) VALUES (?, ?, 0, 'EGP')",
         args: [randomUUID(), companyId],
@@ -92,35 +94,39 @@ export async function POST(request: Request) {
     }
 
     const uniqueCodes = [...new Set(codes)];
-    const totalCost = uniqueCodes.length * OBD_SEARCH_COST;
+    const totalCost = skipWallet ? 0 : uniqueCodes.length * OBD_SEARCH_COST;
     const balance = Number(walletResult.rows[0]?.balance ?? 0);
 
-    if (walletResult.rows.length === 0 || balance < totalCost) {
+    if (!skipWallet && (walletResult.rows.length === 0 || balance < uniqueCodes.length * OBD_SEARCH_COST)) {
+      const need = uniqueCodes.length * OBD_SEARCH_COST;
       return NextResponse.json(
         {
-          error: `رصيد المحفظة غير كافٍ. المطلوب: ${totalCost} ج.م (${uniqueCodes.length} كود × ${OBD_SEARCH_COST} ج.م)`,
+          error: `رصيد المحفظة غير كافٍ. المطلوب: ${need} ج.م (${uniqueCodes.length} كود × ${OBD_SEARCH_COST} ج.م)`,
         },
         { status: 400 }
       );
     }
 
     const results: (ObdResult & { cost: number })[] = [];
-    const walletId = walletResult.rows[0].id;
+    const walletId = walletResult.rows[0]?.id as string | undefined;
 
     for (const code of uniqueCodes) {
       const { result, obdCodeId } = await resolveCode(code, companyId);
-      results.push({ ...result, cost: OBD_SEARCH_COST });
+      results.push({ ...result, cost: skipWallet ? 0 : OBD_SEARCH_COST });
 
-      const wtId = randomUUID();
-      await db.execute({
-        sql: "UPDATE company_wallets SET balance = balance - ? WHERE company_id = ?",
-        args: [OBD_SEARCH_COST, companyId],
-      });
-      await db.execute({
-        sql: `INSERT INTO wallet_transactions (id, wallet_id, amount, type, description, reference_type, reference_id, performed_by)
+      let wtId: string | null = null;
+      if (!skipWallet && walletId) {
+        wtId = randomUUID();
+        await db.execute({
+          sql: "UPDATE company_wallets SET balance = balance - ? WHERE company_id = ?",
+          args: [OBD_SEARCH_COST, companyId],
+        });
+        await db.execute({
+          sql: `INSERT INTO wallet_transactions (id, wallet_id, amount, type, description, reference_type, reference_id, performed_by)
               VALUES (?, ?, ?, 'obd_search', ?, 'obd_search', ?, ?)`,
-        args: [wtId, walletId, OBD_SEARCH_COST, `تحليل OBD - كود ${code}`, wtId, session.user.id],
-      });
+          args: [wtId, walletId, OBD_SEARCH_COST, `تحليل OBD - كود ${code}`, wtId, session.user.id],
+        });
+      }
       await db.execute({
         sql: `INSERT INTO obd_searches (id, company_id, code, obd_code_id, wallet_transaction_id, result_summary, created_by)
               VALUES (?, ?, ?, ?, ?, ?, ?)`,

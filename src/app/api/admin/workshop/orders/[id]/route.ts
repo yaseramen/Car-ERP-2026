@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { db } from "@/lib/db/client";
-import { getCompanyId } from "@/lib/company";
+import { getCompanyId, isPlatformOwnerCompany } from "@/lib/company";
 import { randomUUID } from "crypto";
 import { WALLET_CHARGE_MESSAGE, walletInsufficientError } from "@/lib/wallet-charge-contact";
 import { allocateInvoiceNumber } from "@/lib/invoice-numbers";
@@ -92,9 +92,11 @@ export async function PATCH(
 
       const { getDigitalFeeConfig, calcDigitalFee } = await import("@/lib/digital-fee");
       const feeConfig = await getDigitalFeeConfig(companyId);
-      const digitalFeePreview = calcDigitalFee(subtotal, feeConfig);
+      const digitalFeePreview = isPlatformOwnerCompany(companyId)
+        ? 0
+        : calcDigitalFee(subtotal, feeConfig);
 
-      if (digitalFeePreview > 0) {
+      if (digitalFeePreview > 0 && !isPlatformOwnerCompany(companyId)) {
         const walletCheck = await db.execute({
           sql: "SELECT id, balance FROM company_wallets WHERE company_id = ?",
           args: [companyId],
@@ -163,7 +165,7 @@ export async function PATCH(
         args: [invoiceId, id, companyId],
       });
 
-      if (digitalFee > 0) {
+      if (digitalFee > 0 && !isPlatformOwnerCompany(companyId)) {
         const walletResult = await db.execute({
           sql: "SELECT id FROM company_wallets WHERE company_id = ?",
           args: [companyId],

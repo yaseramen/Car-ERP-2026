@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { db } from "@/lib/db/client";
-import { getCompanyId } from "@/lib/company";
+import { getCompanyId, isPlatformOwnerCompany } from "@/lib/company";
 import { resolveSaleWarehouseId } from "@/lib/distribution";
 import { ensureTreasuries, getTreasuryIdByType } from "@/lib/treasuries";
 import { getDigitalFeeConfig, calcDigitalFee } from "@/lib/digital-fee";
@@ -111,7 +111,9 @@ export async function POST(request: Request) {
     const afterDiscount = Math.max(0, subtotal - discountAmount);
     const afterTax = afterDiscount + taxAmount;
     const feeConfig = await getDigitalFeeConfig(companyId);
-    const digitalFee = calcDigitalFee(afterTax, feeConfig);
+    const digitalFee = isPlatformOwnerCompany(companyId)
+      ? 0
+      : calcDigitalFee(afterTax, feeConfig);
     const total = afterTax + digitalFee;
     const paid = Number(paid_amount ?? 0);
     const status = paid >= total ? "paid" : paid > 0 ? "partial" : "pending";
