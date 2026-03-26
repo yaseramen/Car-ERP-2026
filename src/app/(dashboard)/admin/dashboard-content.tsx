@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 
-const DASHBOARD_SECTIONS = ["superStats", "alerts", "backup", "sales", "treasuries", "workshop", "inventory", "chart"] as const;
+const DASHBOARD_SECTIONS = ["superStats", "platformRevenue", "alerts", "backup", "sales", "treasuries", "workshop", "inventory", "chart"] as const;
 const STORAGE_KEY = "alameen-dashboard-hidden";
 
 type Summary = {
@@ -52,6 +52,20 @@ type CompanyUsage = {
   user_count: number;
 };
 
+function formatYMD(d: Date): string {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
+
+type PlatformRevenueData = {
+  total: number;
+  by_company: { company_id: string; company_name: string; revenue: number }[];
+  breakdown: { digital_service: number; obd_search: number };
+  note?: string;
+};
+
 export function DashboardContent({ isSuperAdmin = false }: { isSuperAdmin?: boolean }) {
   const [data, setData] = useState<Summary | null>(null);
   const [loading, setLoading] = useState(true);
@@ -61,6 +75,14 @@ export function DashboardContent({ isSuperAdmin = false }: { isSuperAdmin?: bool
   const [companiesUsage, setCompaniesUsage] = useState<{ rows: CompanyUsage[]; total: number } | null>(null);
   const [usageFilter, setUsageFilter] = useState<"all" | "active" | "inactive">("all");
   const [usagePage, setUsagePage] = useState(1);
+
+  const [revFrom, setRevFrom] = useState(() => {
+    const n = new Date();
+    return formatYMD(new Date(n.getFullYear(), n.getMonth(), 1));
+  });
+  const [revTo, setRevTo] = useState(() => formatYMD(new Date()));
+  const [platformRevenue, setPlatformRevenue] = useState<PlatformRevenueData | null>(null);
+  const [revLoading, setRevLoading] = useState(false);
 
   useEffect(() => {
     try {
@@ -113,6 +135,20 @@ export function DashboardContent({ isSuperAdmin = false }: { isSuperAdmin?: bool
       .catch(() => setCompaniesUsage(null));
   }, [isSuperAdmin, usagePage, usageFilter]);
 
+  useEffect(() => {
+    if (!isSuperAdmin || hiddenSections.has("platformRevenue")) return;
+    setRevLoading(true);
+    const q = new URLSearchParams({ from: revFrom, to: revTo });
+    fetch(`/api/admin/super/platform-revenue?${q}`)
+      .then((r) => r.json())
+      .then((d) => {
+        if (d.error) setPlatformRevenue(null);
+        else setPlatformRevenue(d);
+      })
+      .catch(() => setPlatformRevenue(null))
+      .finally(() => setRevLoading(false));
+  }, [isSuperAdmin, revFrom, revTo, hiddenSections]);
+
   if (loading) {
     return (
       <div className="flex items-center justify-center py-20">
@@ -160,6 +196,7 @@ export function DashboardContent({ isSuperAdmin = false }: { isSuperAdmin?: bool
                   className="rounded"
                 />
                 {id === "superStats" && "إحصائيات الشركات (Super Admin)"}
+                {id === "platformRevenue" && "إيرادات المنصة (Super Admin)"}
                 {id === "alerts" && "التنبيهات"}
                 {id === "backup" && "تذكير النسخ الاحتياطي"}
                 {id === "sales" && "المبيعات"}
@@ -293,6 +330,132 @@ export function DashboardContent({ isSuperAdmin = false }: { isSuperAdmin?: bool
               </>
             )}
           </div>
+        </div>
+      )}
+      {isSuperAdmin && !hiddenSections.has("platformRevenue") && (
+        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 p-6">
+          <h3 className="font-bold text-gray-900 dark:text-gray-100 mb-2">إيرادات المنصة (رسوم الخدمة + OBD)</h3>
+          <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
+            مجموع ما يُخصم من محافظ <strong>الشركات العملاء</strong> فقط (يُستثنى حساب النظام التجريبي). للمقارنة مع سجل «آخر المعاملات»: القديم يُظهر السوبر أدمن كمنفّذ؛
+            الإيرادات هنا تُحسب من الشركات الحقيقية فقط.
+          </p>
+          <div className="flex flex-wrap gap-2 mb-4">
+            <button
+              type="button"
+              className="px-3 py-1.5 text-sm rounded-lg bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600"
+              onClick={() => {
+                const t = new Date();
+                setRevFrom(formatYMD(t));
+                setRevTo(formatYMD(t));
+              }}
+            >
+              اليوم
+            </button>
+            <button
+              type="button"
+              className="px-3 py-1.5 text-sm rounded-lg bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600"
+              onClick={() => {
+                const t = new Date();
+                const start = new Date(t);
+                start.setDate(t.getDate() - 6);
+                setRevFrom(formatYMD(start));
+                setRevTo(formatYMD(t));
+              }}
+            >
+              آخر 7 أيام
+            </button>
+            <button
+              type="button"
+              className="px-3 py-1.5 text-sm rounded-lg bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600"
+              onClick={() => {
+                const t = new Date();
+                const start = new Date(t.getFullYear(), t.getMonth(), 1);
+                setRevFrom(formatYMD(start));
+                setRevTo(formatYMD(t));
+              }}
+            >
+              هذا الشهر
+            </button>
+            <button
+              type="button"
+              className="px-3 py-1.5 text-sm rounded-lg bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600"
+              onClick={() => {
+                const t = new Date();
+                const start = new Date(t);
+                start.setDate(t.getDate() - 29);
+                setRevFrom(formatYMD(start));
+                setRevTo(formatYMD(t));
+              }}
+            >
+              آخر 30 يوماً
+            </button>
+          </div>
+          <div className="flex flex-wrap gap-3 items-end mb-4">
+            <div>
+              <label className="block text-xs text-gray-500 mb-1">من</label>
+              <input
+                type="date"
+                value={revFrom}
+                onChange={(e) => setRevFrom(e.target.value)}
+                className="px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-sm"
+              />
+            </div>
+            <div>
+              <label className="block text-xs text-gray-500 mb-1">إلى</label>
+              <input
+                type="date"
+                value={revTo}
+                onChange={(e) => setRevTo(e.target.value)}
+                className="px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-sm"
+              />
+            </div>
+          </div>
+          {revLoading ? (
+            <p className="text-gray-500 text-sm py-4">جاري التحميل...</p>
+          ) : platformRevenue ? (
+            <div className="space-y-4">
+              <div className="flex flex-wrap gap-6">
+                <div>
+                  <p className="text-sm text-gray-500">الإجمالي في الفترة</p>
+                  <p className="text-2xl font-bold text-emerald-600 dark:text-emerald-400">
+                    {platformRevenue.total.toFixed(2)} ج.م
+                  </p>
+                </div>
+                <div>
+                  <p className="text-sm text-gray-500">خدمة رقمية</p>
+                  <p className="text-lg font-semibold">{platformRevenue.breakdown.digital_service.toFixed(2)} ج.م</p>
+                </div>
+                <div>
+                  <p className="text-sm text-gray-500">OBD</p>
+                  <p className="text-lg font-semibold">{platformRevenue.breakdown.obd_search.toFixed(2)} ج.م</p>
+                </div>
+              </div>
+              {platformRevenue.by_company.length > 0 ? (
+                <div className="overflow-x-auto max-h-64">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="bg-gray-50 dark:bg-gray-700/50 border-b border-gray-200 dark:border-gray-600">
+                        <th className="text-right px-3 py-2">الشركة</th>
+                        <th className="text-right px-3 py-2">الإيراد</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {platformRevenue.by_company.map((r) => (
+                        <tr key={r.company_id} className="border-b border-gray-100 dark:border-gray-700">
+                          <td className="px-3 py-2">{r.company_name}</td>
+                          <td className="px-3 py-2 font-medium">{r.revenue.toFixed(2)} ج.م</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              ) : (
+                <p className="text-sm text-gray-500 dark:text-gray-400">لا توجد معاملات إيراد في هذه الفترة.</p>
+              )}
+            </div>
+          ) : (
+            <p className="text-sm text-gray-500">تعذر تحميل البيانات</p>
+          )}
         </div>
       )}
       {hasAlerts && !hiddenSections.has("alerts") && (
