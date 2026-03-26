@@ -230,22 +230,37 @@ html.dark table tbody tr:hover,
   main {
     width: 100% !important;
   }
-  /* فواتير A4: تقليل الهوامش والمسافات لاستيعاب أكبر عدد من البنود */
+  /* فواتير A4: هوامش أقل + مساحة سفلية لتذييل ثابت (تابع / رقم الفاتورة) */
   @page {
     size: a4;
-    margin: 12mm;
+    margin: 10mm 10mm 20mm 10mm;
   }
   .min-h-screen {
     min-height: auto !important;
   }
+  .invoice-detail-shell {
+    padding: 0 !important;
+  }
   #invoice-print-area {
     overflow: visible !important;
-    font-size: 11px;
-    line-height: 1.35;
+    font-size: 10px;
+    line-height: 1.3;
+    padding-bottom: 2mm;
+  }
+  /* مساحة إضافية عند الفواتير الطويلة حتى لا يغطي التذييل الثابت المحتوى */
+  #invoice-print-area.invoice-print-long-doc {
+    padding-bottom: 16mm !important;
+  }
+  #invoice-print-area .invoice-print-continuation-banner {
+    page-break-after: avoid;
+    break-after: avoid;
+  }
+  #invoice-print-area .invoice-print-title-block {
+    margin-bottom: 0.5rem !important;
   }
   #invoice-print-area .invoice-print-compact {
-    margin-bottom: 0.75rem !important;
-    padding: 0.5rem 0.75rem !important;
+    margin-bottom: 0.4rem !important;
+    padding: 0.35rem 0.5rem !important;
   }
   #invoice-print-area .invoice-print-compact h1 {
     font-size: 1.25rem !important;
@@ -257,21 +272,28 @@ html.dark table tbody tr:hover,
   }
   #invoice-print-area .invoice-print-grid {
     display: block !important;
-    gap: 0.5rem !important;
-    margin-bottom: 0.75rem !important;
+    gap: 0.35rem !important;
+    margin-bottom: 0.45rem !important;
   }
   #invoice-print-area .invoice-print-grid > * {
     width: 100% !important;
     max-width: 100% !important;
-    margin-bottom: 0.5rem;
-    padding: 0.5rem 0.75rem !important;
+    margin-bottom: 0.35rem;
+    padding: 0.35rem 0.5rem !important;
+  }
+  #invoice-print-area .invoice-print-grid h2 {
+    margin-bottom: 0.35rem !important;
+    font-size: 0.95rem !important;
+  }
+  #invoice-print-area .invoice-print-grid dl.space-y-3 > * + * {
+    margin-top: 0.2rem !important;
   }
   #invoice-print-area .invoice-print-items-wrap {
     overflow: visible !important;
   }
   #invoice-print-area .invoice-print-card {
     overflow: visible !important;
-    margin-bottom: 0.75rem !important;
+    margin-bottom: 0.45rem !important;
   }
   #invoice-print-area table.invoice-lines-table {
     width: 100%;
@@ -280,7 +302,7 @@ html.dark table tbody tr:hover,
   }
   #invoice-print-area table.invoice-lines-table th,
   #invoice-print-area table.invoice-lines-table td {
-    padding: 0.35rem 0.5rem !important;
+    padding: 0.22rem 0.35rem !important;
   }
   #invoice-print-area table.invoice-lines-table thead {
     display: table-header-group;
@@ -290,12 +312,37 @@ html.dark table tbody tr:hover,
     break-inside: auto;
     page-break-inside: auto;
   }
+  #invoice-print-area .invoice-print-notes {
+    padding: 0.45rem 0.5rem !important;
+    margin-bottom: 0.35rem !important;
+    font-size: 9px !important;
+  }
   #invoice-print-area .invoice-print-footer {
-    margin-top: 0.75rem !important;
-    padding-top: 0.5rem !important;
-    font-size: 10px !important;
+    margin-top: 0.4rem !important;
+    padding-top: 0.35rem !important;
+    font-size: 9px !important;
     page-break-inside: avoid;
     break-inside: avoid;
+  }
+  /* يتكرر على كل صفحة في معظم متصفحات الطباعة — تلميح «تابع» للفواتير الطويلة */
+  #invoice-print-area .invoice-print-fixed-footer {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 1000;
+    padding: 3px 10mm 4px;
+    font-size: 8px;
+    line-height: 1.25;
+    text-align: center;
+    color: #374151;
+    background: #fff;
+    border-top: 1px solid #e5e7eb;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  #invoice-print-area .invoice-print-fixed-footer-inner {
+    max-width: 100%;
   }
   #invoice-print-area .invoice-print-payments-row {
     display: block !important;

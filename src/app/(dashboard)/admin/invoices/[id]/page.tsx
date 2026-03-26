@@ -139,8 +139,12 @@ export default async function InvoiceDetailPage({
       ? data.created_at
       : issuedAt.toLocaleString("ar-EG", { dateStyle: "long", timeStyle: "short" });
 
+    const lineCount = items.length;
+    /** تقدير: فواتير طويلة قد تمتد لأكثر من صفحة — نعرض تلميح «تابع» في الطباعة */
+    const likelyMultiPagePrint = lineCount >= 14;
+
     return (
-    <div className="p-4 md:p-8">
+    <div className="p-4 md:p-8 print:p-0 invoice-detail-shell">
       <div className="mb-6 flex justify-between items-center flex-wrap gap-2">
         <Link
           href="/admin/invoices"
@@ -199,7 +203,18 @@ export default async function InvoiceDetailPage({
         </div>
       </div>
 
-      <div id="invoice-print-area">
+      <div
+        id="invoice-print-area"
+        className={likelyMultiPagePrint ? "invoice-print-long-doc" : undefined}
+      >
+      {likelyMultiPagePrint && (
+        <p
+          className="hidden print:block text-center text-[10px] text-gray-500 mb-1 invoice-print-continuation-banner"
+          aria-hidden
+        >
+          — تابع — قد تمتد البنود على أكثر من صفحة؛ جميع الصفحات لنفس الفاتورة رقم {data.invoice_number}
+        </p>
+      )}
       {data.company_name && (
         <div className="mb-6 p-4 bg-gray-50 dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 invoice-print-compact">
           <h2 className="font-bold text-gray-900 dark:text-gray-100 mb-3 text-lg">بيانات الشركة</h2>
@@ -236,7 +251,7 @@ export default async function InvoiceDetailPage({
         </div>
       )}
 
-      <div className="mb-8 invoice-print-compact">
+      <div className="mb-8 invoice-print-compact invoice-print-title-block">
         <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">فاتورة {data.invoice_number}</h1>
         <p className="text-sm text-gray-800 dark:text-gray-200 mt-2 font-medium print:text-gray-900">
           تاريخ ووقت الإصدار: {issuedAtDisplay}
@@ -366,6 +381,11 @@ export default async function InvoiceDetailPage({
                     className="text-right px-4 py-2 text-base font-bold text-gray-900 dark:text-gray-100 border-b border-gray-100 dark:border-gray-700"
                   >
                     بنود الفاتورة
+                    {lineCount > 0 && (
+                      <span className="block text-xs font-normal text-gray-500 dark:text-gray-400 mt-1 print:inline print:mr-2 print:mt-0">
+                        ({lineCount} بند)
+                      </span>
+                    )}
                   </th>
                 </tr>
                 <tr className="bg-gray-50 dark:bg-gray-700/50">
@@ -464,7 +484,7 @@ export default async function InvoiceDetailPage({
       </div>
 
       {data.notes && data.notes.trim() && (
-        <div className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-sm border border-gray-100 dark:border-gray-700">
+        <div className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-sm border border-gray-100 dark:border-gray-700 invoice-print-notes">
           <h2 className="font-bold text-gray-900 dark:text-gray-100 mb-2">ملاحظات</h2>
           <p className="text-gray-600 dark:text-gray-300 text-sm whitespace-pre-wrap">{data.notes}</p>
         </div>
@@ -476,6 +496,17 @@ export default async function InvoiceDetailPage({
         <p>هاتف: {DEVELOPER_INFO.phone}</p>
         {DEVELOPER_INFO.email && <p>البريد: {DEVELOPER_INFO.email}</p>}
       </div>
+
+      {likelyMultiPagePrint && (
+        <div className="hidden print:block invoice-print-fixed-footer" aria-hidden>
+          <div className="invoice-print-fixed-footer-inner">
+            <span className="font-medium">فاتورة {data.invoice_number}</span>
+            <span className="block text-[9px] mt-0.5 opacity-90">
+              — تابع — راجع الصفحات التالية؛ البنود قد تمتد على أكثر من صفحة
+            </span>
+          </div>
+        </div>
+      )}
       </div>
     </div>
     );
