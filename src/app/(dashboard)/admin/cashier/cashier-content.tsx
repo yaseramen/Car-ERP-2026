@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { SearchableSelect } from "@/components/ui/searchable-select";
+import { InventoryCategoryFilter } from "@/components/inventory/inventory-category-filter";
 import { BarcodeScanner } from "@/components/inventory/barcode-scanner";
 import { addToQueue } from "@/lib/offline-queue";
 
@@ -19,6 +20,7 @@ interface InventoryItem {
   name: string;
   code?: string | null;
   barcode?: string | null;
+  category?: string | null;
   quantity: number;
   sale_price: number;
 }
@@ -119,10 +121,13 @@ export function CashierContent() {
   const [discountType, setDiscountType] = useState<"percent" | "fixed">("percent");
   const [discountValue, setDiscountValue] = useState("");
 
+  const [itemCategoryFilter, setItemCategoryFilter] = useState("");
+
   async function fetchData() {
     try {
+      const itemsUrl = `/api/admin/inventory/items?limit=500&offset=0${itemCategoryFilter ? `&category=${encodeURIComponent(itemCategoryFilter)}` : ""}`;
       const [itemsRes, customersRes, methodsRes, feeRes, distRes] = await Promise.all([
-        fetch("/api/admin/inventory/items?limit=500&offset=0"),
+        fetch(itemsUrl),
         fetch("/api/admin/customers?limit=500&offset=0"),
         fetch("/api/admin/payment-methods"),
         fetch("/api/admin/digital-fee"),
@@ -157,7 +162,11 @@ export function CashierContent() {
 
   useEffect(() => {
     fetchData();
-  }, []);
+  }, [itemCategoryFilter]);
+
+  useEffect(() => {
+    setAddItemId("");
+  }, [itemCategoryFilter]);
 
   useEffect(() => {
     const handleOnline = () => fetchData();
@@ -227,6 +236,28 @@ export function CashierContent() {
         ((i.barcode && String(i.barcode).trim().toLowerCase() === v) ||
           (i.code && String(i.code).trim().toLowerCase() === v))
     );
+  }
+
+  async function findItemByBarcodeOrCodeRemote(value: string): Promise<InventoryItem | undefined> {
+    const local = findItemByBarcodeOrCode(value);
+    if (local) return local;
+    const v = String(value || "").trim();
+    if (!v) return undefined;
+    try {
+      const res = await fetch(`/api/admin/inventory/items?limit=50&offset=0&search=${encodeURIComponent(v)}`);
+      if (!res.ok) return undefined;
+      const d = await res.json();
+      const list: InventoryItem[] = Array.isArray(d) ? d : (d.items ?? []);
+      const vl = v.toLowerCase();
+      return list.find(
+        (i) =>
+          i.quantity > 0 &&
+          ((i.barcode && String(i.barcode).trim().toLowerCase() === vl) ||
+            (i.code && String(i.code).trim().toLowerCase() === vl))
+      );
+    } catch {
+      return undefined;
+    }
   }
 
   const addToCart = useCallback(() => {
@@ -595,6 +626,18 @@ export function CashierContent() {
           <p className="text-xs text-gray-500 dark:text-gray-400 mb-2" title="اختصارات لوحة المفاتيح">
             ⌨️ F2 بحث | Ctrl+Enter إضافة للسلة | Alt+Enter إتمام البيع
           </p>
+          <div className="flex flex-wrap gap-2 mb-3">
+            <InventoryCategoryFilter
+              id="cashier-item-category"
+              loadOnMount
+              value={itemCategoryFilter}
+              onChange={setItemCategoryFilter}
+              className="w-44"
+            />
+            <p className="text-xs text-gray-500 dark:text-gray-400 self-end pb-1">
+              «كل الأقسام» ومسح الباركود يبحثان في كل المخزون.
+            </p>
+          </div>
           <div className="flex gap-2">
             <div className="flex-1 min-w-[200px]">
               <SearchableSelect
@@ -604,7 +647,7 @@ export function CashierContent() {
                   .map((i) => ({
                     id: i.id,
                     label: `${i.name} (متاح: ${i.quantity}) — ${i.sale_price.toFixed(2)} ج.م`,
-                    searchText: [i.code, i.barcode, i.name].filter(Boolean).join(" "),
+                    searchText: [i.code, i.barcode, i.category, i.name].filter(Boolean).join(" "),
                   }))}
                 value={addItemId}
                 onChange={(id) => setAddItemId(id)}
@@ -706,9 +749,10 @@ export function CashierContent() {
 
       {showBarcodeScanner && (
         <BarcodeScanner
-          onScan={(value) => {
-            const item = findItemByBarcodeOrCode(value);
+          onScan={async (value) => {
+            const item = await findItemByBarcodeOrCodeRemote(value);
             if (item) {
+              setItems((prev) => (prev.some((x) => x.id === item.id) ? prev : [...prev, item]));
               addItemToCartByScan(item);
             } else {
               alert("لم يتم العثور على صنف بهذا الباركود أو الكود");

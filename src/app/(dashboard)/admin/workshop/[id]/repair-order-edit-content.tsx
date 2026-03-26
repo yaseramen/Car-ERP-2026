@@ -2,6 +2,8 @@
 
 import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
+import { SearchableSelect } from "@/components/ui/searchable-select";
+import { InventoryCategoryFilter } from "@/components/inventory/inventory-category-filter";
 
 const STAGE_LABELS: Record<string, string> = {
   received: "استلام",
@@ -100,7 +102,10 @@ export function RepairOrderEditContent({
   const [savingNotes, setSavingNotes] = useState(false);
   const [addPartOpen, setAddPartOpen] = useState(false);
   const [addServiceOpen, setAddServiceOpen] = useState(false);
-  const [inventoryItems, setInventoryItems] = useState<{ id: string; name: string; quantity: number }[]>([]);
+  const [inventoryItems, setInventoryItems] = useState<
+    { id: string; name: string; quantity: number; category?: string | null; code?: string | null; barcode?: string | null }[]
+  >([]);
+  const [partCategoryFilter, setPartCategoryFilter] = useState("");
   const [addForm, setAddForm] = useState({ item_id: "", quantity: "1", discount_type: "" as "" | "percent" | "amount", discount_value: "", tax_percent: "" });
   const [serviceForm, setServiceForm] = useState({ description: "", quantity: "1", unit_price: "", discount_type: "" as "" | "percent" | "amount", discount_value: "", tax_percent: "" });
   const [saving, setSaving] = useState(false);
@@ -130,15 +135,29 @@ export function RepairOrderEditContent({
   }, [order.id]);
 
   useEffect(() => {
-    if (addPartOpen && inventoryItems.length === 0) {
-      fetch("/api/admin/inventory/items?limit=500&offset=0")
-        .then((r) => (r.ok ? r.json() : []))
-        .then((d) => {
-          const list = Array.isArray(d) ? d : (d.items ?? []);
-          setInventoryItems(list.map((i: { id: string; name: string; quantity?: number }) => ({ id: i.id, name: i.name, quantity: i.quantity ?? 0 })));
-        });
-    }
-  }, [addPartOpen, inventoryItems.length]);
+    if (!addPartOpen) return;
+    const q = `/api/admin/inventory/items?limit=500&offset=0${partCategoryFilter ? `&category=${encodeURIComponent(partCategoryFilter)}` : ""}`;
+    fetch(q)
+      .then((r) => (r.ok ? r.json() : []))
+      .then((d) => {
+        const list = Array.isArray(d) ? d : (d.items ?? []);
+        setInventoryItems(
+          list.map((i: { id: string; name: string; quantity?: number; category?: string | null; code?: string | null; barcode?: string | null }) => ({
+            id: i.id,
+            name: i.name,
+            quantity: i.quantity ?? 0,
+            category: i.category,
+            code: i.code,
+            barcode: i.barcode,
+          }))
+        );
+      });
+  }, [addPartOpen, partCategoryFilter]);
+
+  useEffect(() => {
+    if (!addPartOpen) return;
+    setAddForm((f) => ({ ...f, item_id: "" }));
+  }, [partCategoryFilter, addPartOpen]);
 
   async function saveNotes() {
     if (!editable) return;
@@ -646,21 +665,30 @@ export function RepairOrderEditContent({
           <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl w-full max-w-md p-6">
             <h3 className="font-bold text-gray-900 dark:text-gray-100 mb-4">إضافة قطعة</h3>
             <form onSubmit={handleAddPart} className="space-y-4">
+              <InventoryCategoryFilter
+                id="repair-edit-part-category"
+                loadOnMount={addPartOpen}
+                value={partCategoryFilter}
+                onChange={setPartCategoryFilter}
+              />
+              <p className="text-xs text-gray-500 dark:text-gray-400">
+                «كل الأقسام» يعرض كل الأصناف؛ اختر قسماً لتضييق القائمة.
+              </p>
               <div>
                 <label className="block text-sm font-medium mb-1">الصنف</label>
-                <select
+                <SearchableSelect
+                  options={inventoryItems
+                    .filter((i) => i.quantity > 0)
+                    .map((i) => ({
+                      id: i.id,
+                      label: `${i.name} (متاح: ${i.quantity})`,
+                      searchText: [i.code, i.barcode, i.category, i.name].filter(Boolean).join(" "),
+                    }))}
                   value={addForm.item_id}
-                  onChange={(e) => setAddForm((f) => ({ ...f, item_id: e.target.value }))}
-                  required
+                  onChange={(id) => setAddForm((f) => ({ ...f, item_id: id }))}
+                  placeholder="ابحث بالاسم أو الكود أو الباركود..."
                   className={inputClass}
-                >
-                  <option value="">اختر الصنف</option>
-                  {inventoryItems.filter((i) => i.quantity > 0).map((i) => (
-                    <option key={i.id} value={i.id}>
-                      {i.name} (متاح: {i.quantity})
-                    </option>
-                  ))}
-                </select>
+                />
               </div>
               <div>
                 <label className="block text-sm font-medium mb-1">الكمية</label>

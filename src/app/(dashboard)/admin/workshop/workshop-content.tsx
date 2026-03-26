@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { SearchableSelect } from "@/components/ui/searchable-select";
+import { InventoryCategoryFilter } from "@/components/inventory/inventory-category-filter";
 import { addToQueue } from "@/lib/offline-queue";
 
 const STAGES = [
@@ -39,6 +40,9 @@ interface InventoryItem {
   name: string;
   quantity: number;
   sale_price: number;
+  category?: string | null;
+  code?: string | null;
+  barcode?: string | null;
 }
 
 interface OrderItem {
@@ -67,6 +71,7 @@ export function WorkshopContent() {
   const [orderItems, setOrderItems] = useState<OrderItem[]>([]);
   const [orderServices, setOrderServices] = useState<OrderService[]>([]);
   const [inventoryItems, setInventoryItems] = useState<InventoryItem[]>([]);
+  const [partCategoryFilter, setPartCategoryFilter] = useState("");
   const [addForm, setAddForm] = useState(() => {
     if (typeof window === "undefined") return { item_id: "", quantity: "1", discount_type: "" as "" | "percent" | "amount", discount_value: "", tax_percent: "" };
     try {
@@ -151,9 +156,11 @@ export function WorkshopContent() {
     }
   }
 
-  async function fetchInventoryItems() {
+  async function fetchInventoryItems(category?: string) {
     try {
-      const res = await fetch("/api/admin/inventory/items?limit=500&offset=0");
+      const cat = category ?? partCategoryFilter;
+      const q = `/api/admin/inventory/items?limit=500&offset=0${cat ? `&category=${encodeURIComponent(cat)}` : ""}`;
+      const res = await fetch(q);
       if (res.ok) {
         const d = await res.json();
         const list = Array.isArray(d) ? d : (d.items ?? []);
@@ -276,9 +283,14 @@ export function WorkshopContent() {
   useEffect(() => {
     if (addPartsOpen && selectedOrder) {
       fetchOrderItems(selectedOrder.id);
-      fetchInventoryItems();
+      fetchInventoryItems(partCategoryFilter);
     }
-  }, [addPartsOpen, selectedOrder]);
+  }, [addPartsOpen, selectedOrder, partCategoryFilter]);
+
+  useEffect(() => {
+    if (!addPartsOpen) return;
+    setAddForm((f) => ({ ...f, item_id: "" }));
+  }, [partCategoryFilter, addPartsOpen]);
 
   useEffect(() => {
     if (addServicesOpen && selectedOrder) {
@@ -1111,21 +1123,31 @@ export function WorkshopContent() {
                 </div>
               )}
               <form onSubmit={handleAddPart} className="space-y-4">
+                <InventoryCategoryFilter
+                  id="workshop-part-category"
+                  loadOnMount={addPartsOpen}
+                  value={partCategoryFilter}
+                  onChange={setPartCategoryFilter}
+                  className="mb-1"
+                />
+                <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">
+                  اختر قسماً لتضييق القائمة، أو اترك «كل الأقسام» وابحث في كل المخزون.
+                </p>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">الصنف</label>
-                  <select
+                  <SearchableSelect
+                    options={inventoryItems
+                      .filter((i) => i.quantity > 0)
+                      .map((i) => ({
+                        id: i.id,
+                        label: `${i.name} (متاح: ${i.quantity})`,
+                        searchText: [i.code, i.barcode, i.category, i.name].filter(Boolean).join(" "),
+                      }))}
                     value={addForm.item_id}
-                    onChange={(e) => setAddForm((f) => ({ ...f, item_id: e.target.value }))}
-                    required
+                    onChange={(id) => setAddForm((f) => ({ ...f, item_id: id }))}
+                    placeholder="ابحث بالاسم أو الكود أو الباركود..."
                     className={inputClass}
-                  >
-                    <option value="">اختر الصنف</option>
-                    {inventoryItems.filter((i) => i.quantity > 0).map((i) => (
-                      <option key={i.id} value={i.id}>
-                        {i.name} (متاح: {i.quantity})
-                      </option>
-                    ))}
-                  </select>
+                  />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">الكمية</label>

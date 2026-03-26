@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { SearchableSelect } from "@/components/ui/searchable-select";
+import { InventoryCategoryFilter } from "@/components/inventory/inventory-category-filter";
 import { BarcodeScanner } from "@/components/inventory/barcode-scanner";
 import { BarcodeTextInput } from "@/components/ui/barcode-text-input";
 import { addToQueue } from "@/lib/offline-queue";
@@ -20,6 +21,7 @@ interface InventoryItem {
   id: string;
   name: string;
   code?: string | null;
+  category?: string | null;
   purchase_price: number;
   sale_price: number;
 }
@@ -87,10 +89,13 @@ export function PurchasesContent({
   const [newUnit, setNewUnit] = useState("");
   const [savingProduct, setSavingProduct] = useState(false);
 
+  const [itemCategoryFilter, setItemCategoryFilter] = useState("");
+
   async function fetchData() {
     try {
+      const itemsUrl = `/api/admin/inventory/items?limit=500&offset=0${itemCategoryFilter ? `&category=${encodeURIComponent(itemCategoryFilter)}` : ""}`;
       const [itemsRes, suppliersRes] = await Promise.all([
-        fetch("/api/admin/inventory/items?limit=500&offset=0"),
+        fetch(itemsUrl),
         fetch("/api/admin/suppliers?limit=500&offset=0"),
       ]);
       if (itemsRes.ok) {
@@ -117,7 +122,11 @@ export function PurchasesContent({
 
   useEffect(() => {
     fetchData();
-  }, []);
+  }, [itemCategoryFilter]);
+
+  useEffect(() => {
+    setAddItemId("");
+  }, [itemCategoryFilter]);
 
   useEffect(() => {
     if (!addProductOpen || showBarcodeScanner) return;
@@ -501,6 +510,16 @@ export function PurchasesContent({
       <div className="space-y-6">
         <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
           <h2 className="font-bold text-gray-900 mb-4">إضافة صنف</h2>
+          <div className="flex flex-wrap gap-2 items-end mb-2">
+            <InventoryCategoryFilter
+              id="purchase-item-category"
+              loadOnMount
+              value={itemCategoryFilter}
+              onChange={setItemCategoryFilter}
+              className="w-44"
+            />
+            <p className="text-xs text-gray-500 pb-1">«كل الأقسام» يعرض كل الأصناف للبحث.</p>
+          </div>
           <div className="flex flex-wrap gap-2 items-end">
             <div className="flex-1 min-w-[200px]">
               <label className="block text-xs text-gray-500 mb-1">الصنف (ابحث بالاسم أو الكود)</label>
@@ -508,7 +527,7 @@ export function PurchasesContent({
                 options={items.map((i) => ({
                   id: i.id,
                   label: i.name,
-                  searchText: i.code ? String(i.code) : undefined,
+                  searchText: [i.code, i.category, i.name].filter(Boolean).join(" "),
                 }))}
                 value={addItemId}
                 onChange={(id) => {

@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { addToQueue } from "@/lib/offline-queue";
 import { getErrorMessage } from "@/lib/error-messages";
+import { InventoryCategoryFilter } from "@/components/inventory/inventory-category-filter";
 
 interface Warehouse {
   id: string;
@@ -14,6 +15,9 @@ interface Item {
   id: string;
   name: string;
   quantity: number;
+  category?: string | null;
+  code?: string | null;
+  barcode?: string | null;
 }
 
 type TransferStockProps = {
@@ -42,13 +46,15 @@ export function TransferStock({
   const [newWarehouseName, setNewWarehouseName] = useState("");
   const [addingWarehouse, setAddingWarehouse] = useState(false);
   const [loadingWarehouses, setLoadingWarehouses] = useState(false);
+  const [itemCategoryFilter, setItemCategoryFilter] = useState("");
 
   useEffect(() => {
     if (open) {
       setLoadingWarehouses(true);
+      const itemsUrl = `/api/admin/inventory/items?limit=500&offset=0${itemCategoryFilter ? `&category=${encodeURIComponent(itemCategoryFilter)}` : ""}`;
       Promise.all([
         fetch("/api/admin/warehouses").then((r) => (r.ok ? r.json() : [])),
-        fetch("/api/admin/inventory/items?limit=500&offset=0").then((r) => (r.ok ? r.json() : [])),
+        fetch(itemsUrl).then((r) => (r.ok ? r.json() : [])),
       ])
         .then(([wh, it]) => {
           setWarehouses(Array.isArray(wh) ? wh : []);
@@ -61,7 +67,11 @@ export function TransferStock({
         })
         .catch(() => setLoadingWarehouses(false));
     }
-  }, [open, distributionMode, mainWarehouseId, assignedWarehouseId]);
+  }, [open, distributionMode, mainWarehouseId, assignedWarehouseId, itemCategoryFilter]);
+
+  useEffect(() => {
+    if (open) setItemId("");
+  }, [itemCategoryFilter, open]);
 
   useEffect(() => {
     if (itemId && fromId) {
@@ -266,11 +276,24 @@ export function TransferStock({
               </div>
             )}
             <form onSubmit={handleSubmit} className="space-y-4">
+              <InventoryCategoryFilter
+                id="transfer-stock-category"
+                loadOnMount={open}
+                value={itemCategoryFilter}
+                onChange={setItemCategoryFilter}
+              />
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">الصنف</label>
                 <select
                   value={itemId}
-                  onChange={(e) => { setItemId(e.target.value); setFromId(""); setToId(""); setQuantity(""); }}
+                  onChange={(e) => {
+                    setItemId(e.target.value);
+                    if (!distributionMode) {
+                      setFromId("");
+                      setToId("");
+                    }
+                    setQuantity("");
+                  }}
                   className="w-full px-4 py-2.5 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
                   required
                 >

@@ -7,6 +7,7 @@ import { TableSkeleton } from "@/components/ui/skeleton";
 import { BarcodeScanner } from "@/components/inventory/barcode-scanner";
 import { BarcodeTextInput } from "@/components/ui/barcode-text-input";
 import { BarcodeLabelPrint } from "@/components/inventory/barcode-label-print";
+import { InventoryCategoryFilter } from "@/components/inventory/inventory-category-filter";
 import { addToQueue } from "@/lib/offline-queue";
 import { getErrorMessage } from "@/lib/error-messages";
 
@@ -43,12 +44,15 @@ export function InventoryTable() {
   const [page, setPage] = useState(1);
   const [searchQuery, setSearchQuery] = useState("");
   const [searchDebounced, setSearchDebounced] = useState("");
+  const [categoryFilter, setCategoryFilter] = useState("");
   const inventoryFormRef = useRef<HTMLFormElement>(null);
   const barcodeInputRef = useRef<HTMLInputElement>(null);
   const pageRef = useRef(page);
   const searchDebouncedRef = useRef(searchDebounced);
+  const categoryFilterRef = useRef(categoryFilter);
   pageRef.current = page;
   searchDebouncedRef.current = searchDebounced;
+  categoryFilterRef.current = categoryFilter;
   const [form, setForm] = useState({
     name: "",
     code: "",
@@ -60,13 +64,14 @@ export function InventoryTable() {
     min_quantity: "",
   });
 
-  async function fetchItems(opts?: { page?: number; search?: string }) {
+  async function fetchItems(opts?: { page?: number; search?: string; category?: string }) {
     try {
       const page = opts?.page ?? 1;
-      const search = opts?.search ?? searchDebounced;
+      const search = opts?.search ?? searchDebouncedRef.current;
+      const category = opts?.category ?? categoryFilterRef.current;
       const limit = 50;
       const offset = (page - 1) * limit;
-      const url = `/api/admin/inventory/items?limit=${limit}&offset=${offset}${search ? `&search=${encodeURIComponent(search)}` : ""}`;
+      const url = `/api/admin/inventory/items?limit=${limit}&offset=${offset}${search ? `&search=${encodeURIComponent(search)}` : ""}${category ? `&category=${encodeURIComponent(category)}` : ""}`;
       const res = await fetch(url);
       if (res.ok) {
         const data = await res.json();
@@ -124,12 +129,12 @@ export function InventoryTable() {
 
   useEffect(() => {
     const handleOnline = () => {
-      fetchItems({ page: pageRef.current, search: searchDebouncedRef.current });
+      fetchItems({ page: pageRef.current, search: searchDebouncedRef.current, category: categoryFilterRef.current });
       fetchCategories();
       fetchLowStock();
     };
     const handleRefresh = () => {
-      fetchItems({ page: pageRef.current, search: searchDebouncedRef.current });
+      fetchItems({ page: pageRef.current, search: searchDebouncedRef.current, category: categoryFilterRef.current });
       fetchCategories();
       fetchLowStock();
     };
@@ -147,11 +152,18 @@ export function InventoryTable() {
   }, [searchQuery]);
 
   useEffect(() => {
-    const p = searchDebounced ? 1 : page;
     if (searchDebounced) setPage(1);
+  }, [searchDebounced]);
+
+  useEffect(() => {
+    setPage(1);
+  }, [categoryFilter]);
+
+  useEffect(() => {
+    const p = searchDebounced ? 1 : page;
     setLoading(true);
-    fetchItems({ page: p, search: searchDebounced });
-  }, [page, searchDebounced]);
+    fetchItems({ page: p, search: searchDebounced, category: categoryFilter });
+  }, [page, searchDebounced, categoryFilter]);
 
   useKeyboardShortcut({
     onSave: () => modalOpen && !saving && inventoryFormRef.current?.requestSubmit(),
@@ -508,7 +520,14 @@ export function InventoryTable() {
       <div className={`bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden ${loading ? "opacity-90" : ""}`}>
         <div className="p-4 border-b border-gray-100 dark:border-gray-700 flex flex-wrap gap-3 justify-between items-center">
           <h2 className="font-medium text-gray-900 dark:text-gray-100">الأصناف</h2>
-          <div className="flex gap-2 items-center">
+          <div className="flex flex-wrap gap-2 items-end">
+            <InventoryCategoryFilter
+              id="inventory-list-category"
+              categories={categories}
+              value={categoryFilter}
+              onChange={setCategoryFilter}
+              className="w-44"
+            />
             <input
               type="search"
               autoComplete="off"

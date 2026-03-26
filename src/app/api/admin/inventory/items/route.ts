@@ -20,7 +20,12 @@ export async function GET(request: Request) {
   }
 
   const { searchParams } = new URL(request.url);
-  const usePagination = searchParams.has("limit") || searchParams.has("offset") || searchParams.get("search");
+  const categoryParam = searchParams.get("category")?.trim() || "";
+  const usePagination =
+    searchParams.has("limit") ||
+    searchParams.has("offset") ||
+    searchParams.get("search") ||
+    categoryParam;
   const limit = usePagination ? Math.min(200, Math.max(1, Number(searchParams.get("limit")) || 50)) : 10000;
   const offset = usePagination ? Math.max(0, Number(searchParams.get("offset")) || 0) : 0;
   const search = searchParams.get("search")?.trim() || "";
@@ -36,6 +41,12 @@ export async function GET(request: Request) {
             FROM items 
             WHERE company_id = ? AND is_active = 1`;
     const args: (string | number)[] = dist ? [dist.assignedWarehouseId, companyId] : [companyId];
+    if (categoryParam === "__uncategorized__") {
+      sql += ` AND (category IS NULL OR TRIM(category) = '')`;
+    } else if (categoryParam) {
+      sql += ` AND LOWER(TRIM(COALESCE(category,''))) = LOWER(?)`;
+      args.push(categoryParam);
+    }
     if (search) {
       sql += ` AND (LOWER(name) LIKE ? OR LOWER(COALESCE(code,'')) LIKE ? OR LOWER(COALESCE(barcode,'')) LIKE ? OR LOWER(COALESCE(category,'')) LIKE ?)`;
       const q = `%${search.toLowerCase()}%`;
@@ -47,11 +58,21 @@ export async function GET(request: Request) {
     let total = 0;
     if (usePagination) {
       const countArgs: (string | number)[] = [companyId];
+      let countWhere = "company_id = ? AND is_active = 1";
+      if (categoryParam === "__uncategorized__") {
+        countWhere += " AND (category IS NULL OR TRIM(category) = '')";
+      } else if (categoryParam) {
+        countWhere += " AND LOWER(TRIM(COALESCE(category,''))) = LOWER(?)";
+        countArgs.push(categoryParam);
+      }
+      if (search) {
+        countWhere += ` AND (LOWER(name) LIKE ? OR LOWER(COALESCE(code,'')) LIKE ? OR LOWER(COALESCE(barcode,'')) LIKE ? OR LOWER(COALESCE(category,'')) LIKE ?)`;
+        const q = `%${search.toLowerCase()}%`;
+        countArgs.push(q, q, q, q);
+      }
       const countResult = await db.execute({
-        sql: `SELECT COUNT(*) as cnt FROM items WHERE company_id = ? AND is_active = 1${search ? ` AND (LOWER(name) LIKE ? OR LOWER(COALESCE(code,'')) LIKE ? OR LOWER(COALESCE(barcode,'')) LIKE ? OR LOWER(COALESCE(category,'')) LIKE ?)` : ""}`,
-        args: search
-          ? [...countArgs, `%${search.toLowerCase()}%`, `%${search.toLowerCase()}%`, `%${search.toLowerCase()}%`, `%${search.toLowerCase()}%`]
-          : countArgs,
+        sql: `SELECT COUNT(*) as cnt FROM items WHERE ${countWhere}`,
+        args: countArgs,
       });
       total = Number(countResult.rows[0]?.cnt ?? 0);
     }
