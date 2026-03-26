@@ -9,6 +9,7 @@ import { InvoiceActions } from "./invoice-actions";
 import { PartialReturnButton } from "./partial-return-button";
 import { ReturnButton } from "./return-button";
 import { CancelButton } from "./cancel-button";
+import { EditPurchaseInvoice } from "./edit-purchase-invoice";
 
 export default async function InvoiceDetailPage({
   params,
@@ -69,6 +70,7 @@ export default async function InvoiceDetailPage({
       company_commercial_registration: row.company_commercial_registration ? String(row.company_commercial_registration) : null,
       customer_name: row.customer_name ? String(row.customer_name) : null,
       customer_phone: row.customer_phone ? String(row.customer_phone) : null,
+      supplier_id: row.supplier_id ? String(row.supplier_id) : null,
       supplier_name: row.supplier_name ? String(row.supplier_name) : null,
       supplier_phone: row.supplier_phone ? String(row.supplier_phone) : null,
       order_number: row.order_number ? String(row.order_number) : null,
@@ -140,6 +142,34 @@ export default async function InvoiceDetailPage({
           ← العودة للفواتير
         </Link>
         <div className="flex gap-2 no-print items-center flex-wrap">
+          {data.type === "purchase" && (
+            <EditPurchaseInvoice
+              invoiceId={id}
+              canEdit={
+                data.status === "pending" &&
+                data.paid_amount <= 0 &&
+                !data.is_return
+              }
+              blockReason={
+                data.paid_amount > 0
+                  ? "لا يمكن تعديل فاتورة شراء عليها دفعات مسجّلة. أزل المدفوعات أولاً."
+                  : data.status !== "pending"
+                    ? "التعديل متاح لفاتورة الشراء في حالة «معلقة» فقط (ولم تُسجَّل دفعات)."
+                    : null
+              }
+              initialSupplierId={data.supplier_id}
+              initialNotes={data.notes}
+              initialDiscount={data.discount}
+              initialTax={data.tax}
+              lines={items.filter((it): it is typeof it & { item_id: string } => Boolean(it.item_id)).map((it) => ({
+                id: it.id,
+                item_id: it.item_id!,
+                item_name: it.item_name,
+                quantity: it.quantity,
+                unit_price: it.unit_price,
+              }))}
+            />
+          )}
           <PartialReturnButton invoiceId={id} type={data.type} status={data.status} items={items} />
           <ReturnButton invoiceId={id} type={data.type} status={data.status} />
           <CancelButton invoiceId={id} type={data.type} status={data.status} />

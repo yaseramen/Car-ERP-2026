@@ -3,6 +3,7 @@ import { randomUUID } from "crypto";
 
 export type AuditAction =
   | "invoice_create"
+  | "invoice_update"
   | "invoice_pay"
   | "invoice_cancel"
   | "invoice_return"
