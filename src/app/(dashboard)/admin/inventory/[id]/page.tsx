@@ -138,7 +138,7 @@ export default async function ItemReportPage({
                 <dt className="text-gray-500 shrink-0">الباركود</dt>
                 <dd className="text-gray-900 font-mono flex flex-col gap-2">
                   <span>{item.barcode || "—"}</span>
-                  <PrintBarcodeButton barcode={item.barcode || ""} itemName={item.name} />
+                  <PrintBarcodeButton barcode={item.barcode || ""} itemName={item.name} salePrice={item.sale_price} />
                 </dd>
               </div>
               <div className="flex justify-between">

@@ -5,10 +5,16 @@ import { useEffect, useRef, useState } from "react";
 interface BarcodeLabelPrintProps {
   barcode: string;
   itemName: string;
+  /** سعر البيع يظهر على الملصق عند الطباعة */
+  salePrice?: number | null;
   onClose: () => void;
 }
 
-export function BarcodeLabelPrint({ barcode, itemName, onClose }: BarcodeLabelPrintProps) {
+function escapeHtml(s: string) {
+  return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+}
+
+export function BarcodeLabelPrint({ barcode, itemName, salePrice, onClose }: BarcodeLabelPrintProps) {
   const svgRef = useRef<SVGSVGElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const [ready, setReady] = useState(false);
@@ -23,11 +29,12 @@ export function BarcodeLabelPrint({ barcode, itemName, onClose }: BarcodeLabelPr
         const JsBarcode = (await import("jsbarcode")).default;
         JsBarcode(svgRef.current, barcode.trim(), {
           format: "CODE128",
-          width: 2,
-          height: 60,
+          width: 1.8,
+          height: 48,
           displayValue: true,
-          fontSize: 14,
-          margin: 5,
+          fontSize: 11,
+          margin: 4,
+          textMargin: 2,
         });
         if (mounted) setReady(true);
       } catch (e) {
@@ -47,31 +54,77 @@ export function BarcodeLabelPrint({ barcode, itemName, onClose }: BarcodeLabelPr
       alert("يُرجى السماح بالنوافذ المنبثقة لطباعة الملصق.");
       return;
     }
-    const escapedName = itemName
-      .replace(/&/g, "&amp;")
-      .replace(/</g, "&lt;")
-      .replace(/>/g, "&gt;")
-      .replace(/"/g, "&quot;");
+    const escapedName = escapeHtml(itemName || "صنف");
+    const priceLine =
+      salePrice != null && Number.isFinite(salePrice)
+        ? `<div class="label-price">${escapeHtml(Number(salePrice).toFixed(2))} ج.م</div>`
+        : "";
     printWindow.document.write(`
       <!DOCTYPE html>
       <html dir="rtl">
-        <head>
+      <head>
           <meta charset="utf-8">
           <title>ملصق باركود - ${escapedName}</title>
           <style>
+            /* ملصق شائع 40×30 مم — اختر نفس المقاس في نافذة الطباعة (حجم ورق مخصص) */
+            @page { size: 40mm 30mm; margin: 0; }
             * { margin: 0; padding: 0; box-sizing: border-box; }
-            body { font-family: Arial, sans-serif; padding: 10mm; }
-            .label { border: 1px solid #ddd; padding: 8mm; width: 50mm; text-align: center; }
-            .label-name { font-size: 10px; margin-bottom: 4px; word-break: break-all; }
-            .label svg { max-width: 100%; height: auto; display: block; margin: 0 auto; }
-            .label-code { font-size: 9px; margin-top: 4px; font-family: monospace; }
+            html, body {
+              width: 40mm;
+              height: 30mm;
+              margin: 0;
+              padding: 0;
+              font-family: Arial, "Segoe UI", Tahoma, sans-serif;
+              -webkit-print-color-adjust: exact;
+              print-color-adjust: exact;
+            }
+            body {
+              display: flex;
+              align-items: center;
+              justify-content: center;
+            }
+            .label {
+              width: 40mm;
+              height: 30mm;
+              padding: 1.5mm 2mm;
+              display: flex;
+              flex-direction: column;
+              align-items: center;
+              justify-content: center;
+              text-align: center;
+              overflow: hidden;
+            }
+            .label-name {
+              font-size: 7px;
+              line-height: 1.15;
+              max-height: 2.6em;
+              overflow: hidden;
+              word-break: break-word;
+              width: 100%;
+            }
+            .label-price {
+              font-size: 9px;
+              font-weight: bold;
+              margin: 0.5mm 0 1mm;
+            }
+            .label svg {
+              max-width: 100%;
+              height: auto;
+              display: block;
+            }
+            .label-code {
+              font-size: 7px;
+              margin-top: 0.5mm;
+              font-family: ui-monospace, monospace;
+            }
           </style>
         </head>
         <body>
           <div class="label">
             <div class="label-name">${escapedName}</div>
+            ${priceLine}
             ${svgHtml}
-            <div class="label-code">${barcode}</div>
+            <div class="label-code">${escapeHtml(barcode.trim())}</div>
           </div>
         </body>
       </html>
@@ -81,7 +134,7 @@ export function BarcodeLabelPrint({ barcode, itemName, onClose }: BarcodeLabelPr
     setTimeout(() => {
       printWindow.print();
       printWindow.close();
-    }, 300);
+    }, 400);
   };
 
   return (
@@ -90,11 +143,19 @@ export function BarcodeLabelPrint({ barcode, itemName, onClose }: BarcodeLabelPr
         <h3 className="font-bold text-gray-900 dark:text-gray-100 mb-4">طباعة ملصق الباركود</h3>
         <div className="border border-gray-200 dark:border-gray-600 rounded-lg p-4 bg-white dark:bg-gray-900 text-center">
           <p className="text-xs text-gray-600 dark:text-gray-400 mb-2 break-words">{itemName}</p>
+          {salePrice != null && Number.isFinite(salePrice) && (
+            <p className="text-sm font-bold text-emerald-700 dark:text-emerald-300 mb-2">
+              {Number(salePrice).toFixed(2)} ج.م
+            </p>
+          )}
           <svg ref={svgRef} className="max-w-full h-auto" />
           <p className="text-xs font-mono text-gray-500 dark:text-gray-500 mt-2">{barcode}</p>
         </div>
         <p className="text-sm text-gray-500 dark:text-gray-400 mt-3">
           يمكنك لصق هذا الملصق على الصنف ومسحه بالكاميرا أو الماسح الضوئي عند البيع.
+        </p>
+        <p className="text-xs text-amber-700 dark:text-amber-300 mt-2 leading-relaxed">
+          إذا ظهرت الطباعة في أعلى أو أسفل الملصق: اختر في نافذة الطباعة نفس <strong>مقاس الملصق</strong> (مثل 40×30 مم) أو اضبط الهوامش من إعدادات الطابعة الحرارية.
         </p>
         <div className="flex gap-3 mt-6">
           <button

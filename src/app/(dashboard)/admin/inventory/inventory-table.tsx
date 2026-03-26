@@ -35,7 +35,11 @@ export function InventoryTable() {
   const [deleteConfirm, setDeleteConfirm] = useState<Item | null>(null);
   const [saving, setSaving] = useState(false);
   const [showScanner, setShowScanner] = useState(false);
-  const [barcodePrint, setBarcodePrint] = useState<{ barcode: string; itemName: string } | null>(null);
+  const [barcodePrint, setBarcodePrint] = useState<{
+    barcode: string;
+    itemName: string;
+    salePrice?: number;
+  } | null>(null);
   const [categories, setCategories] = useState<string[]>([]);
   const [units, setUnits] = useState<string[]>([]);
   const [newCategory, setNewCategory] = useState("");
@@ -585,7 +589,27 @@ export function InventoryTable() {
                       </Link>
                     </td>
                     <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-400">{item.code || "—"}</td>
-                    <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-400 font-mono">{item.barcode || "—"}</td>
+                    <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-400 font-mono">
+                      <div className="flex items-center gap-2 flex-wrap justify-end">
+                        <span className="break-all">{item.barcode || "—"}</span>
+                        {item.barcode?.trim() && (
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setBarcodePrint({
+                                barcode: item.barcode!.trim(),
+                                itemName: item.name,
+                                salePrice: item.sale_price,
+                              })
+                            }
+                            className="shrink-0 px-2 py-0.5 text-xs font-medium rounded-md bg-emerald-100 dark:bg-emerald-900/50 text-emerald-800 dark:text-emerald-200 hover:bg-emerald-200 dark:hover:bg-emerald-800/70 border border-emerald-200 dark:border-emerald-700"
+                            title="طباعة ملصق باركود وسعر البيع"
+                          >
+                            طباعة
+                          </button>
+                        )}
+                      </div>
+                    </td>
                     <td className="px-4 py-3 text-sm">
                       {editingCell?.itemId === item.id && editingCell?.field === "category" ? (
                         <select
@@ -775,9 +799,15 @@ export function InventoryTable() {
                   {form.barcode.trim() && (
                     <button
                       type="button"
-                      onClick={() => setBarcodePrint({ barcode: form.barcode.trim(), itemName: form.name || "صنف" })}
+                      onClick={() =>
+                        setBarcodePrint({
+                          barcode: form.barcode.trim(),
+                          itemName: form.name || "صنف",
+                          salePrice: Number(form.sale_price) || 0,
+                        })
+                      }
                       className="px-4 py-2.5 bg-emerald-100 dark:bg-emerald-900/50 hover:bg-emerald-200 dark:hover:bg-emerald-800/70 text-emerald-800 dark:text-emerald-200 rounded-lg transition shrink-0"
-                      title="طباعة ملصق الباركود"
+                      title="طباعة ملصق الباركود وسعر البيع"
                     >
                       طباعة
                     </button>
@@ -950,6 +980,7 @@ export function InventoryTable() {
         <BarcodeLabelPrint
           barcode={barcodePrint.barcode}
           itemName={barcodePrint.itemName}
+          salePrice={barcodePrint.salePrice}
           onClose={() => setBarcodePrint(null)}
         />
       )}

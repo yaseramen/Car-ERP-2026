@@ -3,7 +3,15 @@
 import { useState } from "react";
 import { BarcodeLabelPrint } from "@/components/inventory/barcode-label-print";
 
-export function PrintBarcodeButton({ barcode, itemName }: { barcode: string; itemName: string }) {
+export function PrintBarcodeButton({
+  barcode,
+  itemName,
+  salePrice,
+}: {
+  barcode: string;
+  itemName: string;
+  salePrice?: number;
+}) {
   const [showPrint, setShowPrint] = useState(false);
 
   if (!barcode?.trim()) return null;
@@ -21,6 +29,7 @@ export function PrintBarcodeButton({ barcode, itemName }: { barcode: string; ite
         <BarcodeLabelPrint
           barcode={barcode}
           itemName={itemName}
+          salePrice={salePrice}
           onClose={() => setShowPrint(false)}
         />
       )}
