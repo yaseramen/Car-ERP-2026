@@ -274,10 +274,10 @@ export default async function InvoiceDetailPage({
         )}
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8 invoice-print-grid">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8 invoice-print-grid invoice-print-meta-grid">
         <div className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-sm border border-gray-100 dark:border-gray-700 invoice-print-card">
           <h2 className="font-bold text-gray-900 dark:text-gray-100 mb-4">بيانات الفاتورة</h2>
-          <dl className="space-y-3 text-sm">
+          <dl className="space-y-3 text-sm invoice-print-dl-tight">
             <div className="flex justify-between">
               <dt className="text-gray-500 dark:text-gray-400">رقم الفاتورة</dt>
               <dd className="text-gray-900 dark:text-gray-100 font-medium">{data.invoice_number}</dd>
@@ -320,7 +320,7 @@ export default async function InvoiceDetailPage({
           {data.type === "purchase" ? (
             <>
               <h2 className="font-bold text-gray-900 dark:text-gray-100 mb-4">المورد</h2>
-              <dl className="space-y-3 text-sm">
+              <dl className="space-y-3 text-sm invoice-print-dl-tight">
                 <div className="flex justify-between">
                   <dt className="text-gray-500 dark:text-gray-400">اسم المورد</dt>
                   <dd className="text-gray-900 dark:text-gray-100">{data.supplier_name || "—"}</dd>
@@ -334,7 +334,7 @@ export default async function InvoiceDetailPage({
           ) : (
             <>
               <h2 className="font-bold text-gray-900 dark:text-gray-100 mb-4">العميل / السيارة</h2>
-              <dl className="space-y-3 text-sm">
+              <dl className="space-y-3 text-sm invoice-print-dl-tight">
                 <div className="flex justify-between">
                   <dt className="text-gray-500 dark:text-gray-400">العميل</dt>
                   <dd className="text-gray-900 dark:text-gray-100">{data.customer_name || "—"}</dd>

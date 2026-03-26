@@ -61,7 +61,7 @@ export function InAppBrowserBanner() {
 
   return (
     <div
-      className="fixed top-0 left-0 right-0 z-[9999] bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-lg"
+      className="no-print fixed top-0 left-0 right-0 z-[9999] bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-lg"
       role="banner"
     >
       <div className="px-4 py-2.5 flex flex-wrap items-center justify-center sm:justify-between gap-2">
