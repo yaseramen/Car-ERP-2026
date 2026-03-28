@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { usePathname } from "next/navigation";
 import { Sidebar } from "./sidebar";
 import { DashboardHeader } from "./dashboard-header";
+import { AssistantWidget } from "./assistant-widget";
 
 export function AdminLayoutClient({
   children,
@@ -61,6 +62,7 @@ export function AdminLayoutClient({
           {children}
         </main>
       </div>
+      <AssistantWidget />
     </div>
   );
 }

@@ -84,7 +84,7 @@ CREATE TABLE IF NOT EXISTS wallet_transactions (
     id TEXT PRIMARY KEY,
     wallet_id TEXT NOT NULL,
     amount REAL NOT NULL,
-    type TEXT NOT NULL CHECK(type IN ('credit', 'debit', 'digital_service', 'obd_search')),
+    type TEXT NOT NULL CHECK(type IN ('credit', 'debit', 'digital_service', 'obd_search', 'assistant_company', 'assistant_obd_global')),
     description TEXT,
     reference_type TEXT,
     reference_id TEXT,
