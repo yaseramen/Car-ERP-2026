@@ -5,13 +5,14 @@ import { extractText, getDocumentProxy } from "unpdf";
 
 export const OBD_SEARCH_COST = 1;
 
-export const OBD_PROMPT = `كود OBD: {code}
-أعطني:
-1. الوصف (ما يعني هذا الكود)
-2. الأسباب المحتملة (كل سبب في سطر، افصل بـ |)
-3. الحلول المقترحة (كل حل في سطر، افصل بـ |)
-4. الأعراض (كل عرض في سطر، افصل بـ |)
-أجب بصيغة JSON فقط: {"description_ar":"...","causes":"...","solutions":"...","symptoms":"..."}`;
+export const OBD_PROMPT = `أنت مهندس تشخيص أعطال سيارات بخبرة ورشة عملية (15+ سنة). مهمتك تشخيص عملي مبني على الفحص لا شرحاً أكاديمياً.
+
+كود OBD: {code}
+
+قواعد: ابدأ بالأسباب الأرخص والأسهل فحصاً (فيوز، أرضي، فيشة، تآكل) قبل افتراض عطل ECU/BCM. رتّب الأسباب في causes حسب احتمال الورشة الفعلي (الأرجح أولاً، افصل بـ |). الحلول solutions عملية بنفس الترتيب. لا تذكر أسباباً عشوائية طويلة.
+
+أعطني JSON فقط:
+{"description_ar":"وظيفة الكود + النظام المرتبط — مختصر","causes":"سبب1|سبب2|...","solutions":"خطوة1|خطوة2|...","symptoms":"..."}`;
 
 export function parseAIResponse(text: string): { description_ar: string; causes: string; solutions: string; symptoms: string } | null {
   const match = text.match(/\{[\s\S]*\}/);

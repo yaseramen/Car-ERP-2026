@@ -26,11 +26,21 @@ type CodeRelation = {
   relation_ar: string;
 };
 
+type PerCodeWorkshopLine = {
+  code: string;
+  role_ar: string;
+};
+
 type IntegratedAnalysis = {
   summary_ar: string;
+  per_code_analysis?: PerCodeWorkshopLine[];
+  code_relations: CodeRelation[];
+  root_cause_ar?: string;
+  excluded_causes_ar?: string;
   cascade_ar: string;
   prioritized_steps: IntegratedStep[];
-  code_relations: CodeRelation[];
+  common_mistakes_ar?: string;
+  replacement_guidance_ar?: string;
   disclaimer_ar: string;
 };
 
@@ -532,7 +542,7 @@ export function ObdContent() {
               <div className="p-4 border-b border-emerald-100 dark:border-emerald-800 bg-emerald-50/80 dark:bg-emerald-900/20">
                 <h2 className="font-bold text-lg text-emerald-900 dark:text-emerald-100">تحليل موحّد للتقرير (ذكاء اصطناعي)</h2>
                 <p className="text-xs text-gray-600 dark:text-gray-400 mt-1">
-                  يربط الأكواد ببعض ويقترح أولوية الفحص — يُكمّل جداول التفاصيل لكل كود أدناه.
+                  منهج ورشة: أبسط الأسباب أولاً، ربط الأكواد عند وجود دليل تقني، وخطة 5–7 خطوات — يُكمّل تفاصيل كل كود أدناه.
                 </p>
               </div>
               <div className="p-6 space-y-5 text-gray-900 dark:text-gray-100">
@@ -540,6 +550,36 @@ export function ObdContent() {
                   <div>
                     <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">ملخص الأعطال</h3>
                     <p className="leading-relaxed whitespace-pre-wrap">{analyzeResults.integrated_analysis.summary_ar}</p>
+                  </div>
+                )}
+                {analyzeResults.integrated_analysis.per_code_analysis &&
+                  analyzeResults.integrated_analysis.per_code_analysis.length > 0 && (
+                    <div>
+                      <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">تحليل منفصل لكل كود</h3>
+                      <ul className="space-y-2 text-sm">
+                        {analyzeResults.integrated_analysis.per_code_analysis.map((row, i) => (
+                          <li key={i} className="border-r-2 border-gray-300 dark:border-gray-600 pr-3">
+                            <span className="font-mono font-medium" dir="ltr">
+                              {row.code}
+                            </span>
+                            <p className="mt-1 leading-relaxed">{row.role_ar}</p>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                {analyzeResults.integrated_analysis.root_cause_ar && (
+                  <div>
+                    <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">السبب الجذري الأرجح</h3>
+                    <p className="leading-relaxed whitespace-pre-wrap">{analyzeResults.integrated_analysis.root_cause_ar}</p>
+                  </div>
+                )}
+                {analyzeResults.integrated_analysis.excluded_causes_ar && (
+                  <div>
+                    <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">ما يُستبعد ولماذا</h3>
+                    <p className="leading-relaxed whitespace-pre-wrap text-gray-700 dark:text-gray-300">
+                      {analyzeResults.integrated_analysis.excluded_causes_ar}
+                    </p>
                   </div>
                 )}
                 {analyzeResults.integrated_analysis.cascade_ar && (
@@ -581,6 +621,20 @@ export function ObdContent() {
                           </li>
                         ))}
                     </ol>
+                  </div>
+                )}
+                {analyzeResults.integrated_analysis.common_mistakes_ar && (
+                  <div>
+                    <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">أخطاء شائعة للفني</h3>
+                    <p className="leading-relaxed whitespace-pre-wrap text-sm">{analyzeResults.integrated_analysis.common_mistakes_ar}</p>
+                  </div>
+                )}
+                {analyzeResults.integrated_analysis.replacement_guidance_ar && (
+                  <div>
+                    <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">الاستبدال مقابل الفحص</h3>
+                    <p className="leading-relaxed whitespace-pre-wrap text-sm">
+                      {analyzeResults.integrated_analysis.replacement_guidance_ar}
+                    </p>
                   </div>
                 )}
                 {analyzeResults.integrated_analysis.disclaimer_ar && (

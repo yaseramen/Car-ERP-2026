@@ -13,43 +13,72 @@ export type CodeRelation = {
   relation_ar: string;
 };
 
+export type PerCodeWorkshopLine = {
+  code: string;
+  /** وظيفة الكود والنظام المرتبط — تحليل منفصل مختصر */
+  role_ar: string;
+};
+
 export type IntegratedAnalysis = {
-  /** ملخص 2–4 جمل يربط الأكواد ببعض */
+  /** ملخص قصير للحالة ككل */
   summary_ar: string;
-  /** كيف قد يتسلسل العطل (سبب جذري → أعراض ثانوية) */
-  cascade_ar: string;
-  /** خطوات عملية مرتبة بالأولوية */
-  prioritized_steps: IntegratedStep[];
-  /** روابط بين الأكواد في نفس التقرير */
+  /** تحليل منفذ لكل كود: وظيفة + نظام */
+  per_code_analysis?: PerCodeWorkshopLine[];
+  /** علاقات تقنية واضحة فقط؛ إن لم توجد قل ذلك صراحة */
   code_relations: CodeRelation[];
-  /** تحذير: الاستنتاجات استرشادية */
+  /** سبب جذري واحد محتمل + نسبة تقريبية إن أمكن */
+  root_cause_ar?: string;
+  /** أسباب استبعدتها ولماذا */
+  excluded_causes_ar?: string;
+  /** كيف قد يتسلسل العطل */
+  cascade_ar: string;
+  /** 5 إلى 7 خطوات فقط: من الأبسط والأرخص إلى ECU آخراً */
+  prioritized_steps: IntegratedStep[];
+  /** أخطاء شائعة للفني */
+  common_mistakes_ar?: string;
+  /** متى الاستبدال ضروري مقابل الفحص */
+  replacement_guidance_ar?: string;
   disclaimer_ar: string;
 };
 
-const INTEGRATED_PROMPT = `أنت خبير تشخيص أعطال السيارات (OBD/DTC). لديك تقرير واحد يحتوي على عدة أكواد أعطال لنفس المركبة.
+const WORKSHOP_SYSTEM_PERSONA = `أنت مهندس تشخيص أعطال سيارات بخبرة لا تقل عن 15 سنة داخل ورش صيانة فعلية.
+مهمتك ليست شرح الأكواد نظرياً، بل تحليلها كحالة ورشة حقيقية واتخاذ قرار تشخيص منطقي مبني على الفحص وليس التخمين.
+أسلوب إجابة: مهندس ورشة عملي، مختصر، بدون حشو، نقاط واضحة.`;
 
-الأكواد والبيانات المستخرجة لكل كود (JSON):
+const INTEGRATED_PROMPT = `لديك أكواد من تقرير OBD واحد لنفس المركبة. البيانات المستخرجة لكل كود (JSON):
 {payload}
 
-المطلوب بالعربية فقط، بصيغة JSON صالحة فقط بدون markdown:
+🚨 قواعد إلزامية:
+1- لا تفترض أن وحدة إلكترونية (BCM/ECU/TCU…) هي السبب الرئيسي قبل استبعاد الأسباب البسيطة (فيوز، أرضي، فيشة، تآكل).
+2- لا تدمج الأكواد كسبب واحد إلا إذا كان هناك رابط تقني واضح ومؤكد؛ وإلا اذكر أنها قد تكون مستقلة.
+3- رتّب الأسباب حسب الاحتمال الفعلي في الورشة — الأرخص والأسهل فحصاً أولاً.
+4- إذا كان أكثر من كود: تعامل معها كنظام واحد لكن حلّل كل كود منفرداً أولاً ثم الربط.
+5- prioritized_steps يجب أن يكون بين 5 و 7 خطوات فقط، تبدأ بـ: فيوز/أرضي/لمبة/فيشة → قياسات كهربائية → حساسات → وحدات تحكم كآخر خيار.
+
+المطلوب بالعربية فقط، JSON صالح فقط بدون markdown:
 {
-  "summary_ar": "فقرة قصيرة 2-4 جمل تربط الأكواد ببعض وتشرح الصورة العامة",
-  "cascade_ar": "شرح كيف قد يتسلسل العطل (مثلاً عطل حساس يسبب ضعف خليط فيظهر كود آخر) — نص متصل",
-  "prioritized_steps": [
-    { "priority": 1, "title": "عنوان قصير", "detail": "ماذا تفحص أو تصلح أولاً ولماذا", "related_codes": ["P0xxx"] },
-    { "priority": 2, "title": "...", "detail": "...", "related_codes": [] }
+  "summary_ar": "2-4 جمل: صورة الحالة ككل للفني",
+  "per_code_analysis": [
+    { "code": "P0XXX", "role_ar": "وظيفة الكود + النظام المرتبط — سطران كحد أقصى" }
   ],
   "code_relations": [
-    { "from": "P0xxx", "to": "P0yyy", "relation_ar": "قد يظهر الثاني نتيجة للأول أو مرتبط به لأن..." }
+    { "from": "P0XXX", "to": "P0YYY", "relation_ar": "رابط تقني واضح أو اكتب إن لا يوجد رابط مباشر" }
   ],
-  "disclaimer_ar": "جملة واحدة: التحليل استرشادي ولا يغني عن الفحص اليدوي والمعدات الاحترافية."
+  "root_cause_ar": "السبب الجذري الأرجح مع نسبة تقريبية إن أمكن (مثلاً 60٪)",
+  "excluded_causes_ar": "ما استبعدته ولماذا — مختصر",
+  "cascade_ar": "كيف قد يتسلسل العطل إن وُجد سبب جذري واحد",
+  "prioritized_steps": [
+    { "priority": 1, "title": "عنوان", "detail": "ماذا تفعل بالضبط ولماذا", "related_codes": ["P0XXX"] }
+  ],
+  "common_mistakes_ar": "أخطاء شائعة يقع فيها الفني في هذه الحالة — نقاط",
+  "replacement_guidance_ar": "متى يكون استبدال القطعة ضرورياً وليس مجرد اختبار",
+  "disclaimer_ar": "جملة: استرشادي وليس بديلاً عن الفحص بالمعدات والورشة."
 }
 
-قواعد:
-- رتّب prioritized_steps من الأهم للأقل (1 = ابدأ هنا).
-- إذا كان كود واحد فقط، اشرحه وضع خطوة أو خطوتين عمليتين.
-- related_codes: أكواد من القائمة أعلاه ترتبط بهذه الخطوة.
-- لا تخترع أكواد غير موجودة في القائمة.`;
+قيود:
+- prioritized_steps: العدد بين 5 و 7 (إذا كود واحد فقط يمكن 5 خطوات تغطي نفس الكود).
+- related_codes فقط من الأكواد الموجودة في البيانات أعلاه.
+- لا تخترع أكواداً.`;
 
 function safeJsonParse<T>(text: string): T | null {
   const match = text.match(/\{[\s\S]*\}/);
@@ -66,10 +95,26 @@ function normalizeIntegrated(raw: unknown): IntegratedAnalysis | null {
   const o = raw as Record<string, unknown>;
   const summary_ar = typeof o.summary_ar === "string" ? o.summary_ar.trim() : "";
   const cascade_ar = typeof o.cascade_ar === "string" ? o.cascade_ar.trim() : "";
+  const root_cause_ar = typeof o.root_cause_ar === "string" ? o.root_cause_ar.trim() : undefined;
+  const excluded_causes_ar = typeof o.excluded_causes_ar === "string" ? o.excluded_causes_ar.trim() : undefined;
+  const common_mistakes_ar = typeof o.common_mistakes_ar === "string" ? o.common_mistakes_ar.trim() : undefined;
+  const replacement_guidance_ar = typeof o.replacement_guidance_ar === "string" ? o.replacement_guidance_ar.trim() : undefined;
   const disclaimer_ar =
     typeof o.disclaimer_ar === "string"
       ? o.disclaimer_ar.trim()
       : "هذا التحليل استرشادي ولا يغني عن الفحص اليدوي والمعدات الاحترافية.";
+
+  const perRaw = Array.isArray(o.per_code_analysis) ? o.per_code_analysis : [];
+  const per_code_analysis: PerCodeWorkshopLine[] = perRaw
+    .map((p) => {
+      if (!p || typeof p !== "object") return null;
+      const x = p as Record<string, unknown>;
+      const code = typeof x.code === "string" ? x.code.trim().toUpperCase() : "";
+      const role_ar = typeof x.role_ar === "string" ? x.role_ar.trim() : "";
+      if (!code || !role_ar) return null;
+      return { code, role_ar };
+    })
+    .filter((x): x is PerCodeWorkshopLine => x !== null);
 
   const stepsRaw = Array.isArray(o.prioritized_steps) ? o.prioritized_steps : [];
   const prioritized_steps: IntegratedStep[] = [];
@@ -103,13 +148,19 @@ function normalizeIntegrated(raw: unknown): IntegratedAnalysis | null {
 
   if (!summary_ar && prioritized_steps.length === 0 && code_relations.length === 0) return null;
 
-  return {
+  const out: IntegratedAnalysis = {
     summary_ar: summary_ar || "—",
     cascade_ar: cascade_ar || "",
     prioritized_steps,
     code_relations,
     disclaimer_ar,
   };
+  if (per_code_analysis.length > 0) out.per_code_analysis = per_code_analysis;
+  if (root_cause_ar) out.root_cause_ar = root_cause_ar;
+  if (excluded_causes_ar) out.excluded_causes_ar = excluded_causes_ar;
+  if (common_mistakes_ar) out.common_mistakes_ar = common_mistakes_ar;
+  if (replacement_guidance_ar) out.replacement_guidance_ar = replacement_guidance_ar;
+  return out;
 }
 
 export async function analyzeIntegratedObdReport(results: ObdResult[]): Promise<IntegratedAnalysis | null> {
@@ -144,7 +195,7 @@ export async function analyzeIntegratedObdReport(results: ObdResult[]): Promise<
             systemInstruction: {
               parts: [
                 {
-                  text: "أجب بالعربية فقط. JSON صالح فقط بدون تعليقات أو markdown.",
+                  text: `${WORKSHOP_SYSTEM_PERSONA}\n\nأجب بالعربية فقط. JSON صالح فقط بدون تعليقات أو markdown.`,
                 },
               ],
             },
