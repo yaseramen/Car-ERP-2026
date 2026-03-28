@@ -1,5 +1,6 @@
 import { auth } from "@/auth";
 import { redirect } from "next/navigation";
+import Link from "next/link";
 import { DashboardContent } from "./dashboard-content";
 import { canAccess, getFirstAllowedRoute } from "@/lib/permissions";
 import { getCompanyId } from "@/lib/company";
@@ -26,6 +27,12 @@ export default async function AdminDashboardPage() {
       <div className="mb-8">
         <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">الرئيسية</h1>
         <p className="text-gray-500 dark:text-gray-400 mt-1">مرحباً، {session?.user?.name || session?.user?.email}</p>
+        <p className="mt-3 text-sm">
+          <Link href="/admin/help" className="text-emerald-600 dark:text-emerald-400 hover:underline font-medium">
+            الدليل وما الجديد
+          </Link>
+          <span className="text-gray-500 dark:text-gray-400"> — شرح الاستخدام وآخر التحديثات</span>
+        </p>
       </div>
 
       <DashboardContent isSuperAdmin={session.user.role === "super_admin"} />
