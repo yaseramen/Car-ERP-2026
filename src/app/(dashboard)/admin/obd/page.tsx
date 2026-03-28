@@ -23,7 +23,7 @@ export default async function ObdPage() {
       <div className="mb-8">
         <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">التشخيص الذكي OBD</h1>
         <p className="text-gray-500 dark:text-gray-400 mt-1">
-          بحث بكود، رفع تقرير PDF/صورة، تحليل بالوصف، أو لصق/رفع نص قراءات حية (txt/csv) — 1 ج.م لكل عملية بحث أو تحليل نصي
+          بحث بكود، رفع تقرير، إدخال عدة أكواد يدوياً مع نوع السيارة بالعربي، تحليل بالوصف، أو لصق/رفع نص قراءات حية — 1 ج.م لكل كود أو تحليل نصي
         </p>
       </div>
 

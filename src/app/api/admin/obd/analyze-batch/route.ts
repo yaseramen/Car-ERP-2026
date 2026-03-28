@@ -2,24 +2,14 @@ import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { db } from "@/lib/db/client";
 import { getCompanyId, isPlatformOwnerCompany } from "@/lib/company";
-import {
-  OBD_SEARCH_COST,
-  resolveCode,
-  extractCodesFromFile,
-  type ObdResult,
-} from "@/lib/obd";
+import { OBD_SEARCH_COST, resolveCode, type ObdResult } from "@/lib/obd";
 import { analyzeIntegratedObdReport } from "@/lib/obd-integrated-analysis";
 import { ensureVehicleBrand, ensureVehicleModel } from "@/lib/obd-vehicles";
+import { parseObdCodesFromFreeText, parseYearInput } from "@/lib/obd-codes-input";
 import { randomUUID } from "crypto";
 
-const MAX_FILE_SIZE = 4 * 1024 * 1024; // 4MB
-const ALLOWED_TYPES = [
-  "image/jpeg",
-  "image/png",
-  "image/webp",
-  "application/pdf",
-];
 const ALLOWED_ROLES = ["super_admin", "tenant_owner", "employee"] as const;
+const MAX_CODES = 40;
 
 export async function POST(request: Request) {
   const session = await auth();
@@ -29,29 +19,22 @@ export async function POST(request: Request) {
   }
 
   try {
-    const formData = await request.formData();
-    const file = formData.get("file") as File | null;
-    if (!file || !(file instanceof File)) {
-      return NextResponse.json({ error: "يرجى رفع ملف (صورة أو PDF)" }, { status: 400 });
-    }
+    const body = await request.json();
+    const codesRaw = typeof body.codes_text === "string" ? body.codes_text : "";
+    const brand = typeof body.vehicle_brand === "string" ? body.vehicle_brand.trim() : "";
+    const model = typeof body.vehicle_model === "string" ? body.vehicle_model.trim() : "";
+    const year = parseYearInput(typeof body.vehicle_year === "string" ? body.vehicle_year : "");
 
-    const mimeType = file.type;
-    if (!ALLOWED_TYPES.includes(mimeType)) {
+    const uniqueCodes = parseObdCodesFromFreeText(codesRaw);
+    if (uniqueCodes.length === 0) {
       return NextResponse.json(
-        { error: "نوع الملف غير مدعوم. استخدم: JPG, PNG, WebP أو PDF" },
+        { error: "لم يُعثر على أكواد صالحة. اكتب أكواداً مثل P0300 أو C0123 (سطر لكل كود أو مفصولة بفواصل)." },
         { status: 400 }
       );
     }
-
-    if (file.size > MAX_FILE_SIZE) {
-      return NextResponse.json(
-        { error: "حجم الملف يتجاوز 4 ميجابايت" },
-        { status: 400 }
-      );
+    if (uniqueCodes.length > MAX_CODES) {
+      return NextResponse.json({ error: `الحد الأقصى ${MAX_CODES} كوداً في طلب واحد` }, { status: 400 });
     }
-
-    const buffer = await file.arrayBuffer();
-    const base64 = Buffer.from(buffer).toString("base64");
 
     const companyCheck = await db.execute({
       sql: "SELECT id FROM companies WHERE id = ?",
@@ -82,28 +65,13 @@ export async function POST(request: Request) {
       });
     }
 
-    const { codes, vehicle, reason, errorDetail } = await extractCodesFromFile(base64, mimeType);
-    if (codes.length === 0) {
-      let msg =
-        reason === "no_api_key"
-          ? "GEMINI_API_KEY أو GROQ_API_KEY غير مفعّل. أضفه في Vercel → Settings → Environment Variables ثم أعد النشر."
-          : reason === "api_error"
-            ? "فشل في الاتصال بالذكاء الاصطناعي."
-            : "لم يتم العثور على أكواد OBD في الملف. تأكد أن التقرير يحتوي على أكواد مثل P0100 أو P0171.";
-      if (errorDetail) msg += ` (${errorDetail})`;
-      return NextResponse.json({ error: msg }, { status: 400 });
-    }
-
-    const uniqueCodes = [...new Set(codes)];
     const totalCost = skipWallet ? 0 : uniqueCodes.length * OBD_SEARCH_COST;
     const balance = Number(walletResult.rows[0]?.balance ?? 0);
 
     if (!skipWallet && (walletResult.rows.length === 0 || balance < uniqueCodes.length * OBD_SEARCH_COST)) {
       const need = uniqueCodes.length * OBD_SEARCH_COST;
       return NextResponse.json(
-        {
-          error: `رصيد المحفظة غير كافٍ. المطلوب: ${need} ج.م (${uniqueCodes.length} كود × ${OBD_SEARCH_COST} ج.م)`,
-        },
+        { error: `رصيد المحفظة غير كافٍ. المطلوب: ${need} ج.م (${uniqueCodes.length} كود × ${OBD_SEARCH_COST} ج.م)` },
         { status: 400 }
       );
     }
@@ -125,7 +93,7 @@ export async function POST(request: Request) {
         await db.execute({
           sql: `INSERT INTO wallet_transactions (id, wallet_id, amount, type, description, reference_type, reference_id, performed_by)
               VALUES (?, ?, ?, 'obd_search', ?, 'obd_search', ?, ?)`,
-          args: [wtId, walletId, OBD_SEARCH_COST, `تحليل OBD - كود ${code}`, wtId, session.user.id],
+          args: [wtId, walletId, OBD_SEARCH_COST, `تحليل يدوي - كود ${code}`, wtId, session.user.id],
         });
       }
       await db.execute({
@@ -146,31 +114,38 @@ export async function POST(request: Request) {
     let integratedAnalysis: Awaited<ReturnType<typeof analyzeIntegratedObdReport>> = null;
     try {
       integratedAnalysis = await analyzeIntegratedObdReport(
-        results.map(({ cost: _c, ...r }) => r),
-        vehicle?.brand || vehicle?.model || vehicle?.year
-          ? {
-              brand_ar: vehicle.brand || undefined,
-              model_ar: vehicle.model || undefined,
-              year: vehicle.year ?? undefined,
-            }
+        results.map((row) => {
+          const { cost, ...rest } = row;
+          void cost;
+          return rest;
+        }),
+        brand || model || year != null
+          ? { brand_ar: brand || undefined, model_ar: model || undefined, year: year ?? undefined }
           : undefined
       );
     } catch (e) {
-      console.warn("OBD integrated analysis:", e);
+      console.warn("OBD integrated analysis (batch):", e);
     }
 
     let vehicleBrandId: string | null = null;
     let vehicleModelId: string | null = null;
     try {
-      if (vehicle?.brand) {
-        vehicleBrandId = await ensureVehicleBrand(vehicle.brand);
-        if (vehicleBrandId && vehicle?.model) {
-          vehicleModelId = await ensureVehicleModel(vehicleBrandId, vehicle.model);
+      if (brand) {
+        vehicleBrandId = await ensureVehicleBrand(brand);
+        if (vehicleBrandId && model) {
+          vehicleModelId = await ensureVehicleModel(vehicleBrandId, model);
         }
       }
     } catch (e) {
-      console.warn("Auto-expand vehicle tables:", e);
+      console.warn("Auto-expand vehicle tables (batch):", e);
     }
+
+    const vehiclePayload = {
+      brand: brand || "",
+      model: model || "",
+      year: year,
+      vin: "",
+    };
 
     try {
       await db.execute({
@@ -179,11 +154,11 @@ export async function POST(request: Request) {
         args: [
           randomUUID(),
           companyId,
-          file.name,
-          vehicle?.brand || null,
-          vehicle?.model || null,
-          vehicle?.year || null,
-          vehicle?.vin || null,
+          "manual_codes",
+          brand || null,
+          model || null,
+          year,
+          null,
           vehicleBrandId,
           vehicleModelId,
           JSON.stringify(uniqueCodes),
@@ -200,11 +175,11 @@ export async function POST(request: Request) {
           args: [
             randomUUID(),
             companyId,
-            file.name,
-            vehicle?.brand || null,
-            vehicle?.model || null,
-            vehicle?.year || null,
-            vehicle?.vin || null,
+            "manual_codes",
+            brand || null,
+            model || null,
+            year,
+            null,
             JSON.stringify(uniqueCodes),
             uniqueCodes.length,
             totalCost,
@@ -212,7 +187,7 @@ export async function POST(request: Request) {
           ],
         });
       } catch (e2) {
-        console.warn("obd_reports insert failed:", e2);
+        console.warn("obd_reports insert failed (batch):", e2);
       }
     }
 
@@ -220,12 +195,12 @@ export async function POST(request: Request) {
       results,
       totalCost,
       codesFound: uniqueCodes.length,
-      vehicle: vehicle || undefined,
+      vehicle: brand || model || year != null ? vehiclePayload : undefined,
       integrated_analysis: integratedAnalysis || undefined,
     });
   } catch (error) {
-    console.error("OBD analyze error:", error);
-    const msg = error instanceof Error ? error.message : "فشل في تحليل الملف";
-    return NextResponse.json({ error: `فشل في تحليل الملف: ${msg}` }, { status: 500 });
+    console.error("OBD analyze-batch error:", error);
+    const msg = error instanceof Error ? error.message : "فشل الطلب";
+    return NextResponse.json({ error: msg }, { status: 500 });
   }
 }

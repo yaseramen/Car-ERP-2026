@@ -44,7 +44,8 @@ export type IntegratedAnalysis = {
   disclaimer_ar: string;
 };
 
-const INTEGRATED_PROMPT = `لديك أكواد من تقرير OBD واحد لنفس المركبة. البيانات المستخرجة لكل كود (JSON):
+const INTEGRATED_PROMPT = `لديك أكواد من تقرير OBD واحد لنفس المركبة. الحقل vehicle قد يحتوي على ماركة/موديل/سنة بالعربية إذا زوّدها المستخدم — استخدمها لتفسير أقرب للواقع دون اختراع أعطال خاصة بماركة لم تُذكر.
+البيانات (JSON):
 {payload}
 
 🚨 قواعد إلزامية:
@@ -167,20 +168,39 @@ function normalizeIntegrated(raw: unknown): IntegratedAnalysis | null {
   return out;
 }
 
-export async function analyzeIntegratedObdReport(results: ObdResult[]): Promise<IntegratedAnalysis | null> {
+export type VehicleContextForIntegrated = {
+  brand_ar?: string;
+  model_ar?: string;
+  year?: number;
+};
+
+export async function analyzeIntegratedObdReport(
+  results: ObdResult[],
+  vehicle?: VehicleContextForIntegrated
+): Promise<IntegratedAnalysis | null> {
   if (results.length === 0) return null;
 
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) return null;
 
   const payload = JSON.stringify(
-    results.map((r) => ({
-      code: r.code,
-      description_ar: r.description_ar,
-      causes: r.causes,
-      solutions: r.solutions,
-      symptoms: r.symptoms,
-    })),
+    {
+      vehicle:
+        vehicle && (vehicle.brand_ar || vehicle.model_ar || vehicle.year != null)
+          ? {
+              brand_ar: vehicle.brand_ar ?? null,
+              model_ar: vehicle.model_ar ?? null,
+              year: vehicle.year ?? null,
+            }
+          : null,
+      codes: results.map((r) => ({
+        code: r.code,
+        description_ar: r.description_ar,
+        causes: r.causes,
+        solutions: r.solutions,
+        symptoms: r.symptoms,
+      })),
+    },
     null,
     0
   );

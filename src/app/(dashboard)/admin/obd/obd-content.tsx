@@ -47,7 +47,7 @@ type IntegratedAnalysis = {
 };
 
 export function ObdContent() {
-  const [mode, setMode] = useState<"search" | "upload" | "description" | "liveData" | "manage" | "logs">("search");
+  const [mode, setMode] = useState<"search" | "upload" | "manualBatch" | "description" | "liveData" | "manage" | "logs">("search");
   const [code, setCode] = useState("");
   const [loading, setLoading] = useState(false);
   const [aiStatus, setAiStatus] = useState<{ aiAvailable: boolean; message: string; providers?: string[] } | null>(null);
@@ -80,6 +80,7 @@ export function ObdContent() {
     analysis_type?: "description" | "live_data";
   } | null>(null);
   const [liveForm, setLiveForm] = useState({ liveDataText: "", brand: "", model: "", year: "" });
+  const [manualBatchForm, setManualBatchForm] = useState({ codesText: "", brand: "", model: "", year: "" });
   const [liveFile, setLiveFile] = useState<File | null>(null);
   const liveFileInputRef = useRef<HTMLInputElement>(null);
 
@@ -139,6 +140,46 @@ export function ObdContent() {
       setResult(data);
     } catch {
       alert("حدث خطأ");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleAnalyzeBatch(e: React.FormEvent) {
+    e.preventDefault();
+    if (!manualBatchForm.codesText.trim()) return;
+
+    setLoading(true);
+    setResult(null);
+    setAnalyzeResults(null);
+    try {
+      const res = await fetch("/api/admin/obd/analyze-batch", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          codes_text: manualBatchForm.codesText,
+          vehicle_brand: manualBatchForm.brand.trim(),
+          vehicle_model: manualBatchForm.model.trim(),
+          vehicle_year: manualBatchForm.year.trim(),
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        alert(data.error || "فشل التحليل");
+        return;
+      }
+      if (data.results && data.totalCost != null && data.codesFound != null) {
+        setAnalyzeResults({
+          results: data.results,
+          totalCost: data.totalCost,
+          codesFound: data.codesFound,
+          vehicle: data.vehicle,
+          integrated_analysis: data.integrated_analysis ?? null,
+        });
+        setMode("logs");
+      }
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "حدث خطأ");
     } finally {
       setLoading(false);
     }
@@ -424,6 +465,15 @@ export function ObdContent() {
           }`}
         >
           رفع تقرير (PDF أو صورة)
+        </button>
+        <button
+          type="button"
+          onClick={() => setMode("manualBatch")}
+          className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+            mode === "manualBatch" ? "bg-emerald-600 text-white" : "bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600"
+          }`}
+        >
+          أكواد يدوية + المركبة
         </button>
         <button
           type="button"
@@ -745,6 +795,72 @@ export function ObdContent() {
 
       {mode === "logs" && <ObdLogs justAnalyzed={!!analyzeResults} />}
 
+      {mode === "manualBatch" && (
+        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 p-6">
+          <p className="text-gray-600 dark:text-gray-300 mb-4">
+            أدخل عدة أكواد دفعة واحدة (سطر لكل كود أو مفصولة بفواصل أو مسافات). اختر{" "}
+            <strong>الماركة والموديل وسنة الصنع بالعربية</strong> ليربط النظام التحليل الموحّد والسجل بهذه المركبة
+            ويُحدَّث جدول الماركات/النماذج تلقائياً.
+          </p>
+          <form onSubmit={handleAnalyzeBatch} className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">الأكواد *</label>
+              <textarea
+                value={manualBatchForm.codesText}
+                onChange={(e) => setManualBatchForm((f) => ({ ...f, codesText: e.target.value }))}
+                placeholder={"P0300\nP0171\nC1211\nأو: P0300، P0171، C1211"}
+                className={inputClass}
+                rows={5}
+                dir="ltr"
+              />
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">نوع السيارة / الماركة (عربي)</label>
+                <input
+                  type="text"
+                  value={manualBatchForm.brand}
+                  onChange={(e) => setManualBatchForm((f) => ({ ...f, brand: e.target.value }))}
+                  placeholder="مثال: ميتسوبيشي، تويوتا"
+                  className={inputClass}
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">الموديل (عربي)</label>
+                <input
+                  type="text"
+                  value={manualBatchForm.model}
+                  onChange={(e) => setManualBatchForm((f) => ({ ...f, model: e.target.value }))}
+                  placeholder="مثال: لانسر، كامري"
+                  className={inputClass}
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">سنة الصنع</label>
+                <input
+                  type="text"
+                  value={manualBatchForm.year}
+                  onChange={(e) => setManualBatchForm((f) => ({ ...f, year: e.target.value }))}
+                  placeholder="2015"
+                  className={inputClass}
+                  dir="ltr"
+                />
+              </div>
+            </div>
+            <button
+              type="submit"
+              disabled={loading || !manualBatchForm.codesText.trim()}
+              className="w-full px-6 py-3 bg-emerald-600 hover:bg-emerald-700 disabled:bg-emerald-400 disabled:cursor-not-allowed text-white font-medium rounded-lg transition-colors"
+            >
+              {loading ? "جاري التحليل..." : "تحليل الأكواد وحفظ المركبة"}
+            </button>
+            <p className="text-sm text-gray-500 dark:text-gray-400">
+              تكلفة كل كود: 1 ج.م — يُحفظ التقرير في السجلات باسم «manual_codes» مع المركبة إن وُجدت. للبحث داخل قاعدة الأكواد حسب ماركة/سنة استخدم «إدارة قاعدة البيانات» بعد ربط الأكواد بالمركبة عند الإدخال اليدوي.
+            </p>
+          </form>
+        </div>
+      )}
+
       {mode === "upload" && (
         <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 p-6">
           <form onSubmit={handleAnalyze} className="space-y-4">
@@ -969,8 +1085,31 @@ function ObdManage({ inputClass }: { inputClass: string }) {
   const [models, setModels] = useState<{ id: string; brand_id: string; name_ar: string; brand_name: string }[]>([]);
   const [newBrand, setNewBrand] = useState({ name_ar: "", name_en: "" });
   const [newModel, setNewModel] = useState({ brand_id: "", name_ar: "", name_en: "" });
-  const [newCode, setNewCode] = useState({ code: "", description_ar: "", causes: "", solutions: "", symptoms: "" });
+  const [newCode, setNewCode] = useState({
+    code: "",
+    description_ar: "",
+    causes: "",
+    solutions: "",
+    symptoms: "",
+    vehicle_brand_id: "",
+    vehicle_model_id: "",
+    year_from: "",
+    year_to: "",
+  });
+  const [codeBrowse, setCodeBrowse] = useState({ brand_id: "", model_id: "", year: "", q: "" });
+  const [codeList, setCodeList] = useState<
+    {
+      id: string;
+      code: string;
+      description_ar: string | null;
+      vehicle_brand_id: string | null;
+      vehicle_model_id: string | null;
+      year_from: number | null;
+      year_to: number | null;
+    }[]
+  >([]);
   const [loading, setLoading] = useState(false);
+  const [loadingCodes, setLoadingCodes] = useState(false);
 
   useEffect(() => {
     fetch("/api/admin/obd/brands")
@@ -983,6 +1122,31 @@ function ObdManage({ inputClass }: { inputClass: string }) {
       .then((r) => r.json())
       .then(setModels)
       .catch(() => {});
+  }, []);
+
+  async function loadCodesList() {
+    setLoadingCodes(true);
+    try {
+      const params = new URLSearchParams();
+      if (codeBrowse.q.trim()) params.set("q", codeBrowse.q.trim());
+      if (codeBrowse.brand_id) params.set("brand_id", codeBrowse.brand_id);
+      if (codeBrowse.model_id) params.set("model_id", codeBrowse.model_id);
+      if (codeBrowse.year.trim() && /^\d{4}$/.test(codeBrowse.year.trim())) params.set("year", codeBrowse.year.trim());
+      params.set("limit", "100");
+      const r = await fetch(`/api/admin/obd/codes?${params}`);
+      const data = await r.json();
+      if (r.ok && Array.isArray(data)) setCodeList(data);
+      else setCodeList([]);
+    } catch {
+      setCodeList([]);
+    } finally {
+      setLoadingCodes(false);
+    }
+  }
+
+  useEffect(() => {
+    loadCodesList();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- تحميل أولي فقط
   }, []);
 
   async function addBrand(e: React.FormEvent) {
@@ -1036,11 +1200,27 @@ function ObdManage({ inputClass }: { inputClass: string }) {
       const r = await fetch("/api/admin/obd/codes", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(newCode),
+        body: JSON.stringify({
+          ...newCode,
+          vehicle_brand_id: newCode.vehicle_brand_id || null,
+          vehicle_model_id: newCode.vehicle_model_id || null,
+          year_from: newCode.year_from ? parseInt(newCode.year_from, 10) : null,
+          year_to: newCode.year_to ? parseInt(newCode.year_to, 10) : null,
+        }),
       });
       const data = await r.json();
       if (r.ok) {
-        setNewCode({ code: "", description_ar: "", causes: "", solutions: "", symptoms: "" });
+        setNewCode({
+          code: "",
+          description_ar: "",
+          causes: "",
+          solutions: "",
+          symptoms: "",
+          vehicle_brand_id: "",
+          vehicle_model_id: "",
+          year_from: "",
+          year_to: "",
+        });
         alert("تمت إضافة الكود");
       } else alert(data.error || "فشل");
     } catch {
@@ -1116,7 +1296,59 @@ function ObdManage({ inputClass }: { inputClass: string }) {
       </div>
       <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 p-6">
         <h3 className="font-bold text-gray-900 dark:text-gray-100 mb-4">إضافة كود OBD يدوياً</h3>
+        <p className="text-sm text-gray-500 dark:text-gray-400 mb-3">
+          اربط الكود بماركة/موديل/نطاق سنوات لتسهيل البحث لاحقاً عن أعطال سيارة معيّنة.
+        </p>
         <form onSubmit={addCode} className="space-y-3">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <select
+              value={newCode.vehicle_brand_id}
+              onChange={(e) => setNewCode((c) => ({ ...c, vehicle_brand_id: e.target.value, vehicle_model_id: "" }))}
+              className={inputClass}
+            >
+              <option value="">ماركة المركبة (اختياري)</option>
+              {brands.map((b) => (
+                <option key={b.id} value={b.id}>
+                  {b.name_ar}
+                </option>
+              ))}
+            </select>
+            <select
+              value={newCode.vehicle_model_id}
+              onChange={(e) => setNewCode((c) => ({ ...c, vehicle_model_id: e.target.value }))}
+              className={inputClass}
+              disabled={!newCode.vehicle_brand_id}
+            >
+              <option value="">الموديل (اختياري)</option>
+              {models
+                .filter((m) => m.brand_id === newCode.vehicle_brand_id)
+                .map((m) => (
+                  <option key={m.id} value={m.id}>
+                    {m.name_ar}
+                  </option>
+                ))}
+            </select>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <input
+              type="text"
+              inputMode="numeric"
+              value={newCode.year_from}
+              onChange={(e) => setNewCode((c) => ({ ...c, year_from: e.target.value.replace(/\D/g, "").slice(0, 4) }))}
+              placeholder="سنة من (مثال 2010)"
+              className={inputClass}
+              dir="ltr"
+            />
+            <input
+              type="text"
+              inputMode="numeric"
+              value={newCode.year_to}
+              onChange={(e) => setNewCode((c) => ({ ...c, year_to: e.target.value.replace(/\D/g, "").slice(0, 4) }))}
+              placeholder="سنة إلى (مثال 2018)"
+              className={inputClass}
+              dir="ltr"
+            />
+          </div>
           <input
             type="text"
             value={newCode.code}
@@ -1157,6 +1389,84 @@ function ObdManage({ inputClass }: { inputClass: string }) {
             حفظ الكود
           </button>
         </form>
+
+        <div className="mt-8 pt-6 border-t border-gray-200 dark:border-gray-600">
+          <h4 className="font-bold text-gray-900 dark:text-gray-100 mb-2">بحث في الأكواد المحفوظة</h4>
+          <p className="text-sm text-gray-500 dark:text-gray-400 mb-3">
+            فلترة حسب الماركة/الموديل/سنة الصنع (للأكواد التي رُبطت بها عند الإدخال)، أو بحث نصي بالكود أو الوصف.
+          </p>
+          <div className="flex flex-wrap gap-2 mb-3">
+            <select
+              value={codeBrowse.brand_id}
+              onChange={(e) => setCodeBrowse((c) => ({ ...c, brand_id: e.target.value, model_id: "" }))}
+              className={inputClass + " max-w-xs"}
+            >
+              <option value="">كل الماركات</option>
+              {brands.map((b) => (
+                <option key={b.id} value={b.id}>
+                  {b.name_ar}
+                </option>
+              ))}
+            </select>
+            <select
+              value={codeBrowse.model_id}
+              onChange={(e) => setCodeBrowse((c) => ({ ...c, model_id: e.target.value }))}
+              className={inputClass + " max-w-xs"}
+              disabled={!codeBrowse.brand_id}
+            >
+              <option value="">كل الموديلات</option>
+              {models
+                .filter((m) => m.brand_id === codeBrowse.brand_id)
+                .map((m) => (
+                  <option key={m.id} value={m.id}>
+                    {m.name_ar}
+                  </option>
+                ))}
+            </select>
+            <input
+              type="text"
+              value={codeBrowse.year}
+              onChange={(e) => setCodeBrowse((c) => ({ ...c, year: e.target.value.replace(/\D/g, "").slice(0, 4) }))}
+              placeholder="سنة"
+              className={inputClass + " w-24"}
+              dir="ltr"
+            />
+            <input
+              type="text"
+              value={codeBrowse.q}
+              onChange={(e) => setCodeBrowse((c) => ({ ...c, q: e.target.value }))}
+              placeholder="بحث: كود أو وصف"
+              className={inputClass + " flex-1 min-w-[160px]"}
+            />
+            <button
+              type="button"
+              onClick={() => loadCodesList()}
+              disabled={loadingCodes}
+              className="px-4 py-2 bg-gray-200 dark:bg-gray-600 text-gray-900 dark:text-gray-100 rounded-lg disabled:opacity-50"
+            >
+              {loadingCodes ? "…" : "تطبيق"}
+            </button>
+          </div>
+          {loadingCodes ? (
+            <p className="text-sm text-gray-500">جاري التحميل...</p>
+          ) : (
+            <ul className="text-sm text-gray-700 dark:text-gray-300 space-y-1 max-h-56 overflow-y-auto">
+              {codeList.length === 0 && <li className="text-gray-500">لا نتائج</li>}
+              {codeList.map((row) => (
+                <li key={row.id} className="font-mono text-xs" dir="ltr">
+                  {row.code}
+                  {row.description_ar && (
+                    <span className="text-gray-600 dark:text-gray-400 mr-2" dir="rtl">
+                      {" "}
+                      — {row.description_ar.slice(0, 60)}
+                      {row.description_ar.length > 60 ? "…" : ""}
+                    </span>
+                  )}
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
       </div>
     </div>
   );

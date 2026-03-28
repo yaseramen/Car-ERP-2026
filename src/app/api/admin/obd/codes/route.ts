@@ -14,6 +14,9 @@ export async function GET(request: Request) {
   }
   const { searchParams } = new URL(request.url);
   const q = searchParams.get("q")?.trim();
+  const brandId = searchParams.get("brand_id")?.trim();
+  const modelId = searchParams.get("model_id")?.trim();
+  const year = searchParams.get("year")?.trim();
   const limit = Math.min(100, parseInt(searchParams.get("limit") || "50", 10) || 50);
   let sql = "SELECT id, code, description_ar, description_en, source, search_count, vehicle_brand_id, vehicle_model_id, year_from, year_to, created_at FROM obd_codes WHERE 1=1";
   const args: (string | number)[] = [];
@@ -21,6 +24,19 @@ export async function GET(request: Request) {
     sql += " AND (UPPER(code) LIKE ? OR description_ar LIKE ? OR description_en LIKE ?)";
     const like = `%${q}%`;
     args.push(like, like, like);
+  }
+  if (brandId) {
+    sql += " AND vehicle_brand_id = ?";
+    args.push(brandId);
+  }
+  if (modelId) {
+    sql += " AND vehicle_model_id = ?";
+    args.push(modelId);
+  }
+  if (year && /^\d{4}$/.test(year)) {
+    const y = parseInt(year, 10);
+    sql += " AND (year_from IS NULL OR year_from <= ?) AND (year_to IS NULL OR year_to >= ?)";
+    args.push(y, y);
   }
   sql += " ORDER BY code LIMIT ?";
   args.push(limit);
