@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { HomeHeroVisual } from "@/components/marketing/home-hero-visual";
+import { HomeHeroBackground } from "@/components/marketing/home-hero-background";
 
 export const metadata: Metadata = {
   title: "EFCT | إدارة مراكز الصيانة ومحلات قطع غيار السيارات",
@@ -80,38 +80,36 @@ export default function HomePage() {
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(JSON_LD) }}
       />
-      {/* Hero — الصورة الترويجية تُحمَّل هنا فقط (Next/Image) حتى لا تؤثر على باقي البرنامج */}
-      <section className={`marketing-hero relative bg-gradient-to-b from-emerald-50 to-white py-12 sm:py-16 md:py-20 ${SECTION_X}`}>
-        <div className="max-w-6xl mx-auto flex flex-col md:flex-row md:items-center gap-10 md:gap-12 lg:gap-16">
-          <div className="flex-1 min-w-0 text-center md:text-right">
-            <h1 className="text-4xl sm:text-5xl md:text-6xl font-extrabold text-emerald-900 mb-4 md:mb-5 tracking-tight text-pretty">
-              EFCT
-            </h1>
-            <p className="text-lg sm:text-xl md:text-2xl text-gray-800 mb-3 md:mb-4 font-medium leading-snug text-pretty">
-              منصة متكاملة لإدارة <strong className="font-bold">مراكز خدمة السيارات</strong> و{" "}
-              <strong className="font-bold">محلات بيع قطع الغيار</strong>
-            </p>
-            <p className="text-sm sm:text-base md:text-lg text-gray-700 mb-8 md:mb-10 max-w-xl mx-auto md:mx-0 md:max-w-none leading-relaxed text-pretty">
-              أفضل <strong className="font-semibold text-gray-900">برامج ادارة مراكز الصيانة</strong> و{" "}
-              <strong className="font-semibold text-gray-900">ادارة محلات قطع غيار السيارات</strong> — مخزون، فواتير، ورشة، كاشير، عملاء، موردين، تقارير
-            </p>
-            <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 justify-center md:justify-start max-w-md sm:max-w-none mx-auto md:mx-0">
-              <Link
-                href="/login"
-                className="inline-flex items-center justify-center px-8 py-4 bg-emerald-600 hover:bg-emerald-700 text-white font-medium rounded-xl transition-colors shadow-lg shadow-emerald-600/25"
-              >
-                دخول للنظام
-              </Link>
-              <Link
-                href="/register"
-                className="inline-flex items-center justify-center px-8 py-4 border-2 border-emerald-600 text-emerald-600 hover:bg-emerald-50 font-medium rounded-xl transition-colors"
-              >
-                تسجيل شركة جديدة
-              </Link>
-            </div>
-          </div>
-          <div className="flex-1 min-w-0 shrink-0 md:max-w-[min(100%,28rem)] lg:max-w-[min(100%,32rem)] mx-auto w-full">
-            <HomeHeroVisual />
+      {/* Hero — الصورة خلفية كاملة للقسم فقط (Next/Image)، لا تُحمَّل خارج الصفحة الرئيسية */}
+      <section
+        className={`marketing-hero relative isolate overflow-hidden min-h-[min(88vh,42rem)] sm:min-h-[min(90vh,46rem)] flex flex-col justify-center py-14 sm:py-20 md:py-24 ${SECTION_X}`}
+      >
+        <HomeHeroBackground />
+        <div className="relative z-10 max-w-3xl sm:max-w-4xl mx-auto text-center">
+          <h1 className="text-4xl sm:text-5xl md:text-6xl font-extrabold text-emerald-950 mb-4 md:mb-5 tracking-tight text-pretty drop-shadow-sm">
+            EFCT
+          </h1>
+          <p className="text-lg sm:text-xl md:text-2xl text-gray-900 mb-3 md:mb-4 font-medium leading-snug text-pretty drop-shadow-sm">
+            منصة متكاملة لإدارة <strong className="font-bold">مراكز خدمة السيارات</strong> و{" "}
+            <strong className="font-bold">محلات بيع قطع الغيار</strong>
+          </p>
+          <p className="text-sm sm:text-base md:text-lg text-gray-800 mb-8 md:mb-10 max-w-2xl mx-auto leading-relaxed text-pretty">
+            أفضل <strong className="font-semibold text-gray-950">برامج ادارة مراكز الصيانة</strong> و{" "}
+            <strong className="font-semibold text-gray-950">ادارة محلات قطع غيار السيارات</strong> — مخزون، فواتير، ورشة، كاشير، عملاء، موردين، تقارير
+          </p>
+          <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 justify-center max-w-md sm:max-w-none mx-auto">
+            <Link
+              href="/login"
+              className="inline-flex items-center justify-center px-8 py-4 bg-emerald-600 hover:bg-emerald-700 text-white font-medium rounded-xl transition-colors shadow-lg shadow-emerald-900/20"
+            >
+              دخول للنظام
+            </Link>
+            <Link
+              href="/register"
+              className="inline-flex items-center justify-center px-8 py-4 border-2 border-emerald-700 text-emerald-800 bg-white/70 hover:bg-white backdrop-blur-sm font-medium rounded-xl transition-colors"
+            >
+              تسجيل شركة جديدة
+            </Link>
           </div>
         </div>
       </section>
