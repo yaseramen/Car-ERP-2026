@@ -19,4 +19,9 @@ export function requireCompanyId(session: Session | null): string {
   return id;
 }
 
+/** شركة النظام (حساب السوبر أدمن التجريبي) — لا تُخصم منها رسوم المنصة */
+export function isPlatformOwnerCompany(companyId: string | null | undefined): boolean {
+  return companyId === SYSTEM_COMPANY_ID;
+}
+
 export { SYSTEM_COMPANY_ID };

@@ -37,4 +37,6 @@ export type WalletTransactionType =
   | "credit"
   | "debit"
   | "digital_service"
-  | "obd_search";
+  | "obd_search"
+  | "assistant_company"
+  | "assistant_obd_global";
