@@ -21,6 +21,9 @@ const inputClass =
 
 type RecipientMode = "none" | "customer" | "supplier" | "company";
 
+/** صلاحية عرض الأسعار في الطباعة فقط — لا تؤثر على المخزن */
+type OfferValidityMode = "none" | "days" | "until";
+
 export function PriceListContent({ companyName }: { companyName: string | null }) {
   const [items, setItems] = useState<ItemRow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -38,6 +41,10 @@ export function PriceListContent({ companyName }: { companyName: string | null }
   const [supplierId, setSupplierId] = useState("");
   const [externalCompanyName, setExternalCompanyName] = useState("");
   const [externalCompanyPhone, setExternalCompanyPhone] = useState("");
+
+  const [offerValidityMode, setOfferValidityMode] = useState<OfferValidityMode>("none");
+  const [offerValidityDays, setOfferValidityDays] = useState("3");
+  const [offerValidUntil, setOfferValidUntil] = useState("");
 
   useEffect(() => {
     const t = setTimeout(() => setDebounced(search.trim()), 350);
@@ -149,7 +156,40 @@ export function PriceListContent({ companyName }: { companyName: string | null }
     externalCompanyPhone,
   ]);
 
+  const buildOfferValidityFooter = (): string => {
+    const issue = new Date();
+    const issueAr = issue.toLocaleDateString("ar-EG", {
+      weekday: "long",
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+    });
+    if (offerValidityMode === "days") {
+      const n = Math.min(365, Math.max(1, parseInt(offerValidityDays, 10) || 3));
+      const dayPhrase = n === 1 ? "يوماً واحداً" : n === 2 ? "يومين" : `${n} أيام`;
+      return `تاريخ إصدار عرض الأسعار: ${issueAr}. هذا العرض سارٍ لمدة ${dayPhrase} فقط من تاريخ إصداره.`;
+    }
+    if (offerValidityMode === "until" && offerValidUntil.trim()) {
+      const d = new Date(offerValidUntil.trim() + "T12:00:00");
+      if (Number.isNaN(d.getTime())) return "";
+      const untilAr = d.toLocaleDateString("ar-EG", { year: "numeric", month: "long", day: "numeric" });
+      return `تاريخ إصدار عرض الأسعار: ${issueAr}. هذا العرض سارٍ حتى تاريخ ${untilAr}.`;
+    }
+    return "";
+  };
+
   const handlePrint = () => {
+    if (offerValidityMode === "days") {
+      const n = parseInt(offerValidityDays, 10);
+      if (!Number.isFinite(n) || n < 1 || n > 365) {
+        alert("أدخل عدد أيام بين 1 و 365 أو عطّل صلاحية العرض.");
+        return;
+      }
+    }
+    if (offerValidityMode === "until" && !offerValidUntil.trim()) {
+      alert("اختر تاريخ انتهاء صلاحية العرض أو غيّر نوع الصلاحية.");
+      return;
+    }
     if (recipientMode === "customer" && !customerId) {
       alert("اختر عميلاً أو غيّر «الجهة الموجّه إليها».");
       return;
@@ -189,6 +229,10 @@ export function PriceListContent({ companyName }: { companyName: string | null }
       )
       .join("");
     const cn = companyName ? esc(companyName) : "عرض أسعار";
+    const validityExtra = buildOfferValidityFooter();
+    const footNote = validityExtra
+      ? `${esc(validityExtra)} `
+      : "";
     w.document.write(`<!DOCTYPE html><html dir="rtl"><head><meta charset="utf-8"><title>${esc(title)}</title>
       <style>
         @page { margin: 12mm; }
@@ -206,6 +250,7 @@ export function PriceListContent({ companyName }: { companyName: string | null }
         th { background: #f3f4f6; font-weight: 600; }
         .num { direction: ltr; text-align: left; unicode-bidi: isolate; }
         .foot { margin-top: 14px; font-size: 10px; color: #666; }
+        .validity-note { margin-top: 12px; padding: 8px 10px; border: 1px solid #d1d5db; background: #f9fafb; font-size: 11px; color: #111; font-weight: 600; line-height: 1.5; }
       </style></head><body>
       <h1>${esc(title)}</h1>
       <div class="letterhead">${recipientBlockHtml}</div>
@@ -213,7 +258,8 @@ export function PriceListContent({ companyName }: { companyName: string | null }
       <table><thead><tr>
         <th>الصنف</th><th>الكود</th><th>القسم</th><th>الوحدة</th><th>الكمية</th><th>سعر البيع</th>
       </tr></thead><tbody>${rowsHtml}</tbody></table>
-      <p class="foot">مستند عرض أسعار صادر من المنشأة أعلاه. الأسعار وفق سعر البيع المسجّل في المخزن ولا تُعد فاتورة بيع حتى الاتفاق والتأكيد. صالح لتاريخ الطباعة.</p>
+      ${validityExtra ? `<p class="validity-note">${footNote}</p>` : ""}
+      <p class="foot">مستند عرض أسعار صادر من المنشأة أعلاه. الأسعار وفق سعر البيع المسجّل في المخزن ولا تُعد فاتورة بيع حتى الاتفاق والتأكيد.${validityExtra ? "" : " صالح لتاريخ الطباعة."}</p>
       </body></html>`);
     w.document.close();
     w.focus();
@@ -338,6 +384,53 @@ export function PriceListContent({ companyName }: { companyName: string | null }
         </div>
         <p className="text-xs text-gray-500 dark:text-gray-400">
           يظهر في أعلى الطباعة: <strong>من</strong> اسم شركتك، و<strong>إلى</strong> الجهة التي تختارها — مناسب لمراسلات B2B.
+        </p>
+      </div>
+
+      <div className="bg-gray-50 dark:bg-gray-900/40 rounded-xl border border-gray-200 dark:border-gray-700 p-4 space-y-3">
+        <p className="text-sm font-medium text-gray-800 dark:text-gray-200">صلاحية عرض الأسعار (اختياري — للطباعة فقط)</p>
+        <div className="flex flex-wrap gap-3 items-end">
+          <div className="min-w-[200px]">
+            <label className="block text-xs text-gray-500 mb-1">نوع الصلاحية</label>
+            <select
+              value={offerValidityMode}
+              onChange={(e) => setOfferValidityMode(e.target.value as OfferValidityMode)}
+              className={inputClass}
+            >
+              <option value="none">بدون نص صلاحية إضافي</option>
+              <option value="days">سارٍ لعدد أيام من تاريخ الإصدار</option>
+              <option value="until">سارٍ حتى تاريخ محدد</option>
+            </select>
+          </div>
+          {offerValidityMode === "days" && (
+            <div className="w-32">
+              <label className="block text-xs text-gray-500 mb-1">عدد الأيام</label>
+              <input
+                type="number"
+                min={1}
+                max={365}
+                value={offerValidityDays}
+                onChange={(e) => setOfferValidityDays(e.target.value)}
+                className={inputClass}
+                dir="ltr"
+              />
+            </div>
+          )}
+          {offerValidityMode === "until" && (
+            <div className="min-w-[180px]">
+              <label className="block text-xs text-gray-500 mb-1">صالح حتى</label>
+              <input
+                type="date"
+                value={offerValidUntil}
+                onChange={(e) => setOfferValidUntil(e.target.value)}
+                className={inputClass}
+                dir="ltr"
+              />
+            </div>
+          )}
+        </div>
+        <p className="text-xs text-gray-500 dark:text-gray-400">
+          يُذكر في أسفل ورقة الطباعة مع <strong>تاريخ إصدار</strong> العرض. لا يغيّر أسعار المخزن ولا يلزم العملاء قانونياً — صياغة استرشادية.
         </p>
       </div>
 
