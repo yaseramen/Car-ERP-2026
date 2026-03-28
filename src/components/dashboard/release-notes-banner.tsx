@@ -10,7 +10,7 @@ function getSeenIds(): Set<string> {
     const s = localStorage.getItem(SEEN_KEY);
     if (!s) return new Set();
     const a = JSON.parse(s) as unknown;
-    return new Set(Array.isArray(a) ? a.filter((x): x is string => typeof x === "string") : []);
+    return new Set(Array.isArray(a) ? a.filter((x: unknown): x is string => typeof x === "string") : []);
   } catch {
     return new Set();
   }
@@ -62,7 +62,9 @@ export function ReleaseNotesBanner() {
       .then((r) => (r.ok ? r.json() : null))
       .then((data) => {
         const list = Array.isArray(data?.notifications) ? data.notifications : [];
-        const ids = list.map((n: { id?: string }) => n.id).filter((x): x is string => typeof x === "string");
+        const ids = list
+          .map((n: { id?: string }) => n.id)
+          .filter((x: string | undefined): x is string => typeof x === "string");
         markSeen(ids);
         setOpen(false);
         setCount(0);
@@ -89,7 +91,11 @@ export function ReleaseNotesBanner() {
               .then((r) => (r.ok ? r.json() : null))
               .then((data) => {
                 const list = Array.isArray(data?.notifications) ? data.notifications : [];
-                markSeen(list.map((n: { id?: string }) => n.id).filter((x): x is string => typeof x === "string"));
+                markSeen(
+                  list
+                    .map((n: { id?: string }) => n.id)
+                    .filter((x: string | undefined): x is string => typeof x === "string")
+                );
               })
               .catch(() => {});
           }}

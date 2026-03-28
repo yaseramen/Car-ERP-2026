@@ -7,6 +7,7 @@ import { ensureCompanyWarehouse } from "@/lib/warehouse";
 import Link from "next/link";
 import { InventoryTable } from "./inventory-table";
 import { TransferStock } from "./transfer-stock";
+import { InventoryImportPanel } from "./inventory-import-panel";
 
 export default async function InventoryPage() {
   const session = await auth();
@@ -41,6 +42,10 @@ export default async function InventoryPage() {
           assignedWarehouseName={dist?.warehouseName ?? null}
           mainWarehouseId={mainWarehouseId}
         />
+      </div>
+
+      <div className="mb-6">
+        <InventoryImportPanel />
       </div>
 
       <InventoryTable />

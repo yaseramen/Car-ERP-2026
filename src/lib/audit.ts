@@ -16,6 +16,7 @@ export type AuditAction =
   | "item_create"
   | "item_update"
   | "item_delete"
+  | "inventory_import"
   | "stock_adjust"
   | "stock_transfer"
   | "treasury_transaction"
