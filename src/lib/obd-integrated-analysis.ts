@@ -1,4 +1,7 @@
 import type { ObdResult } from "@/lib/obd";
+import { fullObdSystemPersona, WORKSHOP_SYSTEM_PERSONA as WORKSHOP_PERSONA } from "@/lib/obd-ai-context";
+
+export { WORKSHOP_PERSONA as WORKSHOP_SYSTEM_PERSONA };
 
 export type IntegratedStep = {
   priority: number;
@@ -41,11 +44,6 @@ export type IntegratedAnalysis = {
   disclaimer_ar: string;
 };
 
-/** منهجية تشخيص ورشة — تُستخدم في التحليل الموحّد وتحليل الوصف */
-export const WORKSHOP_SYSTEM_PERSONA = `أنت مهندس تشخيص أعطال سيارات بخبرة لا تقل عن 15 سنة داخل ورش صيانة فعلية.
-مهمتك ليست شرح الأكواد أو النظريات فقط، بل تحليل الحالة كورشة حقيقية واتخاذ قرار تشخيص منطقي مبني على الفحص وليس التخمين.
-أسلوب إجابة: مهندس ورشة عملي، مختصر، بدون حشو، نقاط واضحة.`;
-
 const INTEGRATED_PROMPT = `لديك أكواد من تقرير OBD واحد لنفس المركبة. البيانات المستخرجة لكل كود (JSON):
 {payload}
 
@@ -56,11 +54,16 @@ const INTEGRATED_PROMPT = `لديك أكواد من تقرير OBD واحد لن
 4- إذا كان أكثر من كود: تعامل معها كنظام واحد لكن حلّل كل كود منفرداً أولاً ثم الربط.
 5- prioritized_steps يجب أن يكون بين 5 و 7 خطوات فقط، تبدأ بـ: فيوز/أرضي/لمبة/فيشة → قياسات كهربائية → حساسات → وحدات تحكم كآخر خيار.
 
+تشخيص ورشة شامل للتقرير (كما يطلب فني محترف):
+- حدّد السبب الرئيسي المحتمل للظهور المشترك للأكواد إن وُجد دليل تقني.
+- خطة إصلاح كاملة بترتيب أولويات واضح.
+- لا تخترع بيانات Live Data؛ اذكر الفحص العام (سكانر، قياس، رسم بياني) دون أرقام وهمية.
+
 المطلوب بالعربية فقط، JSON صالح فقط بدون markdown:
 {
   "summary_ar": "2-4 جمل: صورة الحالة ككل للفني",
   "per_code_analysis": [
-    { "code": "P0XXX", "role_ar": "وظيفة الكود + النظام المرتبط — سطران كحد أقصى" }
+    { "code": "P0XXX", "role_ar": "معنى الكود بلغة بسيطة + النظام المتأثر + درجة خطورة مختصرة (منخفض/متوسط/عالي) — سطران كحد أقصى" }
   ],
   "code_relations": [
     { "from": "P0XXX", "to": "P0YYY", "relation_ar": "رابط تقني واضح أو اكتب إن لا يوجد رابط مباشر" }
@@ -196,7 +199,7 @@ export async function analyzeIntegratedObdReport(results: ObdResult[]): Promise<
             systemInstruction: {
               parts: [
                 {
-                  text: `${WORKSHOP_SYSTEM_PERSONA}\n\nأجب بالعربية فقط. JSON صالح فقط بدون تعليقات أو markdown.`,
+                  text: `${fullObdSystemPersona(WORKSHOP_PERSONA)}\n\nأجب بالعربية فقط. JSON صالح فقط بدون تعليقات أو markdown.`,
                 },
               ],
             },

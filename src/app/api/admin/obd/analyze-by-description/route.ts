@@ -3,7 +3,7 @@ import { auth } from "@/auth";
 import { db } from "@/lib/db/client";
 import { getCompanyId, isPlatformOwnerCompany } from "@/lib/company";
 import { randomUUID } from "crypto";
-import { WORKSHOP_SYSTEM_PERSONA } from "@/lib/obd-integrated-analysis";
+import { fullObdSystemPersona, WORKSHOP_SYSTEM_PERSONA } from "@/lib/obd-ai-context";
 import { DESCRIPTION_ANALYSIS_PROMPT } from "@/lib/obd-description-prompt";
 
 const OBD_SEARCH_COST = 1;
@@ -72,7 +72,7 @@ async function analyzeWithAI(description: string, vehicleInfo: string): Promise<
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
               systemInstruction: {
-                parts: [{ text: `${WORKSHOP_SYSTEM_PERSONA}\n\nأجب بالعربية فقط. JSON صالح فقط بدون markdown.` }],
+                parts: [{ text: `${fullObdSystemPersona(WORKSHOP_SYSTEM_PERSONA)}\n\nأجب بالعربية فقط. JSON صالح فقط بدون markdown.` }],
               },
               contents: [{ parts: [{ text: prompt }] }],
               generationConfig: { temperature: 0.3 },
@@ -106,7 +106,7 @@ async function analyzeWithAI(description: string, vehicleInfo: string): Promise<
           body: JSON.stringify({
             model,
             messages: [
-              { role: "system", content: `${WORKSHOP_SYSTEM_PERSONA}\n\nأجب بالعربية فقط بصيغة JSON صالحة فقط.` },
+              { role: "system", content: `${fullObdSystemPersona(WORKSHOP_SYSTEM_PERSONA)}\n\nأجب بالعربية فقط بصيغة JSON صالحة فقط.` },
               { role: "user", content: prompt },
             ],
             temperature: 0.3,

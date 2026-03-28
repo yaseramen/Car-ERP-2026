@@ -1,27 +1,113 @@
 import { db } from "@/lib/db/client";
 import { SYSTEM_COMPANY_ID } from "@/lib/company";
+import { fullObdSystemPersona } from "@/lib/obd-ai-context";
 import { randomUUID } from "crypto";
 import { extractText, getDocumentProxy } from "unpdf";
 
 export const OBD_SEARCH_COST = 1;
 
-export const OBD_PROMPT = `أنت مهندس تشخيص أعطال سيارات بخبرة ورشة عملية (15+ سنة). مهمتك تشخيص عملي مبني على الفحص لا شرحاً أكاديمياً.
+const OBD_SYSTEM_PROMPT = fullObdSystemPersona();
 
-كود OBD: {code}
+export const OBD_PROMPT = `كود OBD: {code}
 
-قواعد: ابدأ بالأسباب الأرخص والأسهل فحصاً (فيوز، أرضي، فيشة، تآكل) قبل افتراض عطل ECU/BCM. رتّب الأسباب في causes حسب احتمال الورشة الفعلي (الأرجح أولاً، افصل بـ |). الحلول solutions عملية بنفس الترتيب. لا تذكر أسباباً عشوائية طويلة.
+المطلوب (تحليل كود عطل — تشخيص ورشة):
+1) معنى الكود بلغة بسيطة ومهنية + النظام المتأثر (محرك، كهرباء، BCM، ناقل، فرامل، حساسات…).
+2) درجة الخطورة: واحدة فقط من: منخفض | متوسط | عالي (مع جملة تبرير قصيرة في الحقل المناسب).
+3) الأسباب المحتملة مرتبة حسب الأكثر شيوعاً في الورشة — ابدأ بالأبسط والأرخص فحصاً (فيوز، أرضي، فيشة) قبل ECU.
+4) طريقة الفحص خطوة بخطوة (testing_steps) — كل خطوة في سطر، افصل بـ |
+5) إشارات تأكيد العطل (symptoms) + إن أمكن ذكر ما يُنظر إليه في Live Data بصيغة عامة (بدون أرقام وهمية).
+6) الحلول من الأسهل للأصعب (solutions) — افصل بـ |
+7) متى إصلاح ومتى استبدال (repair_vs_replace_ar) — جملتان كحد أقصى
+8) نصائح تمنع التكرار (prevention_tips_ar) — سطر أو سطران
+9) ملاحظات احترافية وأخطاء شائعة (professional_notes_ar) — مختصر
 
-أعطني JSON فقط:
-{"description_ar":"وظيفة الكود + النظام المرتبط — مختصر","causes":"سبب1|سبب2|...","solutions":"خطوة1|خطوة2|...","symptoms":"..."}`;
+أجب JSON فقط بدون markdown:
+{
+  "plain_description_ar": "شرح معنى الكود والنظام — فقرة قصيرة",
+  "affected_system_ar": "مثال: نظام الحقن / كهرباء المحرك",
+  "severity": "منخفض|متوسط|عالي",
+  "severity_note_ar": "لماذا هذه الدرجة — جملة",
+  "causes": "سبب1|سبب2|سبب3",
+  "testing_steps": "خطوة1|خطوة2|خطوة3",
+  "symptoms": "عرض1|عرض2 أو نص متصل قصير",
+  "how_to_confirm_ar": "كيف يؤكد الفني — نقاط قصيرة",
+  "solutions": "حل1|حل2|حل3",
+  "repair_vs_replace_ar": "متى يصلح ومتى يستبدل",
+  "prevention_tips_ar": "نصيحة منع تكرار المشكلة",
+  "professional_notes_ar": "نصائح تشخيص + أخطاء شائعة يجب تجنبها — مختصر"
+}`;
 
-export function parseAIResponse(text: string): { description_ar: string; causes: string; solutions: string; symptoms: string } | null {
+export type ParsedAiCodeFields = {
+  description_ar: string;
+  causes: string;
+  solutions: string;
+  symptoms: string;
+};
+
+/** يُخزَّن في عمود symptoms كـ JSON للأكواد القادمة من AI (v:2) */
+export type ObdSymptomsPayloadV2 = {
+  v: 2;
+  symptoms: string;
+  affected_system_ar?: string;
+  severity?: string;
+  severity_note_ar?: string;
+  testing_steps?: string;
+  how_to_confirm_ar?: string;
+  repair_vs_replace_ar?: string;
+  prevention_tips_ar?: string;
+  professional_notes_ar?: string;
+};
+
+export function parseAIResponse(text: string): ParsedAiCodeFields | null {
   const match = text.match(/\{[\s\S]*\}/);
   if (!match) return null;
   try {
-    return JSON.parse(match[0]) as { description_ar: string; causes: string; solutions: string; symptoms: string };
+    const p = JSON.parse(match[0]) as Record<string, unknown>;
+    const plain =
+      (typeof p.plain_description_ar === "string" && p.plain_description_ar.trim()) ||
+      (typeof p.description_ar === "string" && p.description_ar.trim()) ||
+      "";
+    const causes = typeof p.causes === "string" ? p.causes : "";
+    const solutions = typeof p.solutions === "string" ? p.solutions : "";
+    const symptoms = typeof p.symptoms === "string" ? p.symptoms : "";
+    if (!plain && !causes && !solutions && !symptoms) return null;
+
+    const payload: ObdSymptomsPayloadV2 = {
+      v: 2,
+      symptoms: symptoms || "—",
+    };
+    if (typeof p.affected_system_ar === "string" && p.affected_system_ar.trim()) payload.affected_system_ar = p.affected_system_ar.trim();
+    if (typeof p.severity === "string" && p.severity.trim()) payload.severity = p.severity.trim();
+    if (typeof p.severity_note_ar === "string" && p.severity_note_ar.trim()) payload.severity_note_ar = p.severity_note_ar.trim();
+    if (typeof p.testing_steps === "string" && p.testing_steps.trim()) payload.testing_steps = p.testing_steps.trim();
+    if (typeof p.how_to_confirm_ar === "string" && p.how_to_confirm_ar.trim()) payload.how_to_confirm_ar = p.how_to_confirm_ar.trim();
+    if (typeof p.repair_vs_replace_ar === "string" && p.repair_vs_replace_ar.trim()) payload.repair_vs_replace_ar = p.repair_vs_replace_ar.trim();
+    if (typeof p.prevention_tips_ar === "string" && p.prevention_tips_ar.trim()) payload.prevention_tips_ar = p.prevention_tips_ar.trim();
+    if (typeof p.professional_notes_ar === "string" && p.professional_notes_ar.trim()) payload.professional_notes_ar = p.professional_notes_ar.trim();
+
+    return {
+      description_ar: plain || symptoms || "—",
+      causes,
+      solutions,
+      symptoms: JSON.stringify(payload),
+    };
   } catch {
     return null;
   }
+}
+
+/** للقراءة من الواجهة: إن كان النص JSON v:2 يُرجع الحقول */
+export function parseSymptomsColumn(symptoms: string | null | undefined): ObdSymptomsPayloadV2 | null {
+  if (!symptoms || typeof symptoms !== "string") return null;
+  const t = symptoms.trim();
+  if (!t.startsWith("{")) return null;
+  try {
+    const o = JSON.parse(t) as { v?: number };
+    if (o && o.v === 2 && typeof o === "object") return o as ObdSymptomsPayloadV2;
+  } catch {
+    return null;
+  }
+  return null;
 }
 
 export async function searchLocal(code: string) {
@@ -53,7 +139,7 @@ async function searchWithGemini(code: string): Promise<{ description_ar: string;
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             systemInstruction: {
-              parts: [{ text: "أنت خبير في تشخيص أعطال السيارات. أجب بالعربية فقط. قدم الإجابات بصيغة مختصرة وواضحة." }],
+              parts: [{ text: `${OBD_SYSTEM_PROMPT}\n\nأجب بالعربية فقط. JSON صالح فقط.` }],
             },
             contents: [{ parts: [{ text: OBD_PROMPT.replace("{code}", code) }] }],
             generationConfig: { temperature: 0.3 },
@@ -88,7 +174,7 @@ async function searchWithGroq(code: string): Promise<{ description_ar: string; c
         body: JSON.stringify({
           model,
           messages: [
-            { role: "system", content: "أنت خبير في تشخيص أعطال السيارات. أجب بالعربية فقط. قدم الإجابات بصيغة مختصرة وواضحة." },
+            { role: "system", content: `${OBD_SYSTEM_PROMPT}\n\nأجب بالعربية فقط. JSON صالح فقط.` },
             { role: "user", content: OBD_PROMPT.replace("{code}", code) },
           ],
           temperature: 0.3,
@@ -120,7 +206,7 @@ async function searchWithOpenAI(code: string): Promise<{ description_ar: string;
       body: JSON.stringify({
         model: "gpt-4o-mini",
         messages: [
-          { role: "system", content: "أنت خبير في تشخيص أعطال السيارات. أجب بالعربية فقط. قدم الإجابات بصيغة مختصرة وواضحة." },
+          { role: "system", content: `${OBD_SYSTEM_PROMPT}\n\nأجب بالعربية فقط. JSON صالح فقط.` },
           { role: "user", content: OBD_PROMPT.replace("{code}", code) },
         ],
         temperature: 0.3,

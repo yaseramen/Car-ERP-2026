@@ -1,6 +1,8 @@
 "use client";
 
 import { useState, useRef, useEffect, useCallback } from "react";
+import { parseSymptomsColumn } from "@/lib/obd";
+import { OBD_REFERENCE_LINKS } from "@/lib/obd-ai-context";
 
 type ObdResult = {
   code: string;
@@ -227,24 +229,53 @@ export function ObdContent() {
     "w-full px-4 py-2.5 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none";
 
   function ResultCard({ r }: { r: ObdResult }) {
+    const extra = r.symptoms ? parseSymptomsColumn(r.symptoms) : null;
+    const severityClass =
+      extra?.severity === "عالي"
+        ? "bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-200"
+        : extra?.severity === "متوسط"
+          ? "bg-amber-100 text-amber-900 dark:bg-amber-900/40 dark:text-amber-100"
+          : extra?.severity === "منخفض"
+            ? "bg-emerald-100 text-emerald-900 dark:bg-emerald-900/40 dark:text-emerald-100"
+            : "bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200";
+
     return (
       <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden">
-        <div className="p-4 border-b border-gray-100 dark:border-gray-700 flex justify-between items-center">
+        <div className="p-4 border-b border-gray-100 dark:border-gray-700 flex justify-between items-center flex-wrap gap-2">
           <h2 className="font-bold text-gray-900 dark:text-gray-100">كود {r.code}</h2>
-          <span className="text-sm text-gray-500 dark:text-gray-400">
-            المصدر: {r.source === "local" ? "محلي" : r.source === "ai" ? "ذكاء اصطناعي" : "غير موجود"} — {r.cost} ج.م
-          </span>
+          <div className="flex flex-wrap items-center gap-2">
+            {extra?.severity && (
+              <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${severityClass}`}>
+                خطورة: {extra.severity}
+              </span>
+            )}
+            <span className="text-sm text-gray-500 dark:text-gray-400">
+              المصدر: {r.source === "local" ? "محلي" : r.source === "ai" ? "ذكاء اصطناعي" : "غير موجود"} — {r.cost} ج.م
+            </span>
+          </div>
         </div>
         <div className="p-6 space-y-6">
           {r.description_ar && (
             <div>
               <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">الوصف</h3>
-              <p className="text-gray-900 dark:text-gray-100">{r.description_ar}</p>
+              <p className="text-gray-900 dark:text-gray-100 whitespace-pre-wrap">{r.description_ar}</p>
+            </div>
+          )}
+          {extra?.affected_system_ar && (
+            <div>
+              <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">النظام المتأثر</h3>
+              <p className="text-gray-900 dark:text-gray-100">{extra.affected_system_ar}</p>
+            </div>
+          )}
+          {extra?.severity_note_ar && (
+            <div>
+              <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">تبرير درجة الخطورة</h3>
+              <p className="text-gray-900 dark:text-gray-100 text-sm">{extra.severity_note_ar}</p>
             </div>
           )}
           {r.causes && (
             <div>
-              <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">الأسباب المحتملة</h3>
+              <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">الأسباب المحتملة (حسب الشيوع)</h3>
               <ul className="list-disc list-inside space-y-1 text-gray-900 dark:text-gray-100">
                 {r.causes.split("|").map((c, i) => (
                   <li key={i}>{c.trim()}</li>
@@ -252,9 +283,19 @@ export function ObdContent() {
               </ul>
             </div>
           )}
+          {extra?.testing_steps && (
+            <div>
+              <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">طريقة الفحص (خطوة بخطوة)</h3>
+              <ul className="list-disc list-inside space-y-1 text-gray-900 dark:text-gray-100">
+                {extra.testing_steps.split("|").map((s, i) => (
+                  <li key={i}>{s.trim()}</li>
+                ))}
+              </ul>
+            </div>
+          )}
           {r.solutions && (
             <div>
-              <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">الحلول المقترحة</h3>
+              <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">الحلول (من الأسهل للأصعب)</h3>
               <ul className="list-disc list-inside space-y-1 text-gray-900 dark:text-gray-100">
                 {r.solutions.split("|").map((s, i) => (
                   <li key={i}>{s.trim()}</li>
@@ -262,7 +303,23 @@ export function ObdContent() {
               </ul>
             </div>
           )}
-          {r.symptoms && (
+          {extra?.symptoms && (
+            <div>
+              <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">الأعراض وإشارات التأكيد</h3>
+              <ul className="list-disc list-inside space-y-1 text-gray-900 dark:text-gray-100">
+                {(extra.symptoms.includes("|") ? extra.symptoms.split("|") : extra.symptoms.split("\n")).map((s, i) => (
+                  <li key={i}>{s.trim()}</li>
+                ))}
+              </ul>
+            </div>
+          )}
+          {extra?.how_to_confirm_ar && (
+            <div>
+              <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">كيف يؤكد الفني</h3>
+              <p className="text-gray-900 dark:text-gray-100 text-sm whitespace-pre-wrap">{extra.how_to_confirm_ar}</p>
+            </div>
+          )}
+          {!extra && r.symptoms && (
             <div>
               <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">الأعراض</h3>
               <ul className="list-disc list-inside space-y-1 text-gray-900 dark:text-gray-100">
@@ -270,6 +327,24 @@ export function ObdContent() {
                   <li key={i}>{s.trim()}</li>
                 ))}
               </ul>
+            </div>
+          )}
+          {extra?.repair_vs_replace_ar && (
+            <div>
+              <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">إصلاح مقابل استبدال</h3>
+              <p className="text-gray-900 dark:text-gray-100 text-sm whitespace-pre-wrap">{extra.repair_vs_replace_ar}</p>
+            </div>
+          )}
+          {extra?.prevention_tips_ar && (
+            <div>
+              <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">منع تكرار المشكلة</h3>
+              <p className="text-gray-900 dark:text-gray-100 text-sm whitespace-pre-wrap">{extra.prevention_tips_ar}</p>
+            </div>
+          )}
+          {extra?.professional_notes_ar && (
+            <div>
+              <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">ملاحظات احترافية وأخطاء شائعة</h3>
+              <p className="text-gray-900 dark:text-gray-100 text-sm whitespace-pre-wrap">{extra.professional_notes_ar}</p>
             </div>
           )}
         </div>
@@ -595,6 +670,19 @@ export function ObdContent() {
       )}
 
       {result && <ResultCard r={result} />}
+
+      <div className="no-print text-xs text-gray-500 dark:text-gray-400 border border-gray-200 dark:border-gray-700 rounded-lg p-3 bg-gray-50/50 dark:bg-gray-900/30">
+        <p className="font-medium text-gray-700 dark:text-gray-300 mb-2">مراجع معيار الأكواد (للاطلاع)</p>
+        <ul className="space-y-1 list-none">
+          {OBD_REFERENCE_LINKS.map((ref) => (
+            <li key={ref.url}>
+              <a href={ref.url} target="_blank" rel="noopener noreferrer" className="text-emerald-700 dark:text-emerald-400 hover:underline">
+                {ref.label}
+              </a>
+            </li>
+          ))}
+        </ul>
+      </div>
 
       {analyzeResults && (
         <div id="obd-print-area" className="space-y-4">
