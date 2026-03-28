@@ -139,6 +139,108 @@ export async function answerInvoiceSnippet(companyId: string): Promise<string> {
   return `آخر الفواتير:\n${lines.join("\n")}`;
 }
 
+/** آخر فواتير مرتجعة / مرتبطة بإرجاع */
+export async function answerReturnInvoicesSnippet(companyId: string): Promise<string> {
+  const res = await db.execute({
+    sql: `SELECT invoice_number, type, status, total, datetime(created_at) as created_at, IFNULL(is_return, 0) as is_ret
+          FROM invoices
+          WHERE company_id = ? AND (IFNULL(is_return, 0) = 1 OR status = 'returned')
+          ORDER BY created_at DESC LIMIT 8`,
+    args: [companyId],
+  });
+  if (res.rows.length === 0) {
+    return "لا توجد فواتير مسجّلة كمرتجع في الفترة الأخيرة (أو لا توجد سجلات مطابقة).";
+  }
+  const lines = res.rows.map((r) => {
+    const num = String(r.invoice_number ?? "");
+    const typ = String(r.type ?? "");
+    const st = String(r.status ?? "");
+    const tot = Number(r.total ?? 0);
+    const dt = String(r.created_at ?? "");
+    const ret = Number(r.is_ret ?? 0) === 1 ? " [مرتجع]" : "";
+    return `• ${num} (${typ})${ret} — ${st} — ${tot.toFixed(2)} ج.م — ${dt}`;
+  });
+  return `آخر المرتجعات / الفواتير ذات حالة مرتجع:\n${lines.join("\n")}`;
+}
+
+/** بحث موردين بالاسم أو الهاتف أو قائمة مختصرة */
+export async function answerSuppliersQuery(companyId: string, message: string): Promise<string> {
+  const m = stripDiacritics(message).toLowerCase();
+  const wantsList = /قائمه|قائمة|كل الموردين|كل موردين|عرض الموردين|موردين$/i.test(m);
+
+  const stop = new Set(["ما", "هل", "كم", "عند", "في", "من", "على", "هذا", "هذه", "اريد", "أريد", "بحث", "عن", "مورد", "موردين", "supplier"]);
+  const words = message
+    .replace(/[^\p{L}\p{N}\s-]/gu, " ")
+    .split(/\s+/)
+    .map((w) => w.trim())
+    .filter((w) => w.length > 1 && !stop.has(w.toLowerCase()));
+
+  const searchTerm = wantsList ? "" : words.find((w) => w.length >= 2) ?? "";
+
+  let sql = `SELECT name, phone, email FROM suppliers WHERE company_id = ? AND is_active = 1`;
+  const args: (string | number)[] = [companyId];
+  if (searchTerm.length >= 2) {
+    sql += ` AND (LOWER(name) LIKE ? OR LOWER(COALESCE(phone,'')) LIKE ? OR LOWER(COALESCE(email,'')) LIKE ?)`;
+    const q = `%${searchTerm.toLowerCase()}%`;
+    args.push(q, q, q);
+  }
+  sql += ` ORDER BY name ASC LIMIT 15`;
+
+  const res = await db.execute({ sql, args });
+  if (res.rows.length === 0) {
+    return searchTerm
+      ? `لا يوجد مورد مطابق لـ «${searchTerm}».`
+      : "لا يوجد موردون نشطون مسجّلون.";
+  }
+  const lines = res.rows.map((r) => {
+    const name = String(r.name ?? "");
+    const phone = r.phone ? String(r.phone) : "—";
+    return `• ${name} — ${phone}`;
+  });
+  return `الموردون:\n${lines.join("\n")}`;
+}
+
+/** ملخص أرقام للتقارير (آخر 30 يوم) — من جدول الفواتير */
+export async function answerReportsSummary(companyId: string): Promise<string> {
+  const since = "datetime('now', '-30 days')";
+
+  const byType = await db.execute({
+    sql: `SELECT type, COUNT(*) as n, COALESCE(SUM(total), 0) as s
+          FROM invoices
+          WHERE company_id = ? AND datetime(created_at) >= ${since}
+          GROUP BY type`,
+    args: [companyId],
+  });
+
+  const retRes = await db.execute({
+    sql: `SELECT COUNT(*) as c, COALESCE(SUM(ABS(total)), 0) as t
+          FROM invoices
+          WHERE company_id = ? AND datetime(created_at) >= ${since}
+            AND (IFNULL(is_return, 0) = 1 OR status = 'returned')`,
+    args: [companyId],
+  });
+
+  const retCount = Number(retRes.rows[0]?.c ?? 0);
+  const retSum = Number(retRes.rows[0]?.t ?? 0);
+
+  const lines: string[] = [];
+  lines.push("ملخص آخر 30 يوماً (من سجلات الفواتير):");
+  for (const row of byType.rows) {
+    const typ = String(row.type ?? "");
+    const n = Number(row.n ?? 0);
+    const s = Number(row.s ?? 0);
+    const label = typ === "sale" ? "بيع" : typ === "purchase" ? "شراء" : typ === "maintenance" ? "صيانة" : typ;
+    lines.push(`• ${label}: ${n} فاتورة — إجمالي المبالغ ${s.toFixed(2)} ج.م`);
+  }
+  if (byType.rows.length === 0) {
+    lines.push("• لا توجد فواتير في آخر 30 يوماً.");
+  }
+  lines.push(`• مرتجعات (عدد السجلات ذات صفة مرتجع): ${retCount} — مجموع المبالغ ${retSum.toFixed(2)} ج.م`);
+  lines.push("\n(لتقارير تفصيلية استخدم شاشة التقارير في البرنامج.)");
+
+  return lines.join("\n");
+}
+
 export async function answerCompanyAssistant(
   companyId: string,
   message: string,
@@ -147,11 +249,44 @@ export async function answerCompanyAssistant(
 ): Promise<{ reply: string }> {
   const m = stripDiacritics(message).toLowerCase();
 
-  const invKeywords = /مخزون|صنف|صنف|قطعه|قطعة|باركود|منتج|كميه|كمية|رصيد|stock|قطع/i.test(m);
+  const returnKeywords =
+    /مرتجع|مرتجعات|استرجاع|ارجاع|إرجاع|return|مرتجعه|مرتجعة|فواتير مرتجعه|فواتير مرتجعة/i.test(m);
+  const supplierKeywords = /مورد|موردين|موردون|supplier/i.test(m);
+  const reportKeywords =
+    /تقارير|تقرير|احصائيات|إحصائيات|احصائيه|إحصائيه|اداء|أداء|ايراد|إيراد|مبيعات|اداء المبيعات|ملخص عام|ملخص الفواتير|ملخص المبيعات|ملخص للشراء/i.test(m) ||
+    (/ملخص/.test(m) && /فاتور|بيع|شراء|مبيع|شركات/i.test(m));
+
+  const invKeywords =
+    /مخزون|صنف|قطعه|قطعة|باركود|منتج|كميه|كمية|رصيد|stock|قطع/i.test(m);
   const invListKeywords = /قائمه|قائمة|كل الاصناف|كل الأصناف|عرض الاصناف|عرض الأصناف/i.test(m);
-  const invSummaryKeywords = /ملخص|احصائيه|إحصائية|كم صنف|عدد الاصناف|عدد الأصناف/i.test(m);
+  const invSummaryKeywords =
+    /(كم صنف|عدد الاصناف|عدد الأصناف|ملخص\s*المخزون|احصائيه\s*المخزون|إحصائيه\s*المخزون)/i.test(m);
 
   const invoiceKeywords = /فاتوره|فاتورة|بيع|شراء|صيانه|صيانة|invoice/i.test(m);
+
+  if (returnKeywords) {
+    if (!(await can("invoices"))) {
+      return { reply: "لا تملك صلاحية عرض الفواتير/المرتجعات." };
+    }
+    const snippet = await answerReturnInvoicesSnippet(companyId);
+    return { reply: snippet };
+  }
+
+  if (supplierKeywords) {
+    if (!(await can("suppliers"))) {
+      return { reply: "لا تملك صلاحية عرض الموردين. اطلب صلاحية «الموردون» (عرض)." };
+    }
+    const snippet = await answerSuppliersQuery(companyId, message);
+    return { reply: snippet };
+  }
+
+  if (reportKeywords) {
+    if (!(await can("reports"))) {
+      return { reply: "لا تملك صلاحية التقارير. اطلب صلاحية «التقارير» (عرض)." };
+    }
+    const snippet = await answerReportsSummary(companyId);
+    return { reply: snippet };
+  }
 
   if (invKeywords || invListKeywords || invSummaryKeywords) {
     if (!(await can("inventory"))) {
@@ -183,7 +318,7 @@ export async function answerCompanyAssistant(
 
   return {
     reply:
-      "يمكنني مساعدتك ضمن بيانات شركتك فقط. جرّب مثلاً: «كمية صنف …» أو «فاتورة» لعرض آخر الفواتير، أو اسأل عن مخزون باسم أو باركود.\n\nإذا أردت شرح كود عطل OBD من قاعدة البرنامج العامة، اختر وضع «أكواد السيارات» (تكلفة 1 ج.م لكل استعلام).",
+      "يمكنني مساعدتك ضمن بيانات شركتك فقط. أمثلة: «مخزون …» أو «آخر الفواتير» أو «مرتجعات» أو «مورد …» أو «تقرير» / «ملخص المبيعات». للأكواد العامة اختر وضع «أكواد السيارات» (1 ج.م لكل استعلام).",
   };
 }
 
