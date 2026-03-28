@@ -461,4 +461,25 @@ html.dark table tbody tr:hover,
     display: none !important;
     visibility: hidden !important;
   }
+  body.obd-printing-desc-root * {
+    visibility: hidden;
+  }
+  body.obd-printing-desc-root #obd-desc-print-area,
+  body.obd-printing-desc-root #obd-desc-print-area * {
+    visibility: visible;
+  }
+  body.obd-printing-desc-root #obd-desc-print-area {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    color: #000 !important;
+    background: #fff !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  body.obd-printing-desc-root #obd-desc-print-area .no-print {
+    display: none !important;
+    visibility: hidden !important;
+  }
 }

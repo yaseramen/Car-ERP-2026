@@ -3,38 +3,66 @@ import { auth } from "@/auth";
 import { db } from "@/lib/db/client";
 import { getCompanyId, isPlatformOwnerCompany } from "@/lib/company";
 import { randomUUID } from "crypto";
+import { WORKSHOP_SYSTEM_PERSONA } from "@/lib/obd-integrated-analysis";
+import { DESCRIPTION_ANALYSIS_PROMPT } from "@/lib/obd-description-prompt";
 
 const OBD_SEARCH_COST = 1;
 const ALLOWED_ROLES = ["super_admin", "tenant_owner", "employee"] as const;
 
-const DESCRIPTION_PROMPT = `أنت خبير ميكانيكي. العميل يصف مشكلة في سيارته بدون استخدام جهاز كشف أعطال.
+type DescStep = { priority: number; title: string; detail: string };
 
-وصف الحالة: {description}
-{vehicleInfo}
-
-أجب بصيغة JSON فقط:
-{
-  "summary_ar": "ملخص المشكلة المحتملة",
-  "possible_codes": ["P0100", "P0171"],
-  "causes": "السبب 1|السبب 2|السبب 3",
-  "solutions": "الحل 1|الحل 2|الحل 3",
-  "recommendations": "نصيحة إضافية"
-}`;
-
-async function analyzeWithAI(description: string, vehicleInfo: string): Promise<{
+type DescriptionAnalysisResult = {
   summary_ar: string;
   possible_codes: string[];
+  hypothesis_ar?: string;
+  root_cause_ar?: string;
+  excluded_causes_ar?: string;
   causes: string;
   solutions: string;
+  prioritized_steps?: DescStep[];
+  common_mistakes_ar?: string;
+  replacement_guidance_ar?: string;
   recommendations: string;
-} | null> {
+  disclaimer_ar?: string;
+};
+
+function normalizeDescriptionResult(parsed: Record<string, unknown>): DescriptionAnalysisResult {
+  const stepsRaw = Array.isArray(parsed.prioritized_steps) ? parsed.prioritized_steps : [];
+  const prioritized_steps: DescStep[] = [];
+  stepsRaw.forEach((s, idx) => {
+    if (!s || typeof s !== "object") return;
+    const st = s as Record<string, unknown>;
+    const title = typeof st.title === "string" ? st.title.trim() : "";
+    const detail = typeof st.detail === "string" ? st.detail.trim() : "";
+    if (!title && !detail) return;
+    const priority = typeof st.priority === "number" && Number.isFinite(st.priority) ? st.priority : idx + 1;
+    prioritized_steps.push({ priority, title: title || `خطوة ${idx + 1}`, detail });
+  });
+
+  return {
+    summary_ar: typeof parsed.summary_ar === "string" ? parsed.summary_ar : "",
+    possible_codes: Array.isArray(parsed.possible_codes) ? (parsed.possible_codes as string[]) : [],
+    hypothesis_ar: typeof parsed.hypothesis_ar === "string" ? parsed.hypothesis_ar : undefined,
+    root_cause_ar: typeof parsed.root_cause_ar === "string" ? parsed.root_cause_ar : undefined,
+    excluded_causes_ar: typeof parsed.excluded_causes_ar === "string" ? parsed.excluded_causes_ar : undefined,
+    causes: typeof parsed.causes === "string" ? parsed.causes : "",
+    solutions: typeof parsed.solutions === "string" ? parsed.solutions : "",
+    prioritized_steps: prioritized_steps.length > 0 ? prioritized_steps : undefined,
+    common_mistakes_ar: typeof parsed.common_mistakes_ar === "string" ? parsed.common_mistakes_ar : undefined,
+    replacement_guidance_ar: typeof parsed.replacement_guidance_ar === "string" ? parsed.replacement_guidance_ar : undefined,
+    recommendations: typeof parsed.recommendations === "string" ? parsed.recommendations : "",
+    disclaimer_ar: typeof parsed.disclaimer_ar === "string" ? parsed.disclaimer_ar : undefined,
+  };
+}
+
+async function analyzeWithAI(description: string, vehicleInfo: string): Promise<DescriptionAnalysisResult | null> {
   const geminiKey = process.env.GEMINI_API_KEY;
   const groqKey = process.env.GROQ_API_KEY;
 
-  const prompt = DESCRIPTION_PROMPT.replace("{description}", description).replace("{vehicleInfo}", vehicleInfo);
+  const prompt = DESCRIPTION_ANALYSIS_PROMPT.replace("{description}", description).replace("{vehicleInfo}", vehicleInfo);
 
   if (geminiKey) {
-    const models = ["gemini-2.0-flash", "gemini-1.5-flash"];
+    const models = ["gemini-2.0-flash", "gemini-1.5-flash", "gemini-2.5-flash"];
     for (const model of models) {
       try {
         const res = await fetch(
@@ -43,6 +71,9 @@ async function analyzeWithAI(description: string, vehicleInfo: string): Promise<
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
+              systemInstruction: {
+                parts: [{ text: `${WORKSHOP_SYSTEM_PERSONA}\n\nأجب بالعربية فقط. JSON صالح فقط بدون markdown.` }],
+              },
               contents: [{ parts: [{ text: prompt }] }],
               generationConfig: { temperature: 0.3 },
             }),
@@ -53,14 +84,8 @@ async function analyzeWithAI(description: string, vehicleInfo: string): Promise<
         const text = data.candidates?.[0]?.content?.parts?.[0]?.text ?? "";
         const match = text.match(/\{[\s\S]*\}/);
         if (match) {
-          const parsed = JSON.parse(match[0]);
-          return {
-            summary_ar: parsed.summary_ar ?? "",
-            possible_codes: Array.isArray(parsed.possible_codes) ? parsed.possible_codes : [],
-            causes: parsed.causes ?? "",
-            solutions: parsed.solutions ?? "",
-            recommendations: parsed.recommendations ?? "",
-          };
+          const parsed = JSON.parse(match[0]) as Record<string, unknown>;
+          return normalizeDescriptionResult(parsed);
         }
       } catch {
         continue;
@@ -81,7 +106,7 @@ async function analyzeWithAI(description: string, vehicleInfo: string): Promise<
           body: JSON.stringify({
             model,
             messages: [
-              { role: "system", content: "أنت خبير ميكانيكي. أجب بالعربية فقط بصيغة JSON." },
+              { role: "system", content: `${WORKSHOP_SYSTEM_PERSONA}\n\nأجب بالعربية فقط بصيغة JSON صالحة فقط.` },
               { role: "user", content: prompt },
             ],
             temperature: 0.3,
@@ -92,14 +117,8 @@ async function analyzeWithAI(description: string, vehicleInfo: string): Promise<
         const text = data.choices?.[0]?.message?.content ?? "";
         const match = text.match(/\{[\s\S]*\}/);
         if (match) {
-          const parsed = JSON.parse(match[0]);
-          return {
-            summary_ar: parsed.summary_ar ?? "",
-            possible_codes: Array.isArray(parsed.possible_codes) ? parsed.possible_codes : [],
-            causes: parsed.causes ?? "",
-            solutions: parsed.solutions ?? "",
-            recommendations: parsed.recommendations ?? "",
-          };
+          const parsed = JSON.parse(match[0]) as Record<string, unknown>;
+          return normalizeDescriptionResult(parsed);
         }
       } catch {
         continue;

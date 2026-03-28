@@ -64,9 +64,16 @@ export function ObdContent() {
   const [descResult, setDescResult] = useState<{
     summary_ar: string;
     possible_codes: string[];
+    hypothesis_ar?: string;
+    root_cause_ar?: string;
+    excluded_causes_ar?: string;
     causes: string;
     solutions: string;
+    prioritized_steps?: { priority: number; title: string; detail: string }[];
+    common_mistakes_ar?: string;
+    replacement_guidance_ar?: string;
     recommendations: string;
+    disclaimer_ar?: string;
     cost: number;
   } | null>(null);
 
@@ -87,6 +94,19 @@ export function ObdContent() {
     window.print();
     window.setTimeout(() => {
       if (document.body.classList.contains("obd-printing-root")) cleanup();
+    }, 3000);
+  }, []);
+
+  const handlePrintDescAnalysis = useCallback(() => {
+    document.body.classList.add("obd-printing-desc-root");
+    const cleanup = () => {
+      document.body.classList.remove("obd-printing-desc-root");
+      window.removeEventListener("afterprint", cleanup);
+    };
+    window.addEventListener("afterprint", cleanup);
+    window.print();
+    window.setTimeout(() => {
+      if (document.body.classList.contains("obd-printing-desc-root")) cleanup();
     }, 3000);
   }, []);
 
@@ -402,23 +422,73 @@ export function ObdContent() {
             <p className="text-sm text-gray-500 dark:text-gray-400">تكلفة التحليل: 1 ج.م</p>
           </form>
           {descResult && (
-            <div className="mt-6 p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg space-y-4">
-              <h3 className="font-bold text-gray-900 dark:text-gray-100">نتيجة التحليل — {descResult.cost} ج.م</h3>
+            <div
+              id="obd-desc-print-area"
+              className="mt-6 p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg space-y-4 border border-gray-200 dark:border-gray-600"
+            >
+              <div className="flex flex-wrap justify-between items-center gap-2">
+                <h3 className="font-bold text-gray-900 dark:text-gray-100">نتيجة التحليل — {descResult.cost} ج.م</h3>
+                <button
+                  type="button"
+                  onClick={handlePrintDescAnalysis}
+                  className="no-print px-4 py-2 text-sm font-medium rounded-lg bg-gray-200 dark:bg-gray-600 text-gray-800 dark:text-gray-100 hover:bg-gray-300 dark:hover:bg-gray-500"
+                >
+                  طباعة التحليل
+                </button>
+              </div>
+              <p className="text-xs text-gray-500 dark:text-gray-400 no-print">
+                منهج ورشة: أبسط الأسباب أولاً، أكواد محتملة كدليل فقط حتى يُفحص بالجهاز.
+              </p>
               {descResult.summary_ar && (
                 <div>
                   <p className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">الملخص</p>
-                  <p className="text-gray-900 dark:text-gray-100">{descResult.summary_ar}</p>
+                  <p className="text-gray-900 dark:text-gray-100 whitespace-pre-wrap">{descResult.summary_ar}</p>
+                </div>
+              )}
+              {descResult.hypothesis_ar && (
+                <div>
+                  <p className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">فرضية العمل</p>
+                  <p className="text-gray-900 dark:text-gray-100 whitespace-pre-wrap">{descResult.hypothesis_ar}</p>
+                </div>
+              )}
+              {descResult.root_cause_ar && (
+                <div>
+                  <p className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">السبب الجذري الأرجح</p>
+                  <p className="text-gray-900 dark:text-gray-100 whitespace-pre-wrap">{descResult.root_cause_ar}</p>
+                </div>
+              )}
+              {descResult.excluded_causes_ar && (
+                <div>
+                  <p className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">ما يُستبعد ولماذا</p>
+                  <p className="text-gray-900 dark:text-gray-100 whitespace-pre-wrap">{descResult.excluded_causes_ar}</p>
                 </div>
               )}
               {descResult.possible_codes?.length > 0 && (
                 <div>
-                  <p className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">أكواد محتملة</p>
-                  <p className="text-gray-900 dark:text-gray-100" dir="ltr">{descResult.possible_codes.join(", ")}</p>
+                  <p className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">أكواد OBD محتملة (دليل)</p>
+                  <p className="text-gray-900 dark:text-gray-100" dir="ltr">
+                    {descResult.possible_codes.join(", ")}
+                  </p>
+                </div>
+              )}
+              {descResult.prioritized_steps && descResult.prioritized_steps.length > 0 && (
+                <div>
+                  <p className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-2">خطة تشخيص (5–7 خطوات)</p>
+                  <ol className="list-decimal list-inside space-y-2 text-gray-900 dark:text-gray-100">
+                    {[...descResult.prioritized_steps]
+                      .sort((a, b) => a.priority - b.priority)
+                      .map((step, i) => (
+                        <li key={i} className="border border-gray-200 dark:border-gray-600 rounded-lg p-2 bg-white/50 dark:bg-gray-800/50">
+                          <span className="font-medium">{step.title}</span>
+                          <p className="text-sm mt-1">{step.detail}</p>
+                        </li>
+                      ))}
+                  </ol>
                 </div>
               )}
               {descResult.causes && (
                 <div>
-                  <p className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">الأسباب المحتملة</p>
+                  <p className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">الأسباب المحتملة (حسب الأولوية)</p>
                   <ul className="list-disc list-inside text-gray-900 dark:text-gray-100 space-y-1">
                     {descResult.causes.split("|").map((c, i) => (
                       <li key={i}>{c.trim()}</li>
@@ -428,7 +498,7 @@ export function ObdContent() {
               )}
               {descResult.solutions && (
                 <div>
-                  <p className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">الحلول المقترحة</p>
+                  <p className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">الحلول المقترحة (حسب الأولوية)</p>
                   <ul className="list-disc list-inside text-gray-900 dark:text-gray-100 space-y-1">
                     {descResult.solutions.split("|").map((s, i) => (
                       <li key={i}>{s.trim()}</li>
@@ -436,11 +506,28 @@ export function ObdContent() {
                   </ul>
                 </div>
               )}
+              {descResult.common_mistakes_ar && (
+                <div>
+                  <p className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">أخطاء شائعة للفني</p>
+                  <p className="text-gray-900 dark:text-gray-100 whitespace-pre-wrap text-sm">{descResult.common_mistakes_ar}</p>
+                </div>
+              )}
+              {descResult.replacement_guidance_ar && (
+                <div>
+                  <p className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">الاستبدال مقابل الفحص</p>
+                  <p className="text-gray-900 dark:text-gray-100 whitespace-pre-wrap text-sm">{descResult.replacement_guidance_ar}</p>
+                </div>
+              )}
               {descResult.recommendations && (
                 <div>
                   <p className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">توصيات</p>
-                  <p className="text-gray-900 dark:text-gray-100">{descResult.recommendations}</p>
+                  <p className="text-gray-900 dark:text-gray-100 whitespace-pre-wrap">{descResult.recommendations}</p>
                 </div>
+              )}
+              {descResult.disclaimer_ar && (
+                <p className="text-xs text-amber-800 dark:text-amber-200 bg-amber-50 dark:bg-amber-900/30 border border-amber-200 dark:border-amber-800 rounded-lg p-3">
+                  {descResult.disclaimer_ar}
+                </p>
               )}
             </div>
           )}
