@@ -16,6 +16,10 @@ const NotificationsContext = createContext<NotificationsContextType | null>(null
 
 const POLL_INTERVAL_MS = 5 * 60 * 1000; // 5 minutes
 const STORAGE_KEY = "alameen-notifications-last";
+const RELEASE_SEEN_KEY = "alameen-release-notifs-seen";
+const MAX_RELEASE_TOASTS = 5;
+
+type ReleaseNotifPayload = { id: string; title: string; body: string; link?: string };
 
 function getLastNotified(): Summary {
   if (typeof window === "undefined") return { lowStockCount: 0, pendingInvoices: { count: 0, remaining: 0 } };
@@ -42,6 +46,53 @@ function setLastNotified(summary: Summary) {
   } catch {}
 }
 
+function getSeenReleaseIds(): string[] {
+  if (typeof window === "undefined") return [];
+  try {
+    const s = localStorage.getItem(RELEASE_SEEN_KEY);
+    if (!s) return [];
+    const parsed = JSON.parse(s) as unknown;
+    return Array.isArray(parsed) ? parsed.filter((x): x is string => typeof x === "string") : [];
+  } catch {
+    return [];
+  }
+}
+
+function markReleaseSeen(ids: string[]) {
+  if (typeof window === "undefined" || ids.length === 0) return;
+  try {
+    const prev = new Set(getSeenReleaseIds());
+    ids.forEach((id) => prev.add(id));
+    localStorage.setItem(RELEASE_SEEN_KEY, JSON.stringify([...prev]));
+  } catch {}
+}
+
+function showReleaseNotifications(list: ReleaseNotifPayload[]) {
+  if (!("Notification" in window) || Notification.permission !== "granted" || list.length === 0) return;
+  const seen = new Set(getSeenReleaseIds());
+  const unseen = list.filter((n) => n.id && !seen.has(n.id));
+  if (unseen.length === 0) return;
+
+  const toShow = unseen.slice(0, MAX_RELEASE_TOASTS);
+  const ids = toShow.map((n) => n.id);
+
+  toShow.forEach((n, i) => {
+    window.setTimeout(() => {
+      try {
+        new Notification(`جديد في EFCT: ${n.title}`, {
+          body: n.body.slice(0, 280) + (n.body.length > 280 ? "…" : ""),
+          icon: "/icon.svg",
+          tag: `efct-release-${n.id}`,
+        });
+      } catch {
+        /* ignore */
+      }
+    }, i * 900);
+  });
+
+  window.setTimeout(() => markReleaseSeen(ids), toShow.length * 900 + 400);
+}
+
 export function NotificationsProvider({ children }: { children: React.ReactNode }) {
   const [permission, setPermission] = useState<NotificationPermission | null>(
     typeof window !== "undefined" && "Notification" in window ? Notification.permission : null
@@ -51,9 +102,19 @@ export function NotificationsProvider({ children }: { children: React.ReactNode 
   const checkAndNotify = useCallback(async () => {
     if (!("Notification" in window) || Notification.permission !== "granted") return;
     try {
-      const res = await fetch("/api/admin/reports/summary");
-      if (!res.ok) return;
-      const data = await res.json();
+      const [summaryRes, releaseRes] = await Promise.all([
+        fetch("/api/admin/reports/summary"),
+        fetch("/api/admin/help/release-notifications"),
+      ]);
+
+      if (releaseRes.ok) {
+        const rel = await releaseRes.json();
+        const list = Array.isArray(rel.notifications) ? (rel.notifications as ReleaseNotifPayload[]) : [];
+        showReleaseNotifications(list);
+      }
+
+      if (!summaryRes.ok) return;
+      const data = await summaryRes.json();
       const summary: Summary = {
         lowStockCount: data.lowStockCount ?? 0,
         pendingInvoices: data.pendingInvoices ?? { count: 0, remaining: 0 },
@@ -94,12 +155,15 @@ export function NotificationsProvider({ children }: { children: React.ReactNode 
 
   useEffect(() => {
     if (typeof window === "undefined") return;
-    setPermission(Notification.permission);
-    if (Notification.permission === "granted") {
-      checkAndNotify();
-      intervalRef.current = setInterval(checkAndNotify, POLL_INTERVAL_MS);
-    }
+    const t = window.setTimeout(() => {
+      setPermission(Notification.permission);
+      if (Notification.permission === "granted") {
+        checkAndNotify();
+        intervalRef.current = setInterval(checkAndNotify, POLL_INTERVAL_MS);
+      }
+    }, 0);
     return () => {
+      window.clearTimeout(t);
       if (intervalRef.current) {
         clearInterval(intervalRef.current);
         intervalRef.current = null;

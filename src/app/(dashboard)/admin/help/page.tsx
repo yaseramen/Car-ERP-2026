@@ -40,6 +40,9 @@ export default async function HelpPage() {
           </time>
         </p>
         <p className="text-sm text-gray-600 dark:text-gray-300 mt-3 leading-relaxed">{help.intro}</p>
+        <p className="text-sm text-gray-600 dark:text-gray-300 mt-2 leading-relaxed">
+          إن فعّلت <strong>إشعارات المتصفح</strong> من الشريط الجانبي، قد تصلك تنبيهات عند ظهور ميزات جديدة (حسب ما يضيفه فريق التطوير في النظام) — بالإضافة إلى تنبيهات المخزن والفواتير كما سبق.
+        </p>
       </div>
 
       <section className="mb-10" aria-labelledby="guide-heading">

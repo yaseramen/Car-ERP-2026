@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { Sidebar } from "./sidebar";
 import { DashboardHeader } from "./dashboard-header";
 import { AssistantWidget } from "./assistant-widget";
+import { ReleaseNotesBanner } from "./release-notes-banner";
 
 export function AdminLayoutClient({
   children,
@@ -26,6 +27,7 @@ export function AdminLayoutClient({
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-950 flex flex-col" dir="rtl">
+      <ReleaseNotesBanner />
       <DashboardHeader onMenuClick={() => setSidebarOpen(true)} />
       <div className="flex flex-1 overflow-hidden relative">
         {/* Overlay على الهاتف والتابلت عند فتح القائمة */}
