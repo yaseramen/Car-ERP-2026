@@ -4,6 +4,10 @@
 
 import { db } from "@/lib/db/client";
 import type { DistributionContext } from "@/lib/distribution";
+import { extractSearchPhrase, likePatternsForPhrase, stripDiacritics } from "@/lib/assistant-text-fuzzy";
+import { resolvePartyForLedger } from "@/lib/assistant-party-resolve";
+import { answerCustomerStatement, answerSupplierStatement } from "@/lib/assistant-party-ledger";
+import { answerItemDetail } from "@/lib/assistant-item-detail";
 
 export type AssistantMode = "company" | "obd_global";
 
@@ -19,10 +23,6 @@ function normalizeCode(raw: string): string {
 export function extractObdCodeFromMessage(message: string): string | null {
   const m = message.toUpperCase().match(/\b(P|C|B|U)[0-9A-Z]{3,5}\b/);
   return m ? normalizeCode(m[0]) : null;
-}
-
-function stripDiacritics(s: string): string {
-  return s.replace(/[\u064B-\u065F\u0670]/g, "");
 }
 
 /** أول 15 صنفاً نشطاً — للقوائم العامة */
@@ -67,15 +67,8 @@ export async function answerInventoryQuery(
 
   if (!wantsSearch) return null;
 
-  // استخراج كلمة بحث: أطول كلمة عربية/إنجليزية بعد تجاهل كلمات شائعة
-  const stop = new Set(["ما", "هل", "كم", "عند", "في", "من", "على", "هذا", "هذه", "اريد", "أريد", "بحث", "عن", "ظهر", "لي"]);
-  const words = message
-    .replace(/[^\p{L}\p{N}\s-]/gu, " ")
-    .split(/\s+/)
-    .map((w) => w.trim())
-    .filter((w) => w.length > 1 && !stop.has(w.toLowerCase()));
-
-  const searchTerm = words.find((w) => w.length >= 2) ?? "";
+  const searchPhrase = extractSearchPhrase(message, []);
+  const patterns = searchPhrase.length >= 2 ? likePatternsForPhrase(searchPhrase) : [];
 
   const qtyExpr = dist
     ? `(SELECT COALESCE(quantity, 0) FROM item_warehouse_stock WHERE item_id = items.id AND warehouse_id = ?)`
@@ -90,21 +83,24 @@ export async function answerInventoryQuery(
   if (dist) args.push(dist.assignedWarehouseId);
   args.push(companyId);
 
-  if (searchTerm.length >= 2) {
-    sql += ` AND (
-      LOWER(items.name) LIKE ? OR LOWER(COALESCE(items.code,'')) LIKE ?
-      OR LOWER(COALESCE(items.barcode,'')) LIKE ? OR LOWER(COALESCE(items.category,'')) LIKE ?
-    )`;
-    const q = `%${searchTerm.toLowerCase()}%`;
-    args.push(q, q, q, q);
+  if (patterns.length > 0) {
+    const ors: string[] = [];
+    for (const p of patterns) {
+      ors.push(
+        `(LOWER(items.name) LIKE ? OR LOWER(COALESCE(items.code,'')) LIKE ?
+         OR LOWER(COALESCE(items.barcode,'')) LIKE ? OR LOWER(COALESCE(items.category,'')) LIKE ?)`
+      );
+      args.push(p, p, p, p);
+    }
+    sql += ` AND (${ors.join(" OR ")})`;
   }
 
   sql += ` ORDER BY items.name ASC LIMIT 15`;
 
   const res = await db.execute({ sql, args });
   if (res.rows.length === 0) {
-    return searchTerm
-      ? `لا توجد أصناف مطابقة لـ «${searchTerm}»${dist ? ` في مخزن «${dist.warehouseName}»` : ""}.`
+    return searchPhrase
+      ? `لا توجد أصناف مطابقة لـ «${searchPhrase}»${dist ? ` في مخزن «${dist.warehouseName}»` : ""}.`
       : "لم يُعثر على أصناف مطابقة. جرّب كتابة اسم أو باركود أو جزء من اسم الصنف.";
   }
 
@@ -168,28 +164,25 @@ export async function answerSuppliersQuery(companyId: string, message: string): 
   const m = stripDiacritics(message).toLowerCase();
   const wantsList = /قائمه|قائمة|كل الموردين|كل موردين|عرض الموردين|موردين$/i.test(m);
 
-  const stop = new Set(["ما", "هل", "كم", "عند", "في", "من", "على", "هذا", "هذه", "اريد", "أريد", "بحث", "عن", "مورد", "موردين", "supplier"]);
-  const words = message
-    .replace(/[^\p{L}\p{N}\s-]/gu, " ")
-    .split(/\s+/)
-    .map((w) => w.trim())
-    .filter((w) => w.length > 1 && !stop.has(w.toLowerCase()));
-
-  const searchTerm = wantsList ? "" : words.find((w) => w.length >= 2) ?? "";
+  const searchPhrase = extractSearchPhrase(message, ["مورد", "موردين", "supplier"]);
+  const patterns = !wantsList && searchPhrase.length >= 2 ? likePatternsForPhrase(searchPhrase) : [];
 
   let sql = `SELECT name, phone, email FROM suppliers WHERE company_id = ? AND is_active = 1`;
   const args: (string | number)[] = [companyId];
-  if (searchTerm.length >= 2) {
-    sql += ` AND (LOWER(name) LIKE ? OR LOWER(COALESCE(phone,'')) LIKE ? OR LOWER(COALESCE(email,'')) LIKE ?)`;
-    const q = `%${searchTerm.toLowerCase()}%`;
-    args.push(q, q, q);
+  if (patterns.length > 0) {
+    const ors: string[] = [];
+    for (const p of patterns) {
+      ors.push(`(LOWER(name) LIKE ? OR LOWER(COALESCE(phone,'')) LIKE ? OR LOWER(COALESCE(email,'')) LIKE ?)`);
+      args.push(p, p, p);
+    }
+    sql += ` AND (${ors.join(" OR ")})`;
   }
   sql += ` ORDER BY name ASC LIMIT 15`;
 
   const res = await db.execute({ sql, args });
   if (res.rows.length === 0) {
-    return searchTerm
-      ? `لا يوجد مورد مطابق لـ «${searchTerm}».`
+    return searchPhrase && !wantsList
+      ? `لا يوجد مورد مطابق لـ «${searchPhrase}».`
       : "لا يوجد موردون نشطون مسجّلون.";
   }
   const lines = res.rows.map((r) => {
@@ -198,6 +191,40 @@ export async function answerSuppliersQuery(companyId: string, message: string): 
     return `• ${name} — ${phone}`;
   });
   return `الموردون:\n${lines.join("\n")}`;
+}
+
+/** بحث عملاء بالاسم أو الهاتف أو قائمة مختصرة */
+export async function answerCustomersQuery(companyId: string, message: string): Promise<string> {
+  const m = stripDiacritics(message).toLowerCase();
+  const wantsList = /قائمه|قائمة|كل العملاء|كل الزباين|عرض العملاء|العملاء$/i.test(m);
+
+  const searchPhrase = extractSearchPhrase(message, ["عميل", "العميل", "زبون", "زباين", "customer", "عملاء"]);
+  const patterns = !wantsList && searchPhrase.length >= 2 ? likePatternsForPhrase(searchPhrase) : [];
+
+  let sql = `SELECT name, phone, email FROM customers WHERE company_id = ? AND is_active = 1`;
+  const args: (string | number)[] = [companyId];
+  if (patterns.length > 0) {
+    const ors: string[] = [];
+    for (const p of patterns) {
+      ors.push(`(LOWER(name) LIKE ? OR LOWER(COALESCE(phone,'')) LIKE ? OR LOWER(COALESCE(email,'')) LIKE ?)`);
+      args.push(p, p, p);
+    }
+    sql += ` AND (${ors.join(" OR ")})`;
+  }
+  sql += ` ORDER BY name ASC LIMIT 15`;
+
+  const res = await db.execute({ sql, args });
+  if (res.rows.length === 0) {
+    return searchPhrase && !wantsList
+      ? `لا يوجد عميل مطابق لـ «${searchPhrase}».`
+      : "لا يوجد عملاء نشطون مسجّلون.";
+  }
+  const lines = res.rows.map((r) => {
+    const name = String(r.name ?? "");
+    const phone = r.phone ? String(r.phone) : "—";
+    return `• ${name} — ${phone}`;
+  });
+  return `العملاء:\n${lines.join("\n")}`;
 }
 
 /** ملخص أرقام للتقارير (آخر 30 يوم) — من جدول الفواتير */
@@ -249,13 +276,21 @@ export async function answerCompanyAssistant(
 ): Promise<{ reply: string }> {
   const m = stripDiacritics(message).toLowerCase();
 
+  const ledgerKeywords =
+    /كشف\s*حساب|كشفحساب|حساب\s*(العميل|الزبون|المورد|عميل|مورد|زبون)|مديون|المديونيه|المديونية|دين\s*(عميل|زبون|مورد)|رصيد\s*(العميل|الزبون|المورد|عميل|مورد|زبون)/i.test(
+      m
+    );
+  const customerBrowseKeywords =
+    /عميل|زبون|عملاء|customer/i.test(m) && !ledgerKeywords;
   const returnKeywords =
     /مرتجع|مرتجعات|استرجاع|ارجاع|إرجاع|return|مرتجعه|مرتجعة|فواتير مرتجعه|فواتير مرتجعة/i.test(m);
-  const supplierKeywords = /مورد|موردين|موردون|supplier/i.test(m);
+  const supplierKeywords = /مورد|موردين|موردون|supplier/i.test(m) && !ledgerKeywords;
   const reportKeywords =
     /تقارير|تقرير|احصائيات|إحصائيات|احصائيه|إحصائيه|اداء|أداء|ايراد|إيراد|مبيعات|اداء المبيعات|ملخص عام|ملخص الفواتير|ملخص المبيعات|ملخص للشراء/i.test(m) ||
     (/ملخص/.test(m) && /فاتور|بيع|شراء|مبيع|شركات/i.test(m));
 
+  const itemDetailKeywords =
+    /تفاصيل|مواصفات|بيانات\s*الصنف|سيريال|سريال|serial|باركود\s*الصنف/i.test(m);
   const invKeywords =
     /مخزون|صنف|قطعه|قطعة|باركود|منتج|كميه|كمية|رصيد|stock|قطع/i.test(m);
   const invListKeywords = /قائمه|قائمة|كل الاصناف|كل الأصناف|عرض الاصناف|عرض الأصناف/i.test(m);
@@ -264,11 +299,45 @@ export async function answerCompanyAssistant(
 
   const invoiceKeywords = /فاتوره|فاتورة|بيع|شراء|صيانه|صيانة|invoice/i.test(m);
 
+  if (ledgerKeywords) {
+    if (!(await can("invoices"))) {
+      return { reply: "لا تملك صلاحية عرض الفواتير/كشف الحساب." };
+    }
+    const resolved = await resolvePartyForLedger(companyId, message);
+    if (!resolved) {
+      return {
+        reply:
+          "لم أستطع ربط الاسم بعميل أو مورد. اكتب مثلاً: «كشف حساب عميل أحمد» أو «حساب مورد …» أو رقم الهاتف.",
+      };
+    }
+    if (resolved.kind === "customer" && !(await can("customers"))) {
+      return { reply: "لا تملك صلاحية عرض بيانات العملاء." };
+    }
+    if (resolved.kind === "supplier" && !(await can("suppliers"))) {
+      return { reply: "لا تملك صلاحية عرض بيانات الموردين." };
+    }
+    const hint = ` (تم الربط بـ «${resolved.party.name}»)`;
+    if (resolved.kind === "customer") {
+      const text = await answerCustomerStatement(companyId, resolved.party.id, resolved.party.name);
+      return { reply: `${text}${hint}` };
+    }
+    const text = await answerSupplierStatement(companyId, resolved.party.id, resolved.party.name);
+    return { reply: `${text}${hint}` };
+  }
+
   if (returnKeywords) {
     if (!(await can("invoices"))) {
       return { reply: "لا تملك صلاحية عرض الفواتير/المرتجعات." };
     }
     const snippet = await answerReturnInvoicesSnippet(companyId);
+    return { reply: snippet };
+  }
+
+  if (customerBrowseKeywords) {
+    if (!(await can("customers"))) {
+      return { reply: "لا تملك صلاحية عرض العملاء. اطلب صلاحية «العملاء» (عرض)." };
+    }
+    const snippet = await answerCustomersQuery(companyId, message);
     return { reply: snippet };
   }
 
@@ -286,6 +355,14 @@ export async function answerCompanyAssistant(
     }
     const snippet = await answerReportsSummary(companyId);
     return { reply: snippet };
+  }
+
+  if (itemDetailKeywords) {
+    if (!(await can("inventory"))) {
+      return { reply: "لا تملك صلاحية عرض تفاصيل الأصناف." };
+    }
+    const detail = await answerItemDetail(companyId, message, dist);
+    if (detail) return { reply: detail };
   }
 
   if (invKeywords || invListKeywords || invSummaryKeywords) {
@@ -318,7 +395,7 @@ export async function answerCompanyAssistant(
 
   return {
     reply:
-      "يمكنني مساعدتك ضمن بيانات شركتك فقط. أمثلة: «مخزون …» أو «آخر الفواتير» أو «مرتجعات» أو «مورد …» أو «تقرير» / «ملخص المبيعات». للأكواد العامة اختر وضع «أكواد السيارات» (1 ج.م لكل استعلام).",
+      "يمكنني مساعدتك ضمن بيانات شركتك فقط. أمثلة: «كشف حساب عميل …» أو «حساب مورد …»، «تفاصيل صنف …»، «مخزون …»، «عميل …»، «مورد …»، «تقرير». للأكواد العامة اختر «أكواد السيارات» (1 ج.م).",
   };
 }
 
