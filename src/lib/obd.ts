@@ -1,6 +1,7 @@
 import { db } from "@/lib/db/client";
 import { SYSTEM_COMPANY_ID } from "@/lib/company";
 import { fullObdSystemPersona } from "@/lib/obd-ai-context";
+import type { ObdSymptomsPayloadV2 } from "@/lib/obd-symptoms-parse";
 import { randomUUID } from "crypto";
 import { extractText, getDocumentProxy } from "unpdf";
 
@@ -44,20 +45,6 @@ export type ParsedAiCodeFields = {
   symptoms: string;
 };
 
-/** يُخزَّن في عمود symptoms كـ JSON للأكواد القادمة من AI (v:2) */
-export type ObdSymptomsPayloadV2 = {
-  v: 2;
-  symptoms: string;
-  affected_system_ar?: string;
-  severity?: string;
-  severity_note_ar?: string;
-  testing_steps?: string;
-  how_to_confirm_ar?: string;
-  repair_vs_replace_ar?: string;
-  prevention_tips_ar?: string;
-  professional_notes_ar?: string;
-};
-
 export function parseAIResponse(text: string): ParsedAiCodeFields | null {
   const match = text.match(/\{[\s\S]*\}/);
   if (!match) return null;
@@ -94,20 +81,6 @@ export function parseAIResponse(text: string): ParsedAiCodeFields | null {
   } catch {
     return null;
   }
-}
-
-/** للقراءة من الواجهة: إن كان النص JSON v:2 يُرجع الحقول */
-export function parseSymptomsColumn(symptoms: string | null | undefined): ObdSymptomsPayloadV2 | null {
-  if (!symptoms || typeof symptoms !== "string") return null;
-  const t = symptoms.trim();
-  if (!t.startsWith("{")) return null;
-  try {
-    const o = JSON.parse(t) as { v?: number };
-    if (o && o.v === 2 && typeof o === "object") return o as ObdSymptomsPayloadV2;
-  } catch {
-    return null;
-  }
-  return null;
 }
 
 export async function searchLocal(code: string) {

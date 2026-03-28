@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect, useCallback } from "react";
-import { parseSymptomsColumn } from "@/lib/obd";
+import { parseSymptomsColumn } from "@/lib/obd-symptoms-parse";
 import { OBD_REFERENCE_LINKS } from "@/lib/obd-ai-context";
 
 type ObdResult = {
