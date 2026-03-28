@@ -47,7 +47,7 @@ type IntegratedAnalysis = {
 };
 
 export function ObdContent() {
-  const [mode, setMode] = useState<"search" | "upload" | "description" | "manage" | "logs">("search");
+  const [mode, setMode] = useState<"search" | "upload" | "description" | "liveData" | "manage" | "logs">("search");
   const [code, setCode] = useState("");
   const [loading, setLoading] = useState(false);
   const [aiStatus, setAiStatus] = useState<{ aiAvailable: boolean; message: string; providers?: string[] } | null>(null);
@@ -77,7 +77,11 @@ export function ObdContent() {
     recommendations: string;
     disclaimer_ar?: string;
     cost: number;
+    analysis_type?: "description" | "live_data";
   } | null>(null);
+  const [liveForm, setLiveForm] = useState({ liveDataText: "", brand: "", model: "", year: "" });
+  const [liveFile, setLiveFile] = useState<File | null>(null);
+  const liveFileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     fetch("/api/admin/obd/status")
@@ -217,7 +221,44 @@ export function ObdContent() {
         alert(data.error || "فشل في التحليل");
         return;
       }
+      setDescResult({ ...data, analysis_type: "description" });
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "حدث خطأ");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleAnalyzeLiveData(e: React.FormEvent) {
+    e.preventDefault();
+    if (!liveForm.liveDataText.trim() && !liveFile) {
+      alert("الصق نص القراءات أو اختر ملفاً نصياً/CSV");
+      return;
+    }
+
+    setLoading(true);
+    setDescResult(null);
+    setResult(null);
+    setAnalyzeResults(null);
+    try {
+      const formData = new FormData();
+      if (liveForm.liveDataText.trim()) formData.append("liveDataText", liveForm.liveDataText.trim());
+      if (liveFile) formData.append("file", liveFile);
+      if (liveForm.brand.trim()) formData.append("brand", liveForm.brand.trim());
+      if (liveForm.model.trim()) formData.append("model", liveForm.model.trim());
+      if (liveForm.year.trim()) formData.append("year", liveForm.year.trim());
+
+      const res = await fetch("/api/admin/obd/analyze-live-data", {
+        method: "POST",
+        body: formData,
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        alert(data.error || "فشل في التحليل");
+        return;
+      }
       setDescResult(data);
+      setMode("description");
     } catch (err) {
       alert(err instanceof Error ? err.message : "حدث خطأ");
     } finally {
@@ -395,6 +436,15 @@ export function ObdContent() {
         </button>
         <button
           type="button"
+          onClick={() => setMode("liveData")}
+          className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+            mode === "liveData" ? "bg-emerald-600 text-white" : "bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600"
+          }`}
+        >
+          قراءات حية / لقطة سكانر
+        </button>
+        <button
+          type="button"
           onClick={() => setMode("manage")}
           className={`px-4 py-2 rounded-lg font-medium transition-colors ${
             mode === "manage" ? "bg-emerald-600 text-white" : "bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600"
@@ -502,7 +552,14 @@ export function ObdContent() {
               className="mt-6 p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg space-y-4 border border-gray-200 dark:border-gray-600"
             >
               <div className="flex flex-wrap justify-between items-center gap-2">
-                <h3 className="font-bold text-gray-900 dark:text-gray-100">نتيجة التحليل — {descResult.cost} ج.م</h3>
+                <div className="flex flex-wrap items-center gap-2">
+                  <h3 className="font-bold text-gray-900 dark:text-gray-100">نتيجة التحليل — {descResult.cost} ج.م</h3>
+                  {descResult.analysis_type === "live_data" && (
+                    <span className="text-xs px-2 py-0.5 rounded-full bg-blue-100 text-blue-900 dark:bg-blue-900/40 dark:text-blue-100">
+                      قراءات حية / لقطة نصية
+                    </span>
+                  )}
+                </div>
                 <button
                   type="button"
                   onClick={handlePrintDescAnalysis}
@@ -606,6 +663,81 @@ export function ObdContent() {
               )}
             </div>
           )}
+        </div>
+      )}
+
+      {mode === "liveData" && (
+        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 p-6">
+          <p className="text-gray-600 dark:text-gray-300 mb-4">
+            الصق نص القراءات الحية من السكانر (لصق من التطبيق أو تصدير)، أو ارفع ملف <span className="font-medium">.txt</span> أو{" "}
+            <span className="font-medium">.csv</span> من الجهاز. يُحلّل النص كما ورد دون اختراع أرقام غير موجودة فيه.
+          </p>
+          <form onSubmit={handleAnalyzeLiveData} className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">نص القراءات (لصق من السكانر)</label>
+              <textarea
+                value={liveForm.liveDataText}
+                onChange={(e) => setLiveForm((f) => ({ ...f, liveDataText: e.target.value }))}
+                placeholder={`مثال:\nRPM: 850\nCoolant: 92°C\nSTFT B1: +12%\nLTFT B1: +8%\nO2 B1S1: 0.85V ...`}
+                className={inputClass}
+                rows={10}
+                dir="ltr"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">أو ارفع ملف نصي / CSV (اختياري)</label>
+              <input
+                ref={liveFileInputRef}
+                type="file"
+                accept=".txt,.csv,text/plain,text/csv"
+                className="block w-full text-sm text-gray-600 dark:text-gray-300 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:bg-emerald-50 file:text-emerald-700 dark:file:bg-emerald-900/40 dark:file:text-emerald-200"
+                onChange={(e) => setLiveFile(e.target.files?.[0] ?? null)}
+              />
+              {liveFile && (
+                <p className="text-xs text-emerald-600 dark:text-emerald-400 mt-1">مختار: {liveFile.name}</p>
+              )}
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">الماركة (اختياري)</label>
+                <input
+                  type="text"
+                  value={liveForm.brand}
+                  onChange={(e) => setLiveForm((f) => ({ ...f, brand: e.target.value }))}
+                  className={inputClass}
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">النموذج (اختياري)</label>
+                <input
+                  type="text"
+                  value={liveForm.model}
+                  onChange={(e) => setLiveForm((f) => ({ ...f, model: e.target.value }))}
+                  className={inputClass}
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">سنة الصنع (اختياري)</label>
+                <input
+                  type="text"
+                  value={liveForm.year}
+                  onChange={(e) => setLiveForm((f) => ({ ...f, year: e.target.value }))}
+                  className={inputClass}
+                  dir="ltr"
+                />
+              </div>
+            </div>
+            <button
+              type="submit"
+              disabled={loading || (!liveForm.liveDataText.trim() && !liveFile)}
+              className="px-6 py-3 bg-emerald-600 hover:bg-emerald-700 disabled:bg-emerald-400 disabled:cursor-not-allowed text-white font-medium rounded-lg"
+            >
+              {loading ? "جاري التحليل..." : "تحليل القراءات"}
+            </button>
+            <p className="text-sm text-gray-500 dark:text-gray-400">
+              تكلفة التحليل: 1 ج.م. إذا كان عندك صورة شاشة فقط (بدون نص قابل للنسخ)، استخدم تبويب «رفع تقرير» (PDF أو صورة).
+            </p>
+          </form>
         </div>
       )}
 
