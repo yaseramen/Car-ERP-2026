@@ -229,6 +229,8 @@ CREATE TABLE IF NOT EXISTS items (
     purchase_price REAL DEFAULT 0,
     sale_price REAL DEFAULT 0,
     min_quantity REAL DEFAULT 0,
+    has_expiry INTEGER DEFAULT 0,
+    expiry_date TEXT,
     is_active INTEGER DEFAULT 1,
     created_at TEXT DEFAULT (datetime('now')),
     updated_at TEXT DEFAULT (datetime('now')),

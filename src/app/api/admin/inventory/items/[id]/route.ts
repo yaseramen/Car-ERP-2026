@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { db } from "@/lib/db/client";
 import { getCompanyId } from "@/lib/company";
+import { normalizeExpiryInput } from "@/lib/item-expiry-api";
 
 const ALLOWED_ROLES = ["super_admin", "tenant_owner", "employee"] as const;
 
@@ -29,6 +30,8 @@ export async function PATCH(
       sale_price,
       min_quantity,
       min_quantity_enabled,
+      has_expiry,
+      expiry_date,
     } = body;
 
     const updates: string[] = ["updated_at = datetime('now')"];
@@ -76,6 +79,17 @@ export async function PATCH(
       const minQty = min_quantity_enabled ? Number(min_quantity) || 0 : 0;
       updates.push("min_quantity = ?");
       args.push(minQty);
+    }
+    if (has_expiry !== undefined || expiry_date !== undefined) {
+      try {
+        const ex = normalizeExpiryInput({ has_expiry, expiry_date });
+        updates.push("has_expiry = ?");
+        args.push(ex.has_expiry);
+        updates.push("expiry_date = ?");
+        args.push(ex.expiry_date);
+      } catch (e) {
+        return NextResponse.json({ error: e instanceof Error ? e.message : "تاريخ غير صالح" }, { status: 400 });
+      }
     }
 
     if (updates.length <= 1) {

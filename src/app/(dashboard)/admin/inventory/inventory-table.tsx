@@ -10,6 +10,7 @@ import { BarcodeLabelPrint } from "@/components/inventory/barcode-label-print";
 import { InventoryCategoryFilter } from "@/components/inventory/inventory-category-filter";
 import { addToQueue } from "@/lib/offline-queue";
 import { getErrorMessage } from "@/lib/error-messages";
+import { expiryUiStatus, formatExpiryArLabel } from "@/lib/item-expiry";
 
 interface Item {
   id: string;
@@ -22,6 +23,8 @@ interface Item {
   sale_price: number;
   min_quantity: number;
   quantity: number;
+  has_expiry?: boolean;
+  expiry_date?: string | null;
 }
 
 export function InventoryTable() {
@@ -29,6 +32,9 @@ export function InventoryTable() {
   const [totalItems, setTotalItems] = useState(0);
   const [lowStockItems, setLowStockItems] = useState<Array<{ id: string; name: string; quantity: number; min_quantity: number }>>([]);
   const [approachingLimitItems, setApproachingLimitItems] = useState<Array<{ id: string; name: string; quantity: number; min_quantity: number }>>([]);
+  const [expiryAlerts, setExpiryAlerts] = useState<
+    Array<{ id: string; name: string; expiry_date: string; quantity: number; expired: boolean }>
+  >([]);
   const [loading, setLoading] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
   const [editItem, setEditItem] = useState<Item | null>(null);
@@ -49,14 +55,17 @@ export function InventoryTable() {
   const [searchQuery, setSearchQuery] = useState("");
   const [searchDebounced, setSearchDebounced] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("");
+  const [expiryFilter, setExpiryFilter] = useState("");
   const inventoryFormRef = useRef<HTMLFormElement>(null);
   const barcodeInputRef = useRef<HTMLInputElement>(null);
   const pageRef = useRef(page);
   const searchDebouncedRef = useRef(searchDebounced);
   const categoryFilterRef = useRef(categoryFilter);
+  const expiryFilterRef = useRef(expiryFilter);
   pageRef.current = page;
   searchDebouncedRef.current = searchDebounced;
   categoryFilterRef.current = categoryFilter;
+  expiryFilterRef.current = expiryFilter;
   const [form, setForm] = useState({
     name: "",
     code: "",
@@ -66,16 +75,19 @@ export function InventoryTable() {
     sale_price: "",
     min_quantity_enabled: false,
     min_quantity: "",
+    has_expiry: false,
+    expiry_date: "",
   });
 
-  async function fetchItems(opts?: { page?: number; search?: string; category?: string }) {
+  async function fetchItems(opts?: { page?: number; search?: string; category?: string; expiry?: string }) {
     try {
       const page = opts?.page ?? 1;
       const search = opts?.search ?? searchDebouncedRef.current;
       const category = opts?.category ?? categoryFilterRef.current;
+      const expiry = opts?.expiry ?? expiryFilterRef.current;
       const limit = 50;
       const offset = (page - 1) * limit;
-      const url = `/api/admin/inventory/items?limit=${limit}&offset=${offset}${search ? `&search=${encodeURIComponent(search)}` : ""}${category ? `&category=${encodeURIComponent(category)}` : ""}`;
+      const url = `/api/admin/inventory/items?limit=${limit}&offset=${offset}${search ? `&search=${encodeURIComponent(search)}` : ""}${category ? `&category=${encodeURIComponent(category)}` : ""}${expiry ? `&expiry=${encodeURIComponent(expiry)}` : ""}`;
       const res = await fetch(url);
       if (res.ok) {
         const data = await res.json();
@@ -105,13 +117,16 @@ export function InventoryTable() {
         const data = await res.json();
         setLowStockItems(data.lowStock ?? []);
         setApproachingLimitItems(data.approaching ?? []);
+        setExpiryAlerts(data.expiry_alerts ?? []);
       } else {
         setLowStockItems([]);
         setApproachingLimitItems([]);
+        setExpiryAlerts([]);
       }
     } catch {
       setLowStockItems([]);
       setApproachingLimitItems([]);
+      setExpiryAlerts([]);
     }
   }
 
@@ -133,12 +148,22 @@ export function InventoryTable() {
 
   useEffect(() => {
     const handleOnline = () => {
-      fetchItems({ page: pageRef.current, search: searchDebouncedRef.current, category: categoryFilterRef.current });
+      fetchItems({
+        page: pageRef.current,
+        search: searchDebouncedRef.current,
+        category: categoryFilterRef.current,
+        expiry: expiryFilterRef.current,
+      });
       fetchCategories();
       fetchLowStock();
     };
     const handleRefresh = () => {
-      fetchItems({ page: pageRef.current, search: searchDebouncedRef.current, category: categoryFilterRef.current });
+      fetchItems({
+        page: pageRef.current,
+        search: searchDebouncedRef.current,
+        category: categoryFilterRef.current,
+        expiry: expiryFilterRef.current,
+      });
       fetchCategories();
       fetchLowStock();
     };
@@ -164,10 +189,14 @@ export function InventoryTable() {
   }, [categoryFilter]);
 
   useEffect(() => {
+    setPage(1);
+  }, [expiryFilter]);
+
+  useEffect(() => {
     const p = searchDebounced ? 1 : page;
     setLoading(true);
-    fetchItems({ page: p, search: searchDebounced, category: categoryFilter });
-  }, [page, searchDebounced, categoryFilter]);
+    fetchItems({ page: p, search: searchDebounced, category: categoryFilter, expiry: expiryFilter });
+  }, [page, searchDebounced, categoryFilter, expiryFilter]);
 
   useKeyboardShortcut({
     onSave: () => modalOpen && !saving && inventoryFormRef.current?.requestSubmit(),
@@ -192,6 +221,8 @@ export function InventoryTable() {
       sale_price: "",
       min_quantity_enabled: false,
       min_quantity: "",
+      has_expiry: false,
+      expiry_date: "",
     });
     setNewCategory("");
     setNewUnit("");
@@ -269,6 +300,8 @@ export function InventoryTable() {
       sale_price: String(item.sale_price),
       min_quantity_enabled: item.min_quantity > 0,
       min_quantity: item.min_quantity > 0 ? String(item.min_quantity) : "",
+      has_expiry: Boolean(item.has_expiry),
+      expiry_date: item.expiry_date ? String(item.expiry_date).slice(0, 10) : "",
     });
     setModalOpen(true);
   }
@@ -286,6 +319,8 @@ export function InventoryTable() {
         sale_price: Number(form.sale_price) || 0,
         min_quantity_enabled: form.min_quantity_enabled,
         min_quantity: form.min_quantity_enabled ? Number(form.min_quantity) || 0 : 0,
+        has_expiry: form.has_expiry,
+        expiry_date: form.has_expiry && form.expiry_date.trim() ? form.expiry_date.trim() : null,
       };
 
       if (editItem) {
@@ -300,6 +335,8 @@ export function InventoryTable() {
           sale_price: Number(patchPayload.sale_price) || 0,
           min_quantity_enabled: Boolean(patchPayload.min_quantity_enabled),
           min_quantity: patchPayload.min_quantity_enabled ? Number(patchPayload.min_quantity) || 0 : 0,
+          has_expiry: Boolean(form.has_expiry),
+          expiry_date: form.has_expiry && form.expiry_date.trim() ? form.expiry_date.trim() : null,
         };
         if (!navigator.onLine) {
           addToQueue({ type: "inventory_item_full_patch", itemId: editItem.id, data: patchData });
@@ -315,6 +352,8 @@ export function InventoryTable() {
                     unit: payload.unit as string,
                     sale_price: payload.sale_price as number,
                     min_quantity: payload.min_quantity_enabled ? (payload.min_quantity as number) : 0,
+                    has_expiry: Boolean(payload.has_expiry),
+                    expiry_date: payload.has_expiry && (payload.expiry_date as string) ? String(payload.expiry_date) : null,
                   }
                 : i
             )
@@ -346,6 +385,8 @@ export function InventoryTable() {
                   unit: payload.unit as string,
                   sale_price: payload.sale_price as number,
                   min_quantity: payload.min_quantity_enabled ? (payload.min_quantity as number) : 0,
+                  has_expiry: Boolean(payload.has_expiry),
+                  expiry_date: payload.has_expiry && (payload.expiry_date as string) ? String(payload.expiry_date) : null,
                 }
               : i
           )
@@ -361,6 +402,8 @@ export function InventoryTable() {
           sale_price: Number(payload.sale_price) || 0,
           min_quantity_enabled: Boolean(payload.min_quantity_enabled),
           min_quantity: payload.min_quantity_enabled ? Number(payload.min_quantity) || 0 : 0,
+          has_expiry: Boolean(payload.has_expiry),
+          expiry_date: payload.has_expiry && (payload.expiry_date as string) ? String(payload.expiry_date) : null,
         };
         if (!navigator.onLine) {
           addToQueue({ type: "create_inventory_item", data: postPayload });
@@ -379,8 +422,8 @@ export function InventoryTable() {
           alert(err.error || "فشل في الحفظ");
           return;
         }
-        const newItem = await res.json();
-        fetchItems({ page: 1, search: searchDebounced });
+        await res.json();
+        fetchItems({ page: 1, search: searchDebounced, expiry: expiryFilter });
         fetchLowStock();
         fetchCategories();
       }
@@ -398,6 +441,8 @@ export function InventoryTable() {
           sale_price: Number(form.sale_price) || 0,
           min_quantity_enabled: form.min_quantity_enabled,
           min_quantity: form.min_quantity_enabled ? Number(form.min_quantity) || 0 : 0,
+          has_expiry: form.has_expiry,
+          expiry_date: form.has_expiry && form.expiry_date.trim() ? form.expiry_date.trim() : null,
         } as const;
         addToQueue({ type: "inventory_item_full_patch", itemId: editItem.id, data: { ...patchData } });
         setModalOpen(false);
@@ -414,6 +459,8 @@ export function InventoryTable() {
           sale_price: Number(form.sale_price) || 0,
           min_quantity_enabled: form.min_quantity_enabled,
           min_quantity: form.min_quantity_enabled ? Number(form.min_quantity) || 0 : 0,
+          has_expiry: form.has_expiry,
+          expiry_date: form.has_expiry && form.expiry_date.trim() ? form.expiry_date.trim() : null,
         };
         addToQueue({ type: "create_inventory_item", data: createData });
         setModalOpen(false);
@@ -444,7 +491,7 @@ export function InventoryTable() {
         alert(err.error || "فشل في الحذف");
         return;
       }
-      fetchItems({ page, search: searchDebounced });
+      fetchItems({ page, search: searchDebounced, expiry: expiryFilter });
       fetchLowStock();
       setDeleteConfirm(null);
     } catch (err) {
@@ -500,6 +547,41 @@ export function InventoryTable() {
         </div>
       )}
 
+      {expiryAlerts.length > 0 && (
+        <div className="mb-6 bg-rose-50 dark:bg-rose-900/25 border border-rose-200 dark:border-rose-800 rounded-xl p-4">
+          <h3 className="font-medium mb-2 flex items-center gap-2">
+            <span className="w-2 h-2 rounded-full bg-rose-500" />
+            <span className="text-rose-800 dark:text-rose-200">
+              تنبيه صلاحية: أصناف منتهية أو تنتهي خلال 30 يوماً ({expiryAlerts.length}) — للاطلاع فقط
+            </span>
+          </h3>
+          <div className="flex flex-wrap gap-2">
+            {expiryAlerts.map((item) => (
+              <Link
+                key={item.id}
+                href={`/admin/inventory/${item.id}`}
+                className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-lg border text-sm transition ${
+                  item.expired
+                    ? "bg-white dark:bg-gray-800 border-rose-300 dark:border-rose-700 text-rose-900 dark:text-rose-100"
+                    : "bg-white dark:bg-gray-800 border-amber-200 dark:border-amber-800 text-amber-900 dark:text-amber-100"
+                }`}
+              >
+                <span>{item.name}</span>
+                <span className="font-mono text-xs opacity-90" dir="ltr">
+                  {item.expiry_date}
+                </span>
+                {item.quantity > 0 && (
+                  <span className="text-xs opacity-75">
+                    كمية: {item.quantity}
+                  </span>
+                )}
+                {item.expired && <span className="text-xs font-medium">منتهٍ</span>}
+              </Link>
+            ))}
+          </div>
+        </div>
+      )}
+
       {approachingLimitItems.length > 0 && (
         <div className="mb-6 bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-700 rounded-xl p-4">
           <h3 className="font-medium mb-2 flex items-center gap-2">
@@ -532,6 +614,17 @@ export function InventoryTable() {
               onChange={setCategoryFilter}
               className="w-44"
             />
+            <select
+              value={expiryFilter}
+              onChange={(e) => setExpiryFilter(e.target.value)}
+              className="px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 text-sm w-48"
+              aria-label="فلتر الصلاحية"
+            >
+              <option value="">كل الأصناف</option>
+              <option value="tracked">له صلاحية (مسجّل)</option>
+              <option value="soon">ينتهي خلال 30 يوماً</option>
+              <option value="expired">منتهٍ الصلاحية</option>
+            </select>
             <input
               type="search"
               autoComplete="off"
@@ -554,7 +647,7 @@ export function InventoryTable() {
 
         <div className="overflow-x-auto">
           {showFullTableSkeleton ? (
-            <TableSkeleton rows={10} cols={8} />
+            <TableSkeleton rows={10} cols={9} />
           ) : (
             <>
           <table className="w-full">
@@ -565,6 +658,7 @@ export function InventoryTable() {
                 <th className="text-right px-4 py-3 text-sm font-medium text-gray-600 dark:text-gray-300">الباركود</th>
                 <th className="text-right px-4 py-3 text-sm font-medium text-gray-600 dark:text-gray-300">القسم</th>
                 <th className="text-right px-4 py-3 text-sm font-medium text-gray-600 dark:text-gray-300">الكمية</th>
+                <th className="text-right px-4 py-3 text-sm font-medium text-gray-600 dark:text-gray-300">الصلاحية</th>
                 <th className="text-right px-4 py-3 text-sm font-medium text-gray-600 dark:text-gray-300">الحد الأدنى</th>
                 <th className="text-right px-4 py-3 text-sm font-medium text-gray-600 dark:text-gray-300">سعر البيع</th>
                 <th className="text-right px-4 py-3 text-sm font-medium text-gray-600 dark:text-gray-300">إجراءات</th>
@@ -573,7 +667,7 @@ export function InventoryTable() {
             <tbody>
               {items.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="px-4 py-12 text-center text-gray-500 dark:text-gray-400">
+                  <td colSpan={9} className="px-4 py-12 text-center text-gray-500 dark:text-gray-400">
                     {searchDebounced ? "لا توجد نتائج للبحث. جرّب كلمات أخرى." : "لا توجد أصناف. اضغط \"إضافة صنف جديد\" للبدء."}
                   </td>
                 </tr>
@@ -656,6 +750,22 @@ export function InventoryTable() {
                       <span className={item.min_quantity > 0 && item.quantity < item.min_quantity ? "text-amber-600 dark:text-amber-400 font-medium" : "text-gray-900 dark:text-gray-100"}>
                         {item.quantity}
                       </span>
+                    </td>
+                    <td className="px-4 py-3 text-sm">
+                      {(() => {
+                        const st = expiryUiStatus(Boolean(item.has_expiry), item.expiry_date ?? null);
+                        const label = formatExpiryArLabel(st, item.expiry_date ?? null);
+                        if (st === "none" || !label) {
+                          return <span className="text-gray-400">—</span>;
+                        }
+                        const cls =
+                          st === "expired"
+                            ? "text-rose-700 dark:text-rose-300 font-medium"
+                            : st === "soon"
+                              ? "text-amber-700 dark:text-amber-300"
+                              : "text-gray-600 dark:text-gray-400";
+                        return <span className={cls}>{label}</span>;
+                      })()}
                     </td>
                     <td className="px-4 py-3 text-sm">
                       {editingCell?.itemId === item.id && editingCell?.field === "min_quantity" ? (
@@ -878,6 +988,33 @@ export function InventoryTable() {
                   />
                   <span className="text-sm font-medium text-gray-700">تفعيل تنبيه الحد الأدنى</span>
                 </label>
+              </div>
+
+              <div className="rounded-lg border border-gray-200 dark:border-gray-600 p-3 space-y-2">
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={form.has_expiry}
+                    onChange={(e) => setForm((f) => ({ ...f, has_expiry: e.target.checked, expiry_date: e.target.checked ? f.expiry_date : "" }))}
+                    className="rounded border-gray-300 text-emerald-600 focus:ring-emerald-500"
+                  />
+                  <span className="text-sm font-medium text-gray-700 dark:text-gray-300">تتبع تاريخ صلاحية (اختياري — تنبيه فقط)</span>
+                </label>
+                {form.has_expiry && (
+                  <div>
+                    <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">تاريخ انتهاء الصلاحية</label>
+                    <input
+                      type="date"
+                      value={form.expiry_date}
+                      onChange={(e) => setForm((f) => ({ ...f, expiry_date: e.target.value }))}
+                      className={inputClass}
+                      dir="ltr"
+                    />
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                      لا يمنع البيع تلقائياً؛ يظهر تنبيه في المخزن عند الاقتراب أو الانتهاء.
+                    </p>
+                  </div>
+                )}
               </div>
 
               {form.min_quantity_enabled && (

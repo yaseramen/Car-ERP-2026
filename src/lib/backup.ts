@@ -353,8 +353,8 @@ export async function restoreBackup(
       for (const row of data.items as Record<string, unknown>[]) {
         const id = mapId(row.id as string) ?? (row.id as string);
         await db.execute({
-          sql: `INSERT OR REPLACE INTO items (id, company_id, name, code, barcode, category, unit, purchase_price, sale_price, min_quantity, is_active, created_at, updated_at)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          sql: `INSERT OR REPLACE INTO items (id, company_id, name, code, barcode, category, unit, purchase_price, sale_price, min_quantity, has_expiry, expiry_date, is_active, created_at, updated_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
           args: [
             id,
             companyId,
@@ -366,6 +366,8 @@ export async function restoreBackup(
             Number(row.purchase_price ?? 0),
             Number(row.sale_price ?? 0),
             Number(row.min_quantity ?? 0),
+            Number(row.has_expiry ?? 0),
+            toInValue(row.expiry_date),
             Number(row.is_active ?? 1),
             String(row.created_at ?? new Date().toISOString()),
             String(row.updated_at ?? new Date().toISOString()),

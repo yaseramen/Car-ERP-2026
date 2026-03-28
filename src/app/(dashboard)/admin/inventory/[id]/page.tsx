@@ -6,6 +6,7 @@ import { getCompanyId } from "@/lib/company";
 import { canAccess } from "@/lib/permissions";
 import { EditMinQuantity } from "./edit-min-quantity";
 import { PrintBarcodeButton } from "./print-barcode-button";
+import { expiryUiStatus, formatExpiryArLabel } from "@/lib/item-expiry";
 
 export default async function ItemReportPage({
   params,
@@ -33,6 +34,11 @@ export default async function ItemReportPage({
     if (itemResult.rows.length === 0) notFound();
 
     const row = itemResult.rows[0];
+    const hasExpiry = Number(row.has_expiry ?? 0) === 1;
+    const expiryDate = row.expiry_date ? String(row.expiry_date) : null;
+    const expiryStatus = expiryUiStatus(hasExpiry, expiryDate);
+    const expiryLabel = formatExpiryArLabel(expiryStatus, expiryDate);
+
     const item = {
       name: String(row.name ?? ""),
       code: row.code ? String(row.code) : null,
@@ -43,6 +49,10 @@ export default async function ItemReportPage({
       sale_price: Number(row.sale_price ?? 0),
       min_quantity: Number(row.min_quantity ?? 0),
       total_quantity: Number(row.total_quantity ?? 0),
+      has_expiry: hasExpiry,
+      expiry_date: expiryDate,
+      expiry_label: expiryLabel,
+      expiry_status: expiryStatus,
       created_at: row.created_at,
       updated_at: row.updated_at,
     };
@@ -148,6 +158,26 @@ export default async function ItemReportPage({
               <div className="flex justify-between">
                 <dt className="text-gray-500">الوحدة</dt>
                 <dd className="text-gray-900">{item.unit || "قطعة"}</dd>
+              </div>
+              <div className="flex justify-between items-start gap-2">
+                <dt className="text-gray-500 shrink-0">الصلاحية</dt>
+                <dd className="text-gray-900 text-left">
+                  {item.expiry_label ? (
+                    <span
+                      className={
+                        item.expiry_status === "expired"
+                          ? "text-rose-600 dark:text-rose-400 font-medium"
+                          : item.expiry_status === "soon"
+                            ? "text-amber-600 dark:text-amber-400"
+                            : ""
+                      }
+                    >
+                      {item.expiry_label}
+                    </span>
+                  ) : (
+                    "—"
+                  )}
+                </dd>
               </div>
               <div className="flex justify-between">
                 <dt className="text-gray-500">سعر البيع</dt>

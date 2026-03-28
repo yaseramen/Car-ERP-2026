@@ -102,6 +102,8 @@ export type QueuedOp =
         sale_price?: number;
         min_quantity_enabled?: boolean;
         min_quantity?: number;
+        has_expiry?: boolean;
+        expiry_date?: string | null;
       };
     }
   | { type: "edit_customer"; customerId: string; data: { name: string; phone?: string | null; email?: string | null; address?: string | null; notes?: string | null } }
@@ -125,6 +127,8 @@ export type QueuedOp =
         sale_price?: number;
         min_quantity?: number;
         min_quantity_enabled?: boolean;
+        has_expiry?: boolean;
+        expiry_date?: string | null;
       };
     }
   | { type: "submit_feedback"; data: { type: string; subject: string; message: string } }
