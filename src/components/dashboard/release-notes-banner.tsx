@@ -5,6 +5,20 @@ import Link from "next/link";
 
 const SEEN_KEY = "alameen-release-notifs-seen";
 
+function releaseNotificationIdsFromPayload(data: unknown): string[] {
+  if (!data || typeof data !== "object" || !("notifications" in data)) return [];
+  const raw = (data as { notifications?: unknown }).notifications;
+  if (!Array.isArray(raw)) return [];
+  const ids: string[] = [];
+  for (const n of raw) {
+    if (n && typeof n === "object" && "id" in n) {
+      const id = (n as { id?: unknown }).id;
+      if (typeof id === "string" && id.length > 0) ids.push(id);
+    }
+  }
+  return ids;
+}
+
 function getSeenIds(): Set<string> {
   try {
     const s = localStorage.getItem(SEEN_KEY);
@@ -61,11 +75,7 @@ export function ReleaseNotesBanner() {
     fetch("/api/admin/help/release-notifications")
       .then((r) => (r.ok ? r.json() : null))
       .then((data) => {
-        const list = Array.isArray(data?.notifications) ? data.notifications : [];
-        const ids = list
-          .map((n: { id?: string }) => n.id)
-          .filter((x: string | undefined): x is string => typeof x === "string");
-        markSeen(ids);
+        markSeen(releaseNotificationIdsFromPayload(data));
         setOpen(false);
         setCount(0);
       })
@@ -90,12 +100,7 @@ export function ReleaseNotesBanner() {
             fetch("/api/admin/help/release-notifications")
               .then((r) => (r.ok ? r.json() : null))
               .then((data) => {
-                const list = Array.isArray(data?.notifications) ? data.notifications : [];
-                markSeen(
-                  list
-                    .map((n: { id?: string }) => n.id)
-                    .filter((x: string | undefined): x is string => typeof x === "string")
-                );
+                markSeen(releaseNotificationIdsFromPayload(data));
               })
               .catch(() => {});
           }}
