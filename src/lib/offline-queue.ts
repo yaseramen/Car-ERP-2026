@@ -169,10 +169,20 @@ function loadQueue(): QueuedItem[] {
   }
 }
 
+function notifyQueueChanged() {
+  if (typeof window === "undefined") return;
+  try {
+    window.dispatchEvent(new CustomEvent("alameen-queue-changed"));
+  } catch {
+    /* ignore */
+  }
+}
+
 function saveQueue(items: QueuedItem[]) {
   if (typeof window === "undefined") return;
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(items));
+    notifyQueueChanged();
   } catch {}
 }
 
@@ -212,6 +222,7 @@ export async function processQueue(
       failed++;
     }
   }
+  notifyQueueChanged();
   return { processed, failed };
 }
 
@@ -364,10 +375,32 @@ export async function executeQueuedOpDefault(item: QueuedItem): Promise<boolean>
       return false;
   }
 
-  const res = await fetch(url, {
-    method,
-    headers: { "Content-Type": "application/json" },
-    body,
-  });
-  return res.ok;
+  const timeoutMs = 35_000;
+  const maxAttempts = 3;
+
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    const controller = new AbortController();
+    const timer = window.setTimeout(() => controller.abort(), timeoutMs);
+    try {
+      const res = await fetch(url, {
+        method,
+        headers: { "Content-Type": "application/json" },
+        body,
+        signal: controller.signal,
+      });
+      window.clearTimeout(timer);
+      if (res.ok) return true;
+      if (res.status >= 400 && res.status < 500 && res.status !== 408 && res.status !== 429) {
+        return false;
+      }
+      if (attempt < maxAttempts) {
+        await new Promise((r) => setTimeout(r, 800 * attempt));
+      }
+    } catch {
+      window.clearTimeout(timer);
+      if (attempt === maxAttempts) return false;
+      await new Promise((r) => setTimeout(r, 800 * attempt));
+    }
+  }
+  return false;
 }
