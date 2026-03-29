@@ -7,6 +7,14 @@ const STORAGE_KEY = "efct-barcode-label-preset";
 /** مقاسات شائعة + ما يقابلها في نافذة Chrome (مثل 2 x 4) */
 export const LABEL_PRESETS = [
   {
+    id: "20x30mm",
+    label: "20 × 30 مم (ملصق صغير)",
+    pageCss: "20mm 30mm",
+    wMm: 20,
+    hMm: 30,
+    chromeHint: "حجم مخصص 20×30 مم في الطابعة؛ مساحة ضيقة — قد يُصغَّر النص والباركود تلقائياً.",
+  },
+  {
     id: "40x30mm",
     label: "40 × 30 مم",
     pageCss: "40mm 30mm",
