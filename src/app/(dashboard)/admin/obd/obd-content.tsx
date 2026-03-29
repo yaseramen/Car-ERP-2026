@@ -967,7 +967,9 @@ export function ObdContent({ isSuperAdmin = false }: { isSuperAdmin?: boolean })
 
           {!analyzeResults.integrated_analysis && analyzeResults.codesFound >= 1 && (
             <p className="text-xs text-gray-500 dark:text-gray-400 no-print">
-              إذا لم يظهر «تحليل موحّد للتقرير»، تأكد من تفعيل GEMINI_API_KEY في الخادم — لا تكلفة إضافية على المحفظة.
+              «التحليل الموحّد» يُنشأ بالذكاء الاصطناعي (يربط الأكواد معاً) وليس من القاعدة وحدها. فعّل{" "}
+              <strong className="text-gray-700 dark:text-gray-300">GEMINI_API_KEY</strong> أو{" "}
+              <strong className="text-gray-700 dark:text-gray-300">GROQ_API_KEY</strong> في الخادم — لا تكلفة إضافية على المحفظة.
             </p>
           )}
           {analyzeResults.integrated_analysis && (

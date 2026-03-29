@@ -174,16 +174,8 @@ export type VehicleContextForIntegrated = {
   year?: number;
 };
 
-export async function analyzeIntegratedObdReport(
-  results: ObdResult[],
-  vehicle?: VehicleContextForIntegrated
-): Promise<IntegratedAnalysis | null> {
-  if (results.length === 0) return null;
-
-  const apiKey = process.env.GEMINI_API_KEY;
-  if (!apiKey) return null;
-
-  const payload = JSON.stringify(
+function buildIntegratedPayload(results: ObdResult[], vehicle?: VehicleContextForIntegrated): string {
+  return JSON.stringify(
     {
       vehicle:
         vehicle && (vehicle.brand_ar || vehicle.model_ar || vehicle.year != null)
@@ -204,10 +196,10 @@ export async function analyzeIntegratedObdReport(
     null,
     0
   );
+}
 
-  const prompt = INTEGRATED_PROMPT.replace("{payload}", payload);
+async function analyzeIntegratedWithGemini(prompt: string, apiKey: string): Promise<IntegratedAnalysis | null> {
   const models = ["gemini-2.0-flash", "gemini-1.5-flash", "gemini-2.5-flash"];
-
   for (const model of models) {
     try {
       const res = await fetch(
@@ -235,8 +227,65 @@ export async function analyzeIntegratedObdReport(
       const normalized = normalizeIntegrated(parsed);
       if (normalized) return normalized;
     } catch {
-      // try next model
+      continue;
     }
+  }
+  return null;
+}
+
+async function analyzeIntegratedWithGroq(prompt: string, apiKey: string): Promise<IntegratedAnalysis | null> {
+  const models = ["llama-3.3-70b-versatile", "llama-3.1-8b-instant"];
+  const system = `${fullObdSystemPersona(WORKSHOP_PERSONA)}\n\nأجب بالعربية فقط. JSON صالح فقط بدون markdown أو تعليقات.`;
+  for (const model of models) {
+    try {
+      const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${apiKey}`,
+        },
+        body: JSON.stringify({
+          model,
+          messages: [
+            { role: "system", content: system },
+            { role: "user", content: prompt },
+          ],
+          temperature: 0.25,
+        }),
+      });
+      if (!res.ok) continue;
+      const data = await res.json();
+      const text = data.choices?.[0]?.message?.content ?? "";
+      const parsed = safeJsonParse<unknown>(text);
+      const normalized = normalizeIntegrated(parsed);
+      if (normalized) return normalized;
+    } catch {
+      continue;
+    }
+  }
+  return null;
+}
+
+export async function analyzeIntegratedObdReport(
+  results: ObdResult[],
+  vehicle?: VehicleContextForIntegrated
+): Promise<IntegratedAnalysis | null> {
+  if (results.length === 0) return null;
+
+  const geminiKey = process.env.GEMINI_API_KEY;
+  const groqKey = process.env.GROQ_API_KEY;
+  if (!geminiKey && !groqKey) return null;
+
+  const payload = buildIntegratedPayload(results, vehicle);
+  const prompt = INTEGRATED_PROMPT.replace("{payload}", payload);
+
+  if (geminiKey) {
+    const g = await analyzeIntegratedWithGemini(prompt, geminiKey);
+    if (g) return g;
+  }
+  if (groqKey) {
+    const gq = await analyzeIntegratedWithGroq(prompt, groqKey);
+    if (gq) return gq;
   }
   return null;
 }
