@@ -363,8 +363,8 @@ export function BarcodeLabelPrint({
   };
 
   return (
-    <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/50" dir="rtl">
-      <div ref={containerRef} className="bg-white dark:bg-gray-800 rounded-xl shadow-xl w-full max-w-sm p-6">
+    <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/50 overflow-y-auto" dir="rtl">
+      <div ref={containerRef} className="bg-white dark:bg-gray-800 rounded-xl shadow-xl w-full max-w-lg p-6 my-4">
         <h3 className="font-bold text-gray-900 dark:text-gray-100 mb-3">طباعة ملصق الباركود</h3>
 
         <div className="mb-4">
@@ -407,6 +407,30 @@ export function BarcodeLabelPrint({
         <p className="text-sm text-gray-500 dark:text-gray-400 mt-3">
           يُحفظ اختيار المقاس على هذا الجهاز للمرة القادمة.
         </p>
+
+        <details className="mt-4 rounded-lg border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-900/50 text-right">
+          <summary className="cursor-pointer px-3 py-2 text-sm font-medium text-gray-800 dark:text-gray-200">
+            طابعات Xprinter (حرارية) — ضبط الإعدادات
+          </summary>
+          <div className="px-3 pb-3 pt-0 text-xs text-gray-700 dark:text-gray-300 leading-relaxed space-y-2 border-t border-gray-200 dark:border-gray-600">
+            <p>
+              <strong>1) عرض الرول:</strong> كثير من Xprinter إما <strong>رول 58 مم</strong> أو <strong>80 مم</strong>. اختر في البرنامج مقاساً يطابق <strong>عرض الملصق الفعلي</strong> (مثلاً عرض 58 مم → جرّب «58 × 40 مم»؛ ملصق 20×30 مم قد لا يكون مناسباً لرول 58 إن كان الملصق أوسع من الرول).
+            </p>
+            <p>
+              <strong>2) ويندوز:</strong> الإعدادات ← الطابعات ← اختر Xprinter ← خصائص الطابعة ← إعدادات الطباعة ← تبويب <strong>الورق</strong> أو <strong>Page</strong> أو <strong>الحجم</strong> ← حدّد <strong>حجم مخصص</strong> بنفس مقاس الملصق بالميليمتر (مثل 40×30 أو 58×40) إن وُجد. فعّل <strong>«طباعة حجم الملصق الفعلي»</strong> أو ما يشبهه إن ظهر.
+            </p>
+            <p>
+              <strong>3) نافذة الطباعة (Chrome/Edge):</strong> عطّل <strong>رأس وتذييل الصفحة</strong>؛ الهوامش <strong>لا شيء</strong>؛ الحجم <strong>100%</strong> وليس «ملاءمة للصفحة»؛ اختر الطابعة ثم <strong>المزيد من الإعدادات</strong> واضبط <strong>حجم الورق</strong> = مقاس الملصق أو «مخصص».
+            </p>
+            <p>
+              <strong>4) إذا كان الباركود مضغوطاً أو ممتداً:</strong> جرّب مقاساً أوسع قليلاً من القائمة، أو غيّر من Chrome إلى <strong>Edge</strong> (أو العكس) — أحياناً تختلف معاينة الطباعة.
+            </p>
+            <p>
+              <strong>5) التعريف:</strong> من موقع Xprinter أو القرص المرفق ثبّت تعريف <strong>Windows</strong> للطراز (مثل XP-365B) بدل «Generic Text» إن أمكن — يحسّن التحكم بالمقاس.
+            </p>
+          </div>
+        </details>
+
         <div className="flex gap-3 mt-6">
           <button
             type="button"
