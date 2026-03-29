@@ -7,10 +7,14 @@ export function PrintBarcodeButton({
   barcode,
   itemName,
   salePrice,
+  hasExpiry,
+  expiryDate,
 }: {
   barcode: string;
   itemName: string;
   salePrice?: number;
+  hasExpiry?: boolean;
+  expiryDate?: string | null;
 }) {
   const [showPrint, setShowPrint] = useState(false);
 
@@ -30,6 +34,8 @@ export function PrintBarcodeButton({
           barcode={barcode}
           itemName={itemName}
           salePrice={salePrice}
+          hasExpiry={hasExpiry}
+          expiryDate={expiryDate}
           onClose={() => setShowPrint(false)}
         />
       )}

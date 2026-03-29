@@ -45,6 +45,8 @@ export function InventoryTable() {
     barcode: string;
     itemName: string;
     salePrice?: number;
+    hasExpiry?: boolean;
+    expiryDate?: string | null;
   } | null>(null);
   const [categories, setCategories] = useState<string[]>([]);
   const [units, setUnits] = useState<string[]>([]);
@@ -694,6 +696,8 @@ export function InventoryTable() {
                                 barcode: item.barcode!.trim(),
                                 itemName: item.name,
                                 salePrice: item.sale_price,
+                                hasExpiry: Boolean(item.has_expiry),
+                                expiryDate: item.expiry_date ?? null,
                               })
                             }
                             className="shrink-0 px-2 py-0.5 text-xs font-medium rounded-md bg-emerald-100 dark:bg-emerald-900/50 text-emerald-800 dark:text-emerald-200 hover:bg-emerald-200 dark:hover:bg-emerald-800/70 border border-emerald-200 dark:border-emerald-700"
@@ -914,6 +918,8 @@ export function InventoryTable() {
                           barcode: form.barcode.trim(),
                           itemName: form.name || "صنف",
                           salePrice: Number(form.sale_price) || 0,
+                          hasExpiry: form.has_expiry,
+                          expiryDate: form.expiry_date?.trim() || null,
                         })
                       }
                       className="px-4 py-2.5 bg-emerald-100 dark:bg-emerald-900/50 hover:bg-emerald-200 dark:hover:bg-emerald-800/70 text-emerald-800 dark:text-emerald-200 rounded-lg transition shrink-0"
@@ -1118,6 +1124,8 @@ export function InventoryTable() {
           barcode={barcodePrint.barcode}
           itemName={barcodePrint.itemName}
           salePrice={barcodePrint.salePrice}
+          hasExpiry={barcodePrint.hasExpiry}
+          expiryDate={barcodePrint.expiryDate}
           onClose={() => setBarcodePrint(null)}
         />
       )}
