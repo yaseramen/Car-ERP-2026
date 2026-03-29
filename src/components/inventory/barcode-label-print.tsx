@@ -143,7 +143,7 @@ export function BarcodeLabelPrint({
     const isTiny = preset.wMm <= 22 && preset.hMm <= 35;
     const isSmall = shortSide < 45;
     const barHeight = isTiny
-      ? Math.max(14, Math.min(22, Math.round(preset.hMm * 2.8)))
+      ? Math.max(11, Math.min(16, Math.round(preset.hMm * 1.9)))
       : isSmall
         ? Math.max(22, Math.min(40, Math.round(shortSide * 2.2)))
         : Math.round(Math.min(70, Math.max(28, shortSide * 1.1)));
@@ -186,6 +186,18 @@ export function BarcodeLabelPrint({
   }, [barcode, barcodeOpts]);
 
   const handlePrint = () => {
+    const hintKey = "efct-print-headers-dismissed";
+    try {
+      if (localStorage.getItem(hintKey) !== "1") {
+        const ok = window.confirm(
+          "مهم: في نافذة الطباعة عطّل «رأس وتذييل الصفحة» (Headers and footers).\n\nوإلا يظهر التاريخ والرابط (مثل car.../admin) على الملصق — هذا من المتصفح وليس من البرنامج.\n\nاضغط موافق للمتابعة."
+        );
+        if (!ok) return;
+        localStorage.setItem(hintKey, "1");
+      }
+    } catch {
+      /* ignore */
+    }
     const content = containerRef.current;
     if (!content) return;
     const svgEl = content.querySelector("svg");
@@ -202,9 +214,9 @@ export function BarcodeLabelPrint({
         : "";
 
     const isTiny = preset.wMm <= 22 && preset.hMm <= 35;
-    const nameFont = isTiny ? 5 : Math.min(9, Math.max(5, preset.hMm / 5));
-    const priceFont = isTiny ? 6 : Math.min(11, Math.max(7, preset.hMm / 4.5));
-    const expiryFont = isTiny ? 4.5 : Math.min(8, Math.max(5, preset.hMm / 6));
+    const nameFont = isTiny ? 4.5 : Math.min(9, Math.max(5, preset.hMm / 5));
+    const priceFont = isTiny ? 5.5 : Math.min(11, Math.max(7, preset.hMm / 4.5));
+    const expiryFont = isTiny ? 4 : Math.min(8, Math.max(5, preset.hMm / 6));
 
     const w = preset.pageCss.split(/\s+/)[0];
     const h = preset.pageCss.split(/\s+/)[1] ?? preset.pageCss.split(/\s+/)[0];
@@ -228,6 +240,8 @@ export function BarcodeLabelPrint({
       font-family: Arial, "Segoe UI", Tahoma, sans-serif;
       -webkit-print-color-adjust: exact;
       print-color-adjust: exact;
+      page-break-inside: avoid;
+      break-inside: avoid;
     }
     body {
       display: flex;
@@ -239,11 +253,11 @@ export function BarcodeLabelPrint({
       height: ${h};
       max-width: ${w};
       max-height: ${h};
-      padding: ${isTiny ? "0.4mm 0.6mm" : "0.8mm 1mm"};
+      padding: ${isTiny ? "0.25mm 0.4mm" : "0.8mm 1mm"};
       display: flex;
       flex-direction: column;
       align-items: center;
-      justify-content: flex-start;
+      justify-content: space-between;
       text-align: center;
       overflow: hidden;
     }
@@ -278,10 +292,13 @@ export function BarcodeLabelPrint({
       max-width: 100%;
       width: 100%;
       height: auto;
-      max-height: ${isTiny ? "38%" : "44%"};
+      max-height: ${isTiny ? "30%" : "44%"};
       display: block;
       flex-shrink: 1;
       min-height: 0;
+    }
+    @media print {
+      html, body { height: ${h} !important; max-height: ${h} !important; overflow: hidden !important; }
     }
   </style>
 </head>
@@ -294,6 +311,9 @@ export function BarcodeLabelPrint({
   </div>
 </body>
 </html>`;
+
+    const blob = new Blob([html], { type: "text/html;charset=utf-8" });
+    const blobUrl = URL.createObjectURL(blob);
 
     const iframe = document.createElement("iframe");
     iframe.setAttribute("aria-hidden", "true");
@@ -309,34 +329,37 @@ export function BarcodeLabelPrint({
       pointerEvents: "none",
     });
     document.body.appendChild(iframe);
-    const doc = iframe.contentDocument;
-    if (!doc) {
-      document.body.removeChild(iframe);
-      alert("تعذر فتح نافذة الطباعة.");
-      return;
-    }
-    doc.open();
-    doc.write(html);
-    doc.close();
+
+    const cleanup = () => {
+      try {
+        URL.revokeObjectURL(blobUrl);
+        document.body.removeChild(iframe);
+      } catch {
+        /* ignore */
+      }
+    };
+
+    let didPrint = false;
     const runPrint = () => {
+      if (didPrint) return;
+      didPrint = true;
       try {
         iframe.contentWindow?.focus();
         iframe.contentWindow?.print();
       } finally {
-        window.setTimeout(() => {
-          try {
-            document.body.removeChild(iframe);
-          } catch {
-            /* ignore */
-          }
-        }, 1500);
+        window.setTimeout(cleanup, 2000);
       }
     };
-    if (iframe.contentWindow?.document.readyState === "complete") {
-      window.setTimeout(runPrint, 100);
-    } else {
-      iframe.onload = () => window.setTimeout(runPrint, 100);
-    }
+
+    iframe.onload = () => window.setTimeout(runPrint, 80);
+    iframe.onerror = () => {
+      cleanup();
+      alert("تعذر تحضير الطباعة.");
+    };
+    iframe.src = blobUrl;
+    window.setTimeout(() => {
+      if (!didPrint && iframe.contentDocument?.readyState === "complete") runPrint();
+    }, 400);
   };
 
   return (
@@ -362,7 +385,7 @@ export function BarcodeLabelPrint({
           </select>
           <p className="text-xs text-gray-500 dark:text-gray-400 mt-2 leading-relaxed">{preset.chromeHint}</p>
           <p className="text-xs text-amber-800 dark:text-amber-200 mt-2">
-            في Chrome: عطّل «رأس وتذييل الصفحة» في نافذة الطباعة (غالباً أسفل «المزيد من الإعدادات») — وإلا يظهر التاريخ وعنوان الصفحة على الملصق. اضبط الهوامش على «لا شيء» واختر نفس مقاس الملصق.
+            التاريخ والرابط (مثل الموقع) يأتيان من المتصفح إذا بقي «رأس وتذييل الصفحة» مفعّلاً — عطّله في نافذة الطباعة (Chrome/Edge: More settings → Headers and footers). الهوامش: لا شيء، وحجم الورق = مقاس الملصق.
           </p>
         </div>
 
