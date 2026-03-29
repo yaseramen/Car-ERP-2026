@@ -39,6 +39,14 @@ export const LABEL_PRESETS = [
     chromeHint: "حجم مخصص 80×50 مم",
   },
   {
+    id: "2x3in",
+    label: "2 × 3 بوصة (طابعة حرارية)",
+    pageCss: "2in 3in",
+    wMm: 50.8,
+    hMm: 76.2,
+    chromeHint: "يطابق «2 x 3» في حجم الورق؛ أو حجم مخصص 2×3 بوصة (عرض×ارتفاع).",
+  },
+  {
     id: "2x4in",
     label: "2 × 4 بوصة (4×2) — كما في Chrome",
     pageCss: "4in 2in",
