@@ -64,6 +64,9 @@ export async function POST(request: Request) {
   if (!session?.user || !companyId || !ALLOWED_ROLES.includes(session.user.role as (typeof ALLOWED_ROLES)[number])) {
     return NextResponse.json({ error: "غير مصرح" }, { status: 401 });
   }
+  if (session.user.role !== "super_admin") {
+    return NextResponse.json({ error: "إضافة أكواد إلى قاعدة OBD — للمدير العام فقط" }, { status: 403 });
+  }
   const body = await request.json();
   const code = body.code?.trim().toUpperCase();
   if (!code) return NextResponse.json({ error: "الكود مطلوب" }, { status: 400 });

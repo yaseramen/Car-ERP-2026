@@ -27,7 +27,7 @@ export default async function ObdPage() {
         </p>
       </div>
 
-      <ObdContent />
+      <ObdContent isSuperAdmin={session.user.role === "super_admin"} />
     </div>
   );
 }

@@ -46,7 +46,7 @@ type IntegratedAnalysis = {
   disclaimer_ar: string;
 };
 
-export function ObdContent() {
+export function ObdContent({ isSuperAdmin = false }: { isSuperAdmin?: boolean }) {
   const [mode, setMode] = useState<"search" | "upload" | "manualBatch" | "description" | "liveData" | "manage" | "logs">("search");
   const [code, setCode] = useState("");
   const [loading, setLoading] = useState(false);
@@ -90,6 +90,12 @@ export function ObdContent() {
       .then((d) => setAiStatus({ aiAvailable: d.aiAvailable, message: d.message, providers: d.providers }))
       .catch(() => setAiStatus({ aiAvailable: false, message: "تعذر التحقق" }));
   }, []);
+
+  useEffect(() => {
+    if (!isSuperAdmin && (mode === "manage" || mode === "logs")) {
+      setMode("search");
+    }
+  }, [isSuperAdmin, mode]);
 
   const handlePrintObdAnalysis = useCallback(() => {
     document.body.classList.add("obd-printing-root");
@@ -493,24 +499,28 @@ export function ObdContent() {
         >
           قراءات حية / لقطة سكانر
         </button>
-        <button
-          type="button"
-          onClick={() => setMode("manage")}
-          className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-            mode === "manage" ? "bg-emerald-600 text-white" : "bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600"
-          }`}
-        >
-          إدارة قاعدة البيانات
-        </button>
-        <button
-          type="button"
-          onClick={() => setMode("logs")}
-          className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-            mode === "logs" ? "bg-emerald-600 text-white" : "bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600"
-          }`}
-        >
-          سجلات التحليل
-        </button>
+        {isSuperAdmin && (
+          <>
+            <button
+              type="button"
+              onClick={() => setMode("manage")}
+              className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+                mode === "manage" ? "bg-emerald-600 text-white" : "bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600"
+              }`}
+            >
+              إدارة قاعدة البيانات
+            </button>
+            <button
+              type="button"
+              onClick={() => setMode("logs")}
+              className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+                mode === "logs" ? "bg-emerald-600 text-white" : "bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600"
+              }`}
+            >
+              سجلات التحليل
+            </button>
+          </>
+        )}
       </div>
 
       {mode === "search" && (
@@ -791,9 +801,9 @@ export function ObdContent() {
         </div>
       )}
 
-      {mode === "manage" && <ObdManage inputClass={inputClass} />}
+      {isSuperAdmin && mode === "manage" && <ObdManage inputClass={inputClass} />}
 
-      {mode === "logs" && <ObdLogs justAnalyzed={!!analyzeResults} />}
+      {isSuperAdmin && mode === "logs" && <ObdLogs justAnalyzed={!!analyzeResults} />}
 
       {mode === "manualBatch" && (
         <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 p-6">
