@@ -5,9 +5,12 @@ import { getCompanyId, isPlatformOwnerCompany } from "@/lib/company";
 import { randomUUID } from "crypto";
 import { fullObdSystemPersona, WORKSHOP_SYSTEM_PERSONA } from "@/lib/obd-ai-context";
 import { LIVE_DATA_ANALYSIS_PROMPT } from "@/lib/obd-live-data-prompt";
+import { transcribeLiveDataFromImage } from "@/lib/obd-live-data-ocr";
 
 const OBD_SEARCH_COST = 1;
 const MAX_LIVE_TEXT = 200_000;
+const MAX_IMAGE_BYTES = 8 * 1024 * 1024;
+const IMAGE_MIMES = new Set(["image/jpeg", "image/jpg", "image/png", "image/webp", "image/gif"]);
 const ALLOWED_ROLES = ["super_admin", "tenant_owner", "employee"] as const;
 
 type DescStep = { priority: number; title: string; detail: string };
@@ -162,23 +165,74 @@ export async function POST(request: Request) {
 
       if (file && file instanceof File && file.size > 0) {
         const name = file.name.toLowerCase();
-        const okExt = name.endsWith(".txt") || name.endsWith(".csv");
-        const okMime =
-          !file.type ||
-          file.type === "text/plain" ||
-          file.type === "text/csv" ||
-          file.type === "application/csv" ||
-          file.type === "application/vnd.ms-excel";
-        if (!okExt && !okMime) {
-          return NextResponse.json({ error: "الملف المدعوم: نص (.txt) أو CSV فقط" }, { status: 400 });
+        const mime = (file.type || "").toLowerCase();
+        const looksImage =
+          mime.startsWith("image/") ||
+          name.endsWith(".jpg") ||
+          name.endsWith(".jpeg") ||
+          name.endsWith(".png") ||
+          name.endsWith(".webp") ||
+          name.endsWith(".gif");
+
+        if (looksImage) {
+          const normalizedMime = mime === "image/jpg" ? "image/jpeg" : mime;
+          const effectiveMime =
+            IMAGE_MIMES.has(normalizedMime)
+              ? normalizedMime === "image/jpg"
+                ? "image/jpeg"
+                : normalizedMime
+              : name.endsWith(".png")
+                ? "image/png"
+                : name.endsWith(".webp")
+                  ? "image/webp"
+                  : name.endsWith(".gif")
+                    ? "image/gif"
+                    : "image/jpeg";
+          if (!mime.startsWith("image/") && !name.match(/\.(jpe?g|png|webp|gif)$/i)) {
+            return NextResponse.json(
+              { error: "صورة القراءات: استخدم JPG أو PNG أو WebP (حتى 8 ميجابايت)" },
+              { status: 400 }
+            );
+          }
+          if (file.size > MAX_IMAGE_BYTES) {
+            return NextResponse.json({ error: "حجم الصورة كبير جداً (الحد 8 ميجابايت)" }, { status: 400 });
+          }
+          const buf = Buffer.from(await file.arrayBuffer());
+          const base64 = buf.toString("base64");
+          const ocrText = await transcribeLiveDataFromImage(base64, effectiveMime);
+          if (!ocrText?.trim()) {
+            return NextResponse.json(
+              {
+                error:
+                  "لم يُستخرج نص واضح من الصورة. تأكد من GEMINI_API_KEY، أو جرّب صورة أوضح، أو انسخ النص يدوياً.",
+              },
+              { status: 400 }
+            );
+          }
+          const ocrBlock = `--- مستخرج من صورة: ${file.name} ---\n${ocrText.trim()}`;
+          liveDataText = pasted ? `${pasted.trim()}\n\n${ocrBlock}` : ocrBlock;
+        } else {
+          const okExt = name.endsWith(".txt") || name.endsWith(".csv");
+          const okMime =
+            !file.type ||
+            file.type === "text/plain" ||
+            file.type === "text/csv" ||
+            file.type === "application/csv" ||
+            file.type === "application/vnd.ms-excel";
+          if (!okExt && !okMime) {
+            return NextResponse.json(
+              { error: "الملف المدعوم: نص (.txt) أو CSV أو صورة JPG/PNG/WebP للقراءات الحية" },
+              { status: 400 }
+            );
+          }
+          if (file.size > MAX_LIVE_TEXT) {
+            return NextResponse.json({ error: `حجم الملف كبير جداً (الحد ${MAX_LIVE_TEXT} حرف)` }, { status: 400 });
+          }
+          const buf = await file.text();
+          liveDataText = pasted
+            ? `${pasted}\n\n--- من الملف: ${file.name} ---\n${buf.trim()}`
+            : `--- من الملف: ${file.name} ---\n${buf.trim()}`;
         }
-        if (file.size > MAX_LIVE_TEXT) {
-          return NextResponse.json({ error: `حجم الملف كبير جداً (الحد ${MAX_LIVE_TEXT} حرف)` }, { status: 400 });
-        }
-        const buf = await file.text();
-        liveDataText = pasted
-          ? `${pasted}\n\n--- من الملف: ${file.name} ---\n${buf.trim()}`
-          : `--- من الملف: ${file.name} ---\n${buf.trim()}`;
       } else {
         liveDataText = pasted;
       }

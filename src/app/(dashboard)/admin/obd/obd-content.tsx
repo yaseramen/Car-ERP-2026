@@ -273,7 +273,7 @@ export function ObdContent() {
   async function handleAnalyzeLiveData(e: React.FormEvent) {
     e.preventDefault();
     if (!liveForm.liveDataText.trim() && !liveFile) {
-      alert("الصق نص القراءات أو اختر ملفاً نصياً/CSV");
+      alert("الصق نص القراءات، أو اختر ملفاً نصياً/CSV، أو صورة شاشة السكانر (JPG/PNG/WebP)");
       return;
     }
 
@@ -719,8 +719,8 @@ export function ObdContent() {
       {mode === "liveData" && (
         <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 p-6">
           <p className="text-gray-600 dark:text-gray-300 mb-4">
-            الصق نص القراءات الحية من السكانر (لصق من التطبيق أو تصدير)، أو ارفع ملف <span className="font-medium">.txt</span> أو{" "}
-            <span className="font-medium">.csv</span> من الجهاز. يُحلّل النص كما ورد دون اختراع أرقام غير موجودة فيه.
+            الصق نص القراءات من السكانر، أو ارفع ملف <span className="font-medium">.txt</span> / <span className="font-medium">.csv</span>، أو{" "}
+            <span className="font-medium">صورة شاشة</span> (لقطة للشاشة بصيغة JPG أو PNG أو WebP — يُستخرج النص تلقائياً ثم يُحلَّل). يُحلّل ما وُجد في النص دون اختراع أرقام غير ظاهرة.
           </p>
           <form onSubmit={handleAnalyzeLiveData} className="space-y-4">
             <div>
@@ -735,11 +735,11 @@ export function ObdContent() {
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">أو ارفع ملف نصي / CSV (اختياري)</label>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">أو ارفع ملف نصي / CSV / صورة شاشة (اختياري)</label>
               <input
                 ref={liveFileInputRef}
                 type="file"
-                accept=".txt,.csv,text/plain,text/csv"
+                accept=".txt,.csv,image/jpeg,image/png,image/webp,image/gif,text/plain,text/csv"
                 className="block w-full text-sm text-gray-600 dark:text-gray-300 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:bg-emerald-50 file:text-emerald-700 dark:file:bg-emerald-900/40 dark:file:text-emerald-200"
                 onChange={(e) => setLiveFile(e.target.files?.[0] ?? null)}
               />
@@ -785,7 +785,7 @@ export function ObdContent() {
               {loading ? "جاري التحليل..." : "تحليل القراءات"}
             </button>
             <p className="text-sm text-gray-500 dark:text-gray-400">
-              تكلفة التحليل: 1 ج.م. إذا كان عندك صورة شاشة فقط (بدون نص قابل للنسخ)، استخدم تبويب «رفع تقرير» (PDF أو صورة).
+              تكلفة التحليل: 1 ج.م. صورة القراءات هنا تُعرَّف نصياً ثم تُحلَّل — للتقارير الطويلة أو PDF استخدم تبويب «رفع تقرير».
             </p>
           </form>
         </div>
