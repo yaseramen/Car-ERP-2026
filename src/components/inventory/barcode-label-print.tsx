@@ -102,6 +102,83 @@ function escapeHtml(s: string) {
   return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 }
 
+/**
+ * Rasterize the JsBarcode SVG to PNG so thermal drivers get bitmap bars
+ * (many ESC/POS stacks mishandle SVG scaling). Falls back to null on failure.
+ */
+function svgBarcodeToPngDataUrl(svg: SVGSVGElement): Promise<string | null> {
+  return new Promise((resolve) => {
+    try {
+      const xml = new XMLSerializer().serializeToString(svg);
+      const blob = new Blob([xml], { type: "image/svg+xml;charset=utf-8" });
+      const objectUrl = URL.createObjectURL(blob);
+      const img = new Image();
+      const revoke = () => {
+        try {
+          URL.revokeObjectURL(objectUrl);
+        } catch {
+          /* ignore */
+        }
+      };
+
+      const resolveDims = (): { w: number; h: number } => {
+        const nw = img.naturalWidth;
+        const nh = img.naturalHeight;
+        if (nw > 0 && nh > 0) return { w: nw, h: nh };
+        try {
+          const b = svg.getBBox();
+          const w = Math.max(1, Math.ceil(b.width));
+          const h = Math.max(1, Math.ceil(b.height));
+          return { w, h };
+        } catch {
+          const r = svg.getBoundingClientRect();
+          return {
+            w: Math.max(1, Math.round(r.width) || 200),
+            h: Math.max(1, Math.round(r.height) || 60),
+          };
+        }
+      };
+
+      img.onload = () => {
+        const { w, h } = resolveDims();
+        const scale = 4;
+        const canvas = document.createElement("canvas");
+        canvas.width = Math.max(1, Math.round(w * scale));
+        canvas.height = Math.max(1, Math.round(h * scale));
+        const ctx = canvas.getContext("2d");
+        if (!ctx) {
+          revoke();
+          resolve(null);
+          return;
+        }
+        ctx.fillStyle = "#ffffff";
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.imageSmoothingEnabled = false;
+        try {
+          ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+        } catch {
+          revoke();
+          resolve(null);
+          return;
+        }
+        revoke();
+        try {
+          resolve(canvas.toDataURL("image/png"));
+        } catch {
+          resolve(null);
+        }
+      };
+      img.onerror = () => {
+        revoke();
+        resolve(null);
+      };
+      img.src = objectUrl;
+    } catch {
+      resolve(null);
+    }
+  });
+}
+
 function expiryLineForLabel(hasExpiry?: boolean, expiryDate?: string | null): string | null {
   if (!hasExpiry || !expiryDate?.trim()) return null;
   const st = expiryUiStatus(true, expiryDate);
@@ -198,30 +275,39 @@ export function BarcodeLabelPrint({
     } catch {
       /* ignore */
     }
-    const content = containerRef.current;
-    if (!content) return;
-    const svgEl = content.querySelector("svg");
-    const svgHtml = svgEl ? svgEl.outerHTML : "";
-    const escapedName = escapeHtml((itemName || "صنف").trim());
-    const priceLine =
-      salePrice != null && Number.isFinite(salePrice)
-        ? `<div class="label-price">${escapeHtml(Number(salePrice).toFixed(2))} ج.م</div>`
-        : "";
+    void (async () => {
+      const content = containerRef.current;
+      if (!content) return;
+      const svgEl = content.querySelector("svg");
+      let barcodeBlock = "";
+      if (svgEl instanceof SVGSVGElement) {
+        const png = await svgBarcodeToPngDataUrl(svgEl);
+        if (png) {
+          barcodeBlock = `<div class="label-barcode"><img src="${png}" alt="" /></div>`;
+        } else {
+          barcodeBlock = `<div class="label-barcode-svg">${svgEl.outerHTML}</div>`;
+        }
+      }
+      const escapedName = escapeHtml((itemName || "صنف").trim());
+      const priceLine =
+        salePrice != null && Number.isFinite(salePrice)
+          ? `<div class="label-price">${escapeHtml(Number(salePrice).toFixed(2))} ج.م</div>`
+          : "";
 
-    const expLine =
-      expiryShort != null
-        ? `<div class="label-expiry">${escapeHtml(expiryShort)}</div>`
-        : "";
+      const expLine =
+        expiryShort != null
+          ? `<div class="label-expiry">${escapeHtml(expiryShort)}</div>`
+          : "";
 
-    const isTiny = preset.wMm <= 22 && preset.hMm <= 35;
-    const nameFont = isTiny ? 4.5 : Math.min(9, Math.max(5, preset.hMm / 5));
-    const priceFont = isTiny ? 5.5 : Math.min(11, Math.max(7, preset.hMm / 4.5));
-    const expiryFont = isTiny ? 4 : Math.min(8, Math.max(5, preset.hMm / 6));
+      const isTiny = preset.wMm <= 22 && preset.hMm <= 35;
+      const nameFont = isTiny ? 4.5 : Math.min(9, Math.max(5, preset.hMm / 5));
+      const priceFont = isTiny ? 5.5 : Math.min(11, Math.max(7, preset.hMm / 4.5));
+      const expiryFont = isTiny ? 4 : Math.min(8, Math.max(5, preset.hMm / 6));
 
-    const w = preset.pageCss.split(/\s+/)[0];
-    const h = preset.pageCss.split(/\s+/)[1] ?? preset.pageCss.split(/\s+/)[0];
+      const w = preset.pageCss.split(/\s+/)[0];
+      const h = preset.pageCss.split(/\s+/)[1] ?? preset.pageCss.split(/\s+/)[0];
 
-    const html = `<!DOCTYPE html>
+      const html = `<!DOCTYPE html>
 <html dir="rtl">
 <head>
   <meta charset="utf-8">
@@ -288,14 +374,41 @@ export function BarcodeLabelPrint({
       line-height: 1;
       color: #333;
     }
-    .label svg {
+    .label-barcode {
+      flex-shrink: 1;
+      min-height: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 100%;
+      max-height: ${isTiny ? "32%" : "46%"};
+    }
+    .label-barcode img {
+      max-width: 100%;
+      width: 100%;
+      height: auto;
+      max-height: ${isTiny ? "8mm" : "14mm"};
+      object-fit: contain;
+      image-rendering: pixelated;
+      image-rendering: crisp-edges;
+      -ms-interpolation-mode: nearest-neighbor;
+      display: block;
+    }
+    .label-barcode-svg {
+      flex-shrink: 1;
+      min-height: 0;
+      width: 100%;
+      max-height: ${isTiny ? "30%" : "44%"};
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .label-barcode-svg svg {
       max-width: 100%;
       width: 100%;
       height: auto;
       max-height: ${isTiny ? "30%" : "44%"};
       display: block;
-      flex-shrink: 1;
-      min-height: 0;
     }
     @media print {
       html, body { height: ${h} !important; max-height: ${h} !important; overflow: hidden !important; }
@@ -307,59 +420,60 @@ export function BarcodeLabelPrint({
     <div class="label-name">${escapedName}</div>
     ${priceLine}
     ${expLine}
-    ${svgHtml}
+    ${barcodeBlock}
   </div>
 </body>
 </html>`;
 
-    const blob = new Blob([html], { type: "text/html;charset=utf-8" });
-    const blobUrl = URL.createObjectURL(blob);
+      const blob = new Blob([html], { type: "text/html;charset=utf-8" });
+      const blobUrl = URL.createObjectURL(blob);
 
-    const iframe = document.createElement("iframe");
-    iframe.setAttribute("aria-hidden", "true");
-    iframe.title = "print-label";
-    Object.assign(iframe.style, {
-      position: "fixed",
-      right: "0",
-      bottom: "0",
-      width: "0",
-      height: "0",
-      border: "none",
-      opacity: "0",
-      pointerEvents: "none",
-    });
-    document.body.appendChild(iframe);
+      const iframe = document.createElement("iframe");
+      iframe.setAttribute("aria-hidden", "true");
+      iframe.title = "print-label";
+      Object.assign(iframe.style, {
+        position: "fixed",
+        left: "-9999px",
+        top: "0",
+        width: "320px",
+        height: "480px",
+        border: "none",
+        opacity: "0",
+        pointerEvents: "none",
+      });
+      document.body.appendChild(iframe);
 
-    const cleanup = () => {
-      try {
-        URL.revokeObjectURL(blobUrl);
-        document.body.removeChild(iframe);
-      } catch {
-        /* ignore */
-      }
-    };
+      const cleanup = () => {
+        try {
+          URL.revokeObjectURL(blobUrl);
+          document.body.removeChild(iframe);
+        } catch {
+          /* ignore */
+        }
+      };
 
-    let didPrint = false;
-    const runPrint = () => {
-      if (didPrint) return;
-      didPrint = true;
-      try {
-        iframe.contentWindow?.focus();
-        iframe.contentWindow?.print();
-      } finally {
-        window.setTimeout(cleanup, 2000);
-      }
-    };
+      let didPrint = false;
+      const runPrint = () => {
+        if (didPrint) return;
+        didPrint = true;
+        try {
+          iframe.contentWindow?.focus();
+          iframe.contentWindow?.print();
+        } finally {
+          window.setTimeout(cleanup, 2000);
+        }
+      };
 
-    iframe.onload = () => window.setTimeout(runPrint, 80);
-    iframe.onerror = () => {
-      cleanup();
-      alert("تعذر تحضير الطباعة.");
-    };
-    iframe.src = blobUrl;
-    window.setTimeout(() => {
-      if (!didPrint && iframe.contentDocument?.readyState === "complete") runPrint();
-    }, 400);
+      iframe.onload = () => window.setTimeout(runPrint, 80);
+      iframe.onerror = () => {
+        cleanup();
+        alert("تعذر تحضير الطباعة.");
+      };
+      iframe.src = blobUrl;
+      window.setTimeout(() => {
+        if (!didPrint && iframe.contentDocument?.readyState === "complete") runPrint();
+      }, 400);
+    })();
   };
 
   return (
