@@ -343,7 +343,8 @@ export function BarcodeLabelPrint({
       display: flex;
       flex-direction: column;
       align-items: center;
-      justify-content: space-between;
+      justify-content: center;
+      gap: ${isTiny ? "0.15mm" : "0.35mm"};
       text-align: center;
       overflow: hidden;
     }
