@@ -266,7 +266,7 @@ export async function resolveCode(
       result = {
         code: code.toUpperCase(),
         description_ar:
-          "لم يتم العثور على الكود في القاعدة المحلية. لإضافة نتائج الذكاء الاصطناعي، أضف GEMINI_API_KEY أو OPENAI_API_KEY في إعدادات Vercel.",
+          "لم يتم العثور على الكود في القاعدة المحلية. لتفعيل التحليل الموسّع عبر EFCT، أضف GEMINI_API_KEY أو OPENAI_API_KEY في إعدادات Vercel.",
         description_en: null,
         causes: null,
         solutions: null,

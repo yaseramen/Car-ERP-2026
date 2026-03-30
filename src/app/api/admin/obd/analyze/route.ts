@@ -88,7 +88,7 @@ export async function POST(request: Request) {
         reason === "no_api_key"
           ? "GEMINI_API_KEY أو GROQ_API_KEY غير مفعّل. أضفه في Vercel → Settings → Environment Variables ثم أعد النشر."
           : reason === "api_error"
-            ? "فشل في الاتصال بالذكاء الاصطناعي."
+            ? "فشل الاتصال بخدمة التحليل في EFCT."
             : "لم يتم العثور على أكواد OBD في الملف. تأكد أن التقرير يحتوي على أكواد مثل P0100 أو P0171.";
       if (errorDetail) msg += ` (${errorDetail})`;
       return NextResponse.json({ error: msg }, { status: 400 });

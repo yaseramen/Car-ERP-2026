@@ -409,7 +409,7 @@ export async function answerObdGlobalFromDb(code: string): Promise<{ reply: stri
   if (res.rows.length === 0) {
     return {
       found: false,
-      reply: `لا يوجد سجل لكود «${normalized}» في قاعدة الأكواد العامة داخل البرنامج. يمكنك استخدام صفحة OBD للبحث الموسّع (قد يتضمن توليداً بالذكاء الاصطناعي برسوم أخرى).`,
+      reply: `لا يوجد سجل لكود «${normalized}» في قاعدة الأكواد العامة داخل البرنامج. يمكنك استخدام صفحة OBD للبحث الموسّع عبر أداة EFCT (برسوم أخرى إن وُجدت).`,
     };
   }
   const row = res.rows[0];

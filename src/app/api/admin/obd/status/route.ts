@@ -3,7 +3,7 @@ import { auth } from "@/auth";
 import { getCompanyId } from "@/lib/company";
 import { canAccess } from "@/lib/permissions";
 
-/** يتحقق من توفر مفاتيح الذكاء الاصطناعي (بدون كشف القيم) */
+/** يتحقق من توفر مفاتيح خدمة التحليل في EFCT (بدون كشف القيم) */
 export async function GET() {
   const session = await auth();
   if (!session?.user) return NextResponse.json({ error: "غير مصرح" }, { status: 401 });
@@ -28,10 +28,10 @@ export async function GET() {
   const providers = [gemini && "Gemini", groq && "Groq", openai && "OpenAI"].filter(Boolean);
 
   const message = aiAvailable
-    ? "الذكاء الاصطناعي متاح (EFCT)"
+    ? "أداة التحليل في EFCT جاهزة"
     : isSuperAdmin
       ? "أضف GEMINI_API_KEY أو GROQ_API_KEY أو OPENAI_API_KEY في Vercel → Settings → Environment Variables ثم أعد النشر"
-      : "الذكاء الاصطناعي غير مفعّل. تواصل مع مدير النظام لإضافة مفاتيح API في إعدادات الاستضافة.";
+      : "أداة التحليل في EFCT غير مفعّلة. تواصل مع مدير النظام لإضافة مفاتيح API في إعدادات الاستضافة.";
 
   return NextResponse.json({
     geminiAvailable: gemini,

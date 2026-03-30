@@ -181,7 +181,7 @@ export async function POST(request: Request) {
     const result = await analyzeWithAI(description, vehicleInfoStr);
     if (!result) {
       return NextResponse.json(
-        { error: "لم يتمكن الذكاء الاصطناعي من التحليل. تأكد من GEMINI_API_KEY أو GROQ_API_KEY." },
+        { error: "تعذّر إتمام التحليل عبر EFCT. تأكد من GEMINI_API_KEY أو GROQ_API_KEY." },
         { status: 500 }
       );
     }

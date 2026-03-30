@@ -338,7 +338,7 @@ export function ObdContent({ isSuperAdmin = false }: { isSuperAdmin?: boolean })
               </span>
             )}
             <span className="text-sm text-gray-500 dark:text-gray-400">
-              المصدر: {r.source === "local" ? "محلي" : r.source === "ai" ? "ذكاء اصطناعي" : "غير موجود"} — {r.cost} ج.م
+              المصدر: {r.source === "local" ? "محلي" : r.source === "ai" ? "أداة EFCT" : "غير موجود"} — {r.cost} ج.م
             </span>
           </div>
         </div>
@@ -444,7 +444,7 @@ export function ObdContent({ isSuperAdmin = false }: { isSuperAdmin?: boolean })
     <div className="space-y-6">
       {aiStatus && !aiStatus.aiAvailable && (
         <div className="bg-amber-50 dark:bg-amber-900/30 border border-amber-200 dark:border-amber-800 rounded-lg p-4 text-amber-800 dark:text-amber-200">
-          <p className="font-medium">⚠️ الذكاء الاصطناعي غير متاح</p>
+          <p className="font-medium">⚠️ أداة التحليل في EFCT غير متاحة حالياً</p>
           <p className="text-sm mt-1">{aiStatus.message}</p>
         </div>
       )}
@@ -551,7 +551,7 @@ export function ObdContent({ isSuperAdmin = false }: { isSuperAdmin?: boolean })
       {mode === "description" && (
         <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 p-6">
           <p className="text-gray-600 dark:text-gray-300 mb-4">
-            صف مشكلة السيارة بدون جهاز كشف أعطال — سيحلل الذكاء الاصطناعي ويقترح الأسباب والحلول والأكواد المحتملة.
+            صف مشكلة السيارة بدون جهاز كشف أعطال — يحلّلها برنامج EFCT ويقترح الأسباب والحلول والأكواد المحتملة.
           </p>
           <form onSubmit={handleAnalyzeByDescription} className="space-y-4">
             <div>
@@ -967,7 +967,7 @@ export function ObdContent({ isSuperAdmin = false }: { isSuperAdmin?: boolean })
 
           {!analyzeResults.integrated_analysis && analyzeResults.codesFound >= 1 && (
             <p className="text-xs text-gray-500 dark:text-gray-400 no-print">
-              «التحليل الموحّد» يُنشأ بالذكاء الاصطناعي (يربط الأكواد معاً) وليس من القاعدة وحدها. فعّل{" "}
+              «التحليل الموحّد» يُولَّد بواسطة أداة EFCT (يربط الأكواد معاً) وليس من القاعدة وحدها. فعّل{" "}
               <strong className="text-gray-700 dark:text-gray-300">GEMINI_API_KEY</strong> أو{" "}
               <strong className="text-gray-700 dark:text-gray-300">GROQ_API_KEY</strong> في الخادم — لا تكلفة إضافية على المحفظة.
             </p>
@@ -975,7 +975,7 @@ export function ObdContent({ isSuperAdmin = false }: { isSuperAdmin?: boolean })
           {analyzeResults.integrated_analysis && (
             <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-emerald-200 dark:border-emerald-800 overflow-hidden print:border-gray-300">
               <div className="p-4 border-b border-emerald-100 dark:border-emerald-800 bg-emerald-50/80 dark:bg-emerald-900/20">
-                <h2 className="font-bold text-lg text-emerald-900 dark:text-emerald-100">تحليل موحّد للتقرير (ذكاء اصطناعي)</h2>
+                <h2 className="font-bold text-lg text-emerald-900 dark:text-emerald-100">تحليل موحّد للتقرير (أداة EFCT)</h2>
                 <p className="text-xs text-gray-600 dark:text-gray-400 mt-1">
                   منهج ورشة: أبسط الأسباب أولاً، ربط الأكواد عند وجود دليل تقني، وخطة 5–7 خطوات — يُكمّل تفاصيل كل كود أدناه.
                 </p>
