@@ -58,7 +58,7 @@ export function AlertsBadge() {
         </span>
       </button>
       {open && (
-        <div className="absolute right-0 top-full mt-1 w-64 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 shadow-lg z-50 py-2">
+        <div className="absolute end-0 top-full mt-1 w-[min(18rem,calc(100vw-2rem))] max-w-[calc(100vw-2rem)] rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 shadow-lg z-50 py-2">
           <div className="px-4 py-2 border-b border-gray-100 dark:border-gray-700">
             <h3 className="font-bold text-gray-900 dark:text-gray-100 text-sm">التنبيهات</h3>
           </div>

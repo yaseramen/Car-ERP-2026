@@ -86,7 +86,7 @@ export function ReleaseNotesBanner() {
 
   return (
     <div
-      className="no-print border-b border-emerald-200 dark:border-emerald-800 bg-emerald-50/90 dark:bg-emerald-950/40 px-4 py-2 text-sm text-emerald-900 dark:text-emerald-100 flex flex-wrap items-center justify-between gap-2"
+      className="no-print border-b border-emerald-200 dark:border-emerald-800 bg-emerald-50/90 dark:bg-emerald-950/40 px-3 sm:px-4 py-2.5 text-sm text-emerald-900 dark:text-emerald-100 flex flex-col sm:flex-row sm:flex-wrap sm:items-center sm:justify-between gap-2"
       dir="rtl"
     >
       <span>

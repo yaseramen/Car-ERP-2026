@@ -453,11 +453,12 @@ export function ObdContent({ isSuperAdmin = false }: { isSuperAdmin?: boolean })
           ✓ {aiStatus.message}
         </div>
       )}
-      <div className="flex gap-2 border-b border-gray-200 dark:border-gray-700 pb-2">
+      <div className="-mx-1 px-1 overflow-x-auto overscroll-x-contain pb-2 border-b border-gray-200 dark:border-gray-700 touch-pan-x">
+        <div className="flex flex-nowrap gap-2 min-w-min">
         <button
           type="button"
           onClick={() => setMode("search")}
-          className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+          className={`shrink-0 px-3 py-2.5 sm:px-4 rounded-lg text-sm sm:text-base font-medium transition-colors whitespace-nowrap touch-manipulation ${
             mode === "search" ? "bg-emerald-600 text-white" : "bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600"
           }`}
         >
@@ -466,7 +467,7 @@ export function ObdContent({ isSuperAdmin = false }: { isSuperAdmin?: boolean })
         <button
           type="button"
           onClick={() => setMode("upload")}
-          className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+          className={`shrink-0 px-3 py-2.5 sm:px-4 rounded-lg text-sm sm:text-base font-medium transition-colors whitespace-nowrap touch-manipulation ${
             mode === "upload" ? "bg-emerald-600 text-white" : "bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600"
           }`}
         >
@@ -475,7 +476,7 @@ export function ObdContent({ isSuperAdmin = false }: { isSuperAdmin?: boolean })
         <button
           type="button"
           onClick={() => setMode("manualBatch")}
-          className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+          className={`shrink-0 px-3 py-2.5 sm:px-4 rounded-lg text-sm sm:text-base font-medium transition-colors whitespace-nowrap touch-manipulation ${
             mode === "manualBatch" ? "bg-emerald-600 text-white" : "bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600"
           }`}
         >
@@ -484,7 +485,7 @@ export function ObdContent({ isSuperAdmin = false }: { isSuperAdmin?: boolean })
         <button
           type="button"
           onClick={() => setMode("description")}
-          className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+          className={`shrink-0 px-3 py-2.5 sm:px-4 rounded-lg text-sm sm:text-base font-medium transition-colors whitespace-nowrap touch-manipulation ${
             mode === "description" ? "bg-emerald-600 text-white" : "bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600"
           }`}
         >
@@ -493,7 +494,7 @@ export function ObdContent({ isSuperAdmin = false }: { isSuperAdmin?: boolean })
         <button
           type="button"
           onClick={() => setMode("liveData")}
-          className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+          className={`shrink-0 px-3 py-2.5 sm:px-4 rounded-lg text-sm sm:text-base font-medium transition-colors whitespace-nowrap touch-manipulation ${
             mode === "liveData" ? "bg-emerald-600 text-white" : "bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600"
           }`}
         >
@@ -504,7 +505,7 @@ export function ObdContent({ isSuperAdmin = false }: { isSuperAdmin?: boolean })
             <button
               type="button"
               onClick={() => setMode("manage")}
-              className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+              className={`shrink-0 px-3 py-2.5 sm:px-4 rounded-lg text-sm sm:text-base font-medium transition-colors whitespace-nowrap touch-manipulation ${
                 mode === "manage" ? "bg-emerald-600 text-white" : "bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600"
               }`}
             >
@@ -513,7 +514,7 @@ export function ObdContent({ isSuperAdmin = false }: { isSuperAdmin?: boolean })
             <button
               type="button"
               onClick={() => setMode("logs")}
-              className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+              className={`shrink-0 px-3 py-2.5 sm:px-4 rounded-lg text-sm sm:text-base font-medium transition-colors whitespace-nowrap touch-manipulation ${
                 mode === "logs" ? "bg-emerald-600 text-white" : "bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600"
               }`}
             >
@@ -521,23 +522,24 @@ export function ObdContent({ isSuperAdmin = false }: { isSuperAdmin?: boolean })
             </button>
           </>
         )}
+        </div>
       </div>
 
       {mode === "search" && (
         <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 p-6">
-          <form onSubmit={handleSearch} className="flex gap-3">
+          <form onSubmit={handleSearch} className="flex flex-col sm:flex-row gap-3 sm:items-stretch">
             <input
               type="text"
               value={code}
               onChange={(e) => setCode(e.target.value.toUpperCase())}
               placeholder="مثال: P0100 أو P0171"
-              className={inputClass}
+              className={`${inputClass} flex-1 min-h-[48px] touch-manipulation`}
               dir="ltr"
             />
             <button
               type="submit"
               disabled={loading}
-              className="px-6 py-2.5 bg-emerald-600 hover:bg-emerald-700 disabled:bg-emerald-400 text-white font-medium rounded-lg transition-colors"
+              className="shrink-0 min-h-[48px] px-6 py-2.5 bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 disabled:bg-emerald-400 text-white font-medium rounded-lg transition-colors touch-manipulation"
             >
               {loading ? "جاري البحث..." : "بحث"}
             </button>

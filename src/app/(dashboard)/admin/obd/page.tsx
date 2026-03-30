@@ -19,11 +19,13 @@ export default async function ObdPage() {
   }
 
   return (
-    <div className="p-4 md:p-8">
+    <div className="p-4 sm:p-5 md:p-8 max-w-[100vw] overflow-x-hidden">
       <div className="mb-8">
-        <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">التشخيص الذكي OBD</h1>
-        <p className="text-gray-500 dark:text-gray-400 mt-1">
-          بحث بكود، رفع تقرير، إدخال عدة أكواد يدوياً مع نوع السيارة بالعربي، تحليل بالوصف، أو لصق/رفع نص قراءات حية — 1 ج.م لكل كود أو تحليل نصي
+        <h1 className="text-2xl sm:text-[1.65rem] font-bold text-gray-900 dark:text-gray-100 text-pretty">
+          تشخيص OBD — أداة EFCT
+        </h1>
+        <p className="text-gray-500 dark:text-gray-400 mt-1 text-sm sm:text-base leading-relaxed max-w-4xl">
+          بحث بكود، رفع تقرير، أكواد يدوية مع المركبة، تحليل بالوصف، أو قراءات حية — تُخصم التكلفة من محفظة الشركة حسب كل عملية
         </p>
       </div>
 
