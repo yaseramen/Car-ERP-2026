@@ -23,6 +23,20 @@ body {
   background: #f9fafb;
   color: #171717;
   font-family: Arial, Helvetica, sans-serif;
+  /* قراءة أوضح على التابلت والهاتف */
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+/* أزرار وروابط أسهل للمس على الشاشات اللمسية */
+@media (pointer: coarse) {
+  a[href],
+  button:not([disabled]),
+  [role="button"],
+  input[type="checkbox"],
+  input[type="radio"] {
+    min-height: 44px;
+  }
 }
 
 .dark body {
