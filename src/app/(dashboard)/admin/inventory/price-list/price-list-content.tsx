@@ -3,6 +3,7 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { InventoryCategoryFilter } from "@/components/inventory/inventory-category-filter";
 import { SearchableSelect } from "@/components/ui/searchable-select";
+import { resolveVolumeDiscountPercent, type VolumeDiscountTier } from "@/lib/price-list-volume-discount";
 
 type Party = { id: string; name: string; phone?: string | null };
 
@@ -18,6 +19,57 @@ type ItemRow = {
 
 const inputClass =
   "w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 text-sm";
+
+const VOLUME_DISCOUNT_STORAGE_KEY = "efct-price-list-volume-discount";
+
+const DEFAULT_VOLUME_TIERS: VolumeDiscountTier[] = [
+  { minTotal: 20000, percent: 1 },
+  { minTotal: 50000, percent: 2 },
+];
+
+function normalizeTiers(list: VolumeDiscountTier[]): VolumeDiscountTier[] {
+  return list
+    .map((t) => ({
+      minTotal: Math.max(0, Number(t.minTotal) || 0),
+      percent: Math.min(100, Math.max(0, Number(t.percent) || 0)),
+    }))
+    .filter((t) => t.minTotal > 0 || t.percent > 0);
+}
+
+function loadVolumeDiscountPrefs(): { enabled: boolean; tiers: VolumeDiscountTier[] } {
+  if (typeof window === "undefined") return { enabled: false, tiers: [...DEFAULT_VOLUME_TIERS] };
+  try {
+    const raw = localStorage.getItem(VOLUME_DISCOUNT_STORAGE_KEY);
+    if (!raw) return { enabled: false, tiers: [...DEFAULT_VOLUME_TIERS] };
+    const j = JSON.parse(raw) as { enabled?: unknown; tiers?: unknown };
+    const enabled = Boolean(j.enabled);
+    let tiers: VolumeDiscountTier[] = [...DEFAULT_VOLUME_TIERS];
+    if (Array.isArray(j.tiers) && j.tiers.length > 0) {
+      tiers = normalizeTiers(
+        j.tiers.map((x) => ({
+          minTotal: Number((x as { minTotal?: unknown }).minTotal),
+          percent: Number((x as { percent?: unknown }).percent),
+        }))
+      );
+      if (tiers.length === 0) tiers = [...DEFAULT_VOLUME_TIERS];
+    }
+    return { enabled, tiers };
+  } catch {
+    return { enabled: false, tiers: [...DEFAULT_VOLUME_TIERS] };
+  }
+}
+
+function saveVolumeDiscountPrefs(enabled: boolean, tiers: VolumeDiscountTier[]) {
+  if (typeof window === "undefined") return;
+  try {
+    localStorage.setItem(
+      VOLUME_DISCOUNT_STORAGE_KEY,
+      JSON.stringify({ enabled, tiers: normalizeTiers(tiers) })
+    );
+  } catch {
+    /* ignore */
+  }
+}
 
 type RecipientMode = "none" | "customer" | "supplier" | "company";
 
@@ -45,6 +97,22 @@ export function PriceListContent({ companyName }: { companyName: string | null }
   const [offerValidityMode, setOfferValidityMode] = useState<OfferValidityMode>("none");
   const [offerValidityDays, setOfferValidityDays] = useState("3");
   const [offerValidUntil, setOfferValidUntil] = useState("");
+
+  const [volumeDiscountEnabled, setVolumeDiscountEnabled] = useState(false);
+  const [volumeDiscountTiers, setVolumeDiscountTiers] = useState<VolumeDiscountTier[]>(() => [...DEFAULT_VOLUME_TIERS]);
+  const [volumePrefsLoaded, setVolumePrefsLoaded] = useState(false);
+
+  useEffect(() => {
+    const p = loadVolumeDiscountPrefs();
+    setVolumeDiscountEnabled(p.enabled);
+    setVolumeDiscountTiers(p.tiers.length ? p.tiers : [...DEFAULT_VOLUME_TIERS]);
+    setVolumePrefsLoaded(true);
+  }, []);
+
+  useEffect(() => {
+    if (!volumePrefsLoaded) return;
+    saveVolumeDiscountPrefs(volumeDiscountEnabled, volumeDiscountTiers);
+  }, [volumePrefsLoaded, volumeDiscountEnabled, volumeDiscountTiers]);
 
   useEffect(() => {
     const t = setTimeout(() => setDebounced(search.trim()), 350);
@@ -117,6 +185,48 @@ export function PriceListContent({ companyName }: { companyName: string | null }
     const chosen = items.filter((i) => selectedIds.has(i.id));
     return chosen.length > 0 ? chosen : items;
   }, [items, selectedIds]);
+
+  /** إجمالي قيمة الأصناف المعروضة (سعر × كمية المتاح) — أساس شرائح الخصم */
+  const listSubtotal = useMemo(
+    () => rowsForPrint.reduce((s, r) => s + r.sale_price * r.quantity, 0),
+    [rowsForPrint]
+  );
+
+  const appliedVolumePercent = useMemo(() => {
+    if (!volumeDiscountEnabled) return 0;
+    return resolveVolumeDiscountPercent(listSubtotal, volumeDiscountTiers);
+  }, [volumeDiscountEnabled, listSubtotal, volumeDiscountTiers]);
+
+  const volumeDiscountAmount = useMemo(
+    () => (appliedVolumePercent > 0 ? (listSubtotal * appliedVolumePercent) / 100 : 0),
+    [listSubtotal, appliedVolumePercent]
+  );
+
+  const listTotalAfterVolume = useMemo(
+    () => Math.max(0, listSubtotal - volumeDiscountAmount),
+    [listSubtotal, volumeDiscountAmount]
+  );
+
+  function addVolumeTier() {
+    setVolumeDiscountTiers((prev) => [...prev, { minTotal: 100000, percent: 3 }]);
+  }
+
+  function removeVolumeTier(index: number) {
+    setVolumeDiscountTiers((prev) => {
+      if (prev.length <= 1) return prev;
+      return prev.filter((_, i) => i !== index);
+    });
+  }
+
+  function updateVolumeTier(index: number, patch: Partial<VolumeDiscountTier>) {
+    setVolumeDiscountTiers((prev) =>
+      prev.map((t, i) => (i === index ? { ...t, ...patch } : t))
+    );
+  }
+
+  function resetVolumeTiersDefault() {
+    setVolumeDiscountTiers([...DEFAULT_VOLUME_TIERS]);
+  }
 
   const recipientBlockHtml = useMemo(() => {
     const esc = (s: string) =>
@@ -215,19 +325,73 @@ export function PriceListContent({ companyName }: { companyName: string | null }
         : inStockOnly
           ? "جميع الأصناف المتاحة في المخزون (حسب الفلاتر)"
           : "جميع الأصناف (حسب الفلاتر)";
+    const printSubtotal = rowsForPrint.reduce((s, r) => s + r.sale_price * r.quantity, 0);
+    const pVol = volumeDiscountEnabled ? resolveVolumeDiscountPercent(printSubtotal, volumeDiscountTiers) : 0;
+    const factor = pVol > 0 ? 1 - pVol / 100 : 1;
+    const printDiscountAmt = pVol > 0 ? (printSubtotal * pVol) / 100 : 0;
+    const printAfter = Math.max(0, printSubtotal - printDiscountAmt);
+    const tiersSorted = [...normalizeTiers(volumeDiscountTiers)].sort((a, b) => a.minTotal - b.minTotal);
+    const tiersTableHtml =
+      volumeDiscountEnabled && tiersSorted.length > 0
+        ? `<p class="tier-hdr">جدول شرائح الخصم (مرجع)</p>
+           <table class="tiertbl"><thead><tr><th>من إجمالي (ج.م)</th><th>نسبة الخصم</th></tr></thead><tbody>${tiersSorted
+             .map(
+               (t) =>
+                 `<tr><td class="num">${t.minTotal.toLocaleString("ar-EG")}</td><td class="num">${t.percent}%</td></tr>`
+             )
+             .join("")}</tbody></table>`
+        : "";
+    const theadCols =
+      pVol > 0
+        ? `<th>الصنف</th><th>الكود</th><th>القسم</th><th>الوحدة</th><th>الكمية</th><th>سعر الوحدة</th><th>بعد خصم ${pVol}%</th><th>إجمالي السطر</th>`
+        : `<th>الصنف</th><th>الكود</th><th>القسم</th><th>الوحدة</th><th>الكمية</th><th>سعر البيع</th>`;
     const rowsHtml = rowsForPrint
-      .map(
-        (r) => `
+      .map((r) => {
+        const qtyStr = r.quantity.toFixed(r.quantity % 1 === 0 ? 0 : 2);
+        if (pVol > 0) {
+          const unitAfter = r.sale_price * factor;
+          const lineAfter = r.quantity * unitAfter;
+          return `
       <tr>
         <td>${esc(r.name)}</td>
         <td>${esc(r.code || "—")}</td>
         <td>${esc(r.category || "—")}</td>
         <td>${esc(r.unit || "قطعة")}</td>
-        <td class="num">${r.quantity.toFixed(r.quantity % 1 === 0 ? 0 : 2)}</td>
+        <td class="num">${qtyStr}</td>
         <td class="num">${r.sale_price.toFixed(2)} ج.م</td>
-      </tr>`
-      )
+        <td class="num">${unitAfter.toFixed(2)} ج.م</td>
+        <td class="num">${lineAfter.toFixed(2)} ج.م</td>
+      </tr>`;
+        }
+        return `
+      <tr>
+        <td>${esc(r.name)}</td>
+        <td>${esc(r.code || "—")}</td>
+        <td>${esc(r.category || "—")}</td>
+        <td>${esc(r.unit || "قطعة")}</td>
+        <td class="num">${qtyStr}</td>
+        <td class="num">${r.sale_price.toFixed(2)} ج.م</td>
+      </tr>`;
+      })
       .join("");
+    const summaryBlock =
+      volumeDiscountEnabled && pVol > 0
+        ? `${tiersTableHtml}
+          <table class="sumtbl"><tbody>
+            <tr><td>إجمالي عرض الأسعار (قبل الخصم)</td><td class="num">${printSubtotal.toFixed(2)} ج.م</td></tr>
+            <tr><td>خصم حجم (${pVol}%)</td><td class="num">− ${printDiscountAmt.toFixed(2)} ج.م</td></tr>
+            <tr class="bold"><td>الإجمالي بعد الخصم</td><td class="num">${printAfter.toFixed(2)} ج.م</td></tr>
+          </tbody></table>
+          <p class="tier-note">${esc(
+            `يُطبَّق خصم ${pVol}% لأن إجمالي قيمة الأصناف في هذا العرض (${printSubtotal.toFixed(2)} ج.م) يحقق أعلى شريحة في الجدول أعلاه.`
+          )}</p>`
+        : volumeDiscountEnabled && pVol === 0 && printSubtotal > 0
+          ? `${tiersTableHtml}<p class="tier-note">${esc(
+              `«خصم حسب إجمالي العرض» مفعّل؛ إجمالي القائمة ${printSubtotal.toFixed(2)} ج.م أقل من أدنى حد في الشرائح — لا خصم على هذا العرض.`
+            )}</p>`
+          : volumeDiscountEnabled && printSubtotal <= 0
+            ? `${tiersTableHtml}`
+            : "";
     const cn = companyName ? esc(companyName) : "عرض أسعار";
     const validityExtra = buildOfferValidityFooter();
     const footNote = validityExtra
@@ -251,13 +415,20 @@ export function PriceListContent({ companyName }: { companyName: string | null }
         .num { direction: ltr; text-align: left; unicode-bidi: isolate; }
         .foot { margin-top: 14px; font-size: 10px; color: #666; }
         .validity-note { margin-top: 12px; padding: 8px 10px; border: 1px solid #d1d5db; background: #f9fafb; font-size: 11px; color: #111; font-weight: 600; line-height: 1.5; }
+        .sumtbl { width: 100%; max-width: 420px; margin: 14px 0 8px; border-collapse: collapse; font-size: 11px; }
+        .sumtbl td { border: 1px solid #ccc; padding: 6px 8px; }
+        .sumtbl tr.bold td { font-weight: 700; background: #f3f4f6; }
+        .tier-hdr { margin: 14px 0 6px; font-size: 11px; font-weight: 600; color: #333; }
+        .tiertbl { width: 100%; max-width: 320px; border-collapse: collapse; font-size: 10px; margin-bottom: 10px; }
+        .tiertbl th, .tiertbl td { border: 1px solid #ccc; padding: 4px 8px; text-align: right; }
+        .tiertbl th { background: #e5e7eb; }
+        .tier-note { font-size: 10px; color: #444; line-height: 1.45; margin: 8px 0 0; max-width: 520px; }
       </style></head><body>
       <h1>${esc(title)}</h1>
       <div class="letterhead">${recipientBlockHtml}</div>
       <div class="sub">${cn} — ${esc(subtitle)}</div>
-      <table><thead><tr>
-        <th>الصنف</th><th>الكود</th><th>القسم</th><th>الوحدة</th><th>الكمية</th><th>سعر البيع</th>
-      </tr></thead><tbody>${rowsHtml}</tbody></table>
+      <table><thead><tr>${theadCols}</tr></thead><tbody>${rowsHtml}</tbody></table>
+      ${summaryBlock}
       ${validityExtra ? `<p class="validity-note">${footNote}</p>` : ""}
       <p class="foot">مستند عرض أسعار صادر من المنشأة أعلاه. الأسعار وفق سعر البيع المسجّل في المخزن ولا تُعد فاتورة بيع حتى الاتفاق والتأكيد.${validityExtra ? "" : " صالح لتاريخ الطباعة."}</p>
       </body></html>`);
@@ -432,6 +603,102 @@ export function PriceListContent({ companyName }: { companyName: string | null }
         <p className="text-xs text-gray-500 dark:text-gray-400">
           يُذكر في أسفل ورقة الطباعة مع <strong>تاريخ إصدار</strong> العرض. لا يغيّر أسعار المخزن ولا يلزم العملاء قانونياً — صياغة استرشادية.
         </p>
+      </div>
+
+      <div className="bg-gray-50 dark:bg-gray-900/40 rounded-xl border border-gray-200 dark:border-gray-700 p-4 space-y-3">
+        <p className="text-sm font-medium text-gray-800 dark:text-gray-200">خصم حسب إجمالي عرض السعر (اختياري — للطباعة فقط)</p>
+        <p className="text-xs text-gray-500 dark:text-gray-400 leading-relaxed">
+          يُحسب الإجمالي من <strong>سعر البيع × الكمية المتاحة</strong> لكل صف في القائمة المعروضة (المحدد أو الكل). تُطبَّق{' '}
+          <strong>أعلى شريحة</strong> يحققها هذا الإجمالي: مثلاً من 20 ألف → 1%، من 50 ألف → 2%. عدّل الشرائح كما تشاء.
+        </p>
+        <label className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300 cursor-pointer">
+          <input
+            type="checkbox"
+            checked={volumeDiscountEnabled}
+            onChange={(e) => setVolumeDiscountEnabled(e.target.checked)}
+            className="rounded border-gray-300"
+          />
+          تفعيل خصم حسب إجمالي العرض
+        </label>
+        {volumeDiscountEnabled && (
+          <>
+            <div className="flex flex-wrap gap-2 items-center">
+              <button
+                type="button"
+                onClick={addVolumeTier}
+                className="px-3 py-1.5 text-xs rounded-lg border border-gray-300 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-800"
+              >
+                + شريحة
+              </button>
+              <button
+                type="button"
+                onClick={resetVolumeTiersDefault}
+                className="px-3 py-1.5 text-xs rounded-lg border border-gray-300 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-800"
+              >
+                استعادة 20 ألف / 1% و 50 ألف / 2%
+              </button>
+            </div>
+            <div className="space-y-2">
+              {volumeDiscountTiers.map((tier, index) => (
+                <div key={index} className="flex flex-wrap gap-2 items-end">
+                  <div className="w-36">
+                    <label className="block text-xs text-gray-500 mb-0.5">من إجمالي (ج.م)</label>
+                    <input
+                      type="number"
+                      min={0}
+                      step={1000}
+                      value={tier.minTotal || ""}
+                      onChange={(e) =>
+                        updateVolumeTier(index, { minTotal: Number(e.target.value) || 0 })
+                      }
+                      className={inputClass}
+                      dir="ltr"
+                    />
+                  </div>
+                  <div className="w-28">
+                    <label className="block text-xs text-gray-500 mb-0.5">خصم %</label>
+                    <input
+                      type="number"
+                      min={0}
+                      max={100}
+                      step={0.5}
+                      value={tier.percent || ""}
+                      onChange={(e) =>
+                        updateVolumeTier(index, { percent: Number(e.target.value) || 0 })
+                      }
+                      className={inputClass}
+                      dir="ltr"
+                    />
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => removeVolumeTier(index)}
+                    className="px-2 py-2 text-xs text-red-600 hover:bg-red-50 dark:hover:bg-red-950/30 rounded-lg mb-0.5"
+                    aria-label="حذف الشريحة"
+                  >
+                    حذف
+                  </button>
+                </div>
+              ))}
+            </div>
+            <div className="text-sm rounded-lg border border-emerald-200 dark:border-emerald-800 bg-emerald-50/80 dark:bg-emerald-950/30 px-3 py-2 text-emerald-900 dark:text-emerald-100">
+              <span className="font-medium">معاينة القائمة الحالية:</span> إجمالي{" "}
+              <strong>{listSubtotal.toFixed(2)} ج.م</strong>
+              {appliedVolumePercent > 0 ? (
+                <>
+                  {" "}
+                  — خصم مطبّق <strong>{appliedVolumePercent}%</strong> (−
+                  {volumeDiscountAmount.toFixed(2)} ج.م) — بعد الخصم{" "}
+                  <strong>{listTotalAfterVolume.toFixed(2)} ج.م</strong>
+                </>
+              ) : listSubtotal > 0 ? (
+                <> — لا تصل لأدنى حد في الشرائح (لا خصم على هذا العرض)</>
+              ) : (
+                <> — أضف أصنافاً لعرض الإجمالي</>
+              )}
+            </div>
+          </>
+        )}
       </div>
 
       <div className="flex flex-wrap gap-3 items-center">
