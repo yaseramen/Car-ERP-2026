@@ -447,6 +447,15 @@ html.dark table tbody tr:hover,
   body.obd-printing-root #obd-print-area * {
     visibility: visible;
   }
+  /* صفحة بيضاء بالكامل — وإلا يبقى لون html/body الداكن من الوضع الليلي ظاهراً في المعاينة */
+  html:has(body.obd-printing-root),
+  html:has(body.obd-printing-desc-root) {
+    background: #fff !important;
+  }
+  body.obd-printing-root,
+  body.obd-printing-desc-root {
+    background: #fff !important;
+  }
   body.obd-printing-root #obd-print-area {
     position: absolute;
     left: 0;
@@ -456,6 +465,19 @@ html.dark table tbody tr:hover,
     background: #fff !important;
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
+  }
+  /* إلغاء dark: على كل العناصر داخل منطقة الطباعة (مثل الفواتير) */
+  body.obd-printing-root #obd-print-area,
+  body.obd-printing-root #obd-print-area * {
+    color: #000 !important;
+    background-color: #fff !important;
+    background-image: none !important;
+    box-shadow: none !important;
+    border-color: #d1d5db !important;
+  }
+  body.obd-printing-root #obd-print-area a {
+    color: #000 !important;
+    text-decoration: underline !important;
   }
   body.obd-printing-root #obd-print-area .no-print {
     display: none !important;
@@ -477,6 +499,18 @@ html.dark table tbody tr:hover,
     background: #fff !important;
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
+  }
+  body.obd-printing-desc-root #obd-desc-print-area,
+  body.obd-printing-desc-root #obd-desc-print-area * {
+    color: #000 !important;
+    background-color: #fff !important;
+    background-image: none !important;
+    box-shadow: none !important;
+    border-color: #d1d5db !important;
+  }
+  body.obd-printing-desc-root #obd-desc-print-area a {
+    color: #000 !important;
+    text-decoration: underline !important;
   }
   body.obd-printing-desc-root #obd-desc-print-area .no-print {
     display: none !important;
