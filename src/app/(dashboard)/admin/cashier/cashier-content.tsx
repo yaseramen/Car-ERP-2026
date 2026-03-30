@@ -678,7 +678,7 @@ export function CashierContent({ showPurchaseCost = false }: CashierContentProps
           <h2 className="font-bold text-gray-900 dark:text-gray-100 mb-4">إضافة صنف (ابحث بالاسم أو الكود أو امسح الباركود)</h2>
           {showPurchaseCost && (
             <p className="text-xs text-sky-800 dark:text-sky-200 bg-sky-50 dark:bg-sky-950/40 border border-sky-200 dark:border-sky-800 rounded-lg px-3 py-2 mb-3">
-              يظهر لك <strong>سعر الشراء</strong> بجانب سعر البيع لمساعدتك على ضبط الخصم دون البيع بخسارة (الموظفون لا يرون سعر الشراء).
+              يظهر لك <strong>سعر الشراء</strong> بجانب <strong>سعر البيع</strong> لتقدير المكسب والخصم. الموظفون يرون <strong>سعر البيع</strong> فقط.
             </p>
           )}
           <p className="text-xs text-gray-500 dark:text-gray-400 mb-2" title="اختصارات لوحة المفاتيح">
@@ -713,9 +713,7 @@ export function CashierContent({ showPurchaseCost = false }: CashierContentProps
                         : showPurchaseCost
                           ? " • شراء —"
                           : "";
-                    const label = showPurchaseCost
-                      ? `${i.name} (متاح: ${i.quantity}) — ${salePart}${pur}`
-                      : `${i.name} (متاح: ${i.quantity}) — ${i.sale_price.toFixed(2)} ج.م`;
+                    const label = `${i.name} (متاح: ${i.quantity}) — ${salePart}${pur}`;
                     return {
                       id: i.id,
                       label,
@@ -799,7 +797,9 @@ export function CashierContent({ showPurchaseCost = false }: CashierContentProps
                           onChange={(e) => updateCartQty(c.item_id, Number(e.target.value))}
                           className="w-20 px-2 py-1 text-sm rounded border border-gray-300"
                         />
-                        <span className="text-sm text-gray-500 dark:text-gray-400">× {c.unit_price.toFixed(2)} ج.م</span>
+                        <span className="text-sm text-gray-500 dark:text-gray-400">
+                          × بيع {c.unit_price.toFixed(2)} ج.م
+                        </span>
                         {showPurchaseCost &&
                           c.purchase_price != null &&
                           Number.isFinite(Number(c.purchase_price)) && (

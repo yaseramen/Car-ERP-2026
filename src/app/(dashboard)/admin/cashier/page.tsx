@@ -16,7 +16,9 @@ export default async function CashierPage() {
       (await canAccess(session.user.id, session.user.role ?? "", companyId, "cashier", "read")));
   if (!allowed) redirect("/login");
 
-  const showPurchaseCost = session.user.role === "tenant_owner";
+  /** مالك المركز + السوبر أدمن (اختبار/لوحة النظام) — الموظف لا يرى تكلفة الشراء */
+  const showPurchaseCost =
+    session.user.role === "tenant_owner" || session.user.role === "super_admin";
 
   return (
     <div className="p-4 md:p-8">
