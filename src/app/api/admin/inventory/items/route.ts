@@ -120,20 +120,29 @@ export async function GET(request: Request) {
 
     const result = await db.execute({ sql, args });
 
-    const items = result.rows.map((row) => ({
-      id: row.id,
-      name: row.name,
-      code: row.code,
-      barcode: row.barcode,
-      category: row.category,
-      unit: row.unit || "قطعة",
-      purchase_price: row.purchase_price ?? 0,
-      sale_price: row.sale_price ?? 0,
-      min_quantity: row.min_quantity ?? 0,
-      has_expiry: Number(row.has_expiry ?? 0) === 1,
-      expiry_date: row.expiry_date ? String(row.expiry_date) : null,
-      quantity: row.quantity ?? 0,
-    }));
+    const role = session.user.role;
+    const items = result.rows.map((row) => {
+      const base = {
+        id: row.id,
+        name: row.name,
+        code: row.code,
+        barcode: row.barcode,
+        category: row.category,
+        unit: row.unit || "قطعة",
+        sale_price: row.sale_price ?? 0,
+        min_quantity: row.min_quantity ?? 0,
+        has_expiry: Number(row.has_expiry ?? 0) === 1,
+        expiry_date: row.expiry_date ? String(row.expiry_date) : null,
+        quantity: row.quantity ?? 0,
+      };
+      if (role === "employee") {
+        return base;
+      }
+      return {
+        ...base,
+        purchase_price: row.purchase_price ?? 0,
+      };
+    });
 
     if (usePagination) return NextResponse.json({ items, total });
     return NextResponse.json(items);

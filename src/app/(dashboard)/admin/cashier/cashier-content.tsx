@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import Link from "next/link";
 import { SearchableSelect } from "@/components/ui/searchable-select";
 import { InventoryCategoryFilter } from "@/components/inventory/inventory-category-filter";
@@ -13,6 +13,8 @@ interface CartItem {
   quantity: number;
   unit_price: number;
   total: number;
+  /** سعر الشراء — يُملأ لمالك المركز فقط (لا يُرسل للخادم) */
+  purchase_price?: number;
 }
 
 interface InventoryItem {
@@ -23,6 +25,7 @@ interface InventoryItem {
   category?: string | null;
   quantity: number;
   sale_price: number;
+  purchase_price?: number;
 }
 
 interface Customer {
@@ -87,7 +90,12 @@ function clearCashierDraft() {
   } catch {}
 }
 
-export function CashierContent() {
+interface CashierContentProps {
+  /** يظهر سعر الشراء في الكاشير لمساعدة المالك على تجنب البيع بخسارة */
+  showPurchaseCost?: boolean;
+}
+
+export function CashierContent({ showPurchaseCost = false }: CashierContentProps) {
   const [items, setItems] = useState<InventoryItem[]>([]);
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [paymentMethods, setPaymentMethods] = useState<PaymentMethod[]>([]);
@@ -194,6 +202,10 @@ export function CashierContent() {
         quantity: qty,
         unit_price: item.sale_price,
         total: qty * item.sale_price,
+        purchase_price:
+          showPurchaseCost && item.purchase_price != null && Number.isFinite(Number(item.purchase_price))
+            ? Number(item.purchase_price)
+            : undefined,
       });
     }
     if (merged.length > 0) {
@@ -210,7 +222,7 @@ export function CashierContent() {
       setRestoredFromDraft(true);
     }
     setDraftLoaded(true);
-  }, [items.length, draftLoaded]);
+  }, [items.length, draftLoaded, showPurchaseCost]);
 
   useEffect(() => {
     saveCashierDraft({
@@ -276,10 +288,14 @@ export function CashierContent() {
         alert(`الكمية المتاحة: ${item.quantity}`);
         return;
       }
+      const pp =
+        showPurchaseCost && item.purchase_price != null && Number.isFinite(Number(item.purchase_price))
+          ? Number(item.purchase_price)
+          : undefined;
       setCart((prev) =>
         prev.map((c) =>
           c.item_id === item.id
-            ? { ...c, quantity: newQty, total: newQty * c.unit_price }
+            ? { ...c, quantity: newQty, total: newQty * c.unit_price, purchase_price: pp ?? c.purchase_price }
             : c
         )
       );
@@ -292,12 +308,16 @@ export function CashierContent() {
           quantity: qty,
           unit_price: item.sale_price,
           total: qty * item.sale_price,
+          purchase_price:
+            showPurchaseCost && item.purchase_price != null && Number.isFinite(Number(item.purchase_price))
+              ? Number(item.purchase_price)
+              : undefined,
         },
       ]);
     }
     setAddItemId("");
     setAddQty("1");
-  }, [items, addItemId, addQty, cart]);
+  }, [items, addItemId, addQty, cart, showPurchaseCost]);
 
   useEffect(() => {
     function handleKeyDown(e: KeyboardEvent) {
@@ -344,10 +364,14 @@ export function CashierContent() {
         alert(`الكمية المتاحة: ${item.quantity}`);
         return;
       }
+      const pp =
+        showPurchaseCost && item.purchase_price != null && Number.isFinite(Number(item.purchase_price))
+          ? Number(item.purchase_price)
+          : undefined;
       setCart((prev) =>
         prev.map((c) =>
           c.item_id === item.id
-            ? { ...c, quantity: newQty, total: newQty * c.unit_price }
+            ? { ...c, quantity: newQty, total: newQty * c.unit_price, purchase_price: pp ?? c.purchase_price }
             : c
         )
       );
@@ -360,6 +384,10 @@ export function CashierContent() {
           quantity: qty,
           unit_price: item.sale_price,
           total: qty * item.sale_price,
+          purchase_price:
+            showPurchaseCost && item.purchase_price != null && Number.isFinite(Number(item.purchase_price))
+              ? Number(item.purchase_price)
+              : undefined,
         },
       ]);
     }
@@ -390,12 +418,37 @@ export function CashierContent() {
   }
 
   const subtotal = cart.reduce((sum, c) => sum + c.total, 0);
+
+  const { totalPurchaseInCart, allLinesHavePurchaseCost, hasLineBelowPurchase } = useMemo(() => {
+    const linesWithCost = cart.filter(
+      (c) => c.purchase_price != null && Number.isFinite(Number(c.purchase_price))
+    );
+    const totalPurchaseInCart = linesWithCost.reduce(
+      (s, c) => s + c.quantity * Number(c.purchase_price),
+      0
+    );
+    const allLinesHavePurchaseCost = cart.length > 0 && linesWithCost.length === cart.length;
+    const hasLineBelowPurchase = cart.some(
+      (c) =>
+        c.purchase_price != null &&
+        Number.isFinite(Number(c.purchase_price)) &&
+        c.unit_price + 1e-9 < Number(c.purchase_price)
+    );
+    return {
+      totalPurchaseInCart,
+      allLinesHavePurchaseCost,
+      hasLineBelowPurchase,
+    };
+  }, [cart]);
+
   const discountAmount = discountEnabled
     ? discountType === "percent"
       ? (subtotal * (Number(discountValue) || 0)) / 100
       : Number(discountValue) || 0
     : 0;
   const afterDiscount = Math.max(0, subtotal - discountAmount);
+  const marginAfterDiscount =
+    showPurchaseCost && allLinesHavePurchaseCost ? afterDiscount - totalPurchaseInCart : null;
   const taxAmount = taxEnabled ? (afterDiscount * (Number(taxRate) || 0)) / 100 : 0;
   const beforeDigitalFee = afterDiscount + taxAmount;
   const digitalFee = Math.max(feeConfig.minFee, beforeDigitalFee * feeConfig.rate);
@@ -623,6 +676,11 @@ export function CashierContent() {
       <div className="space-y-6">
         <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
           <h2 className="font-bold text-gray-900 dark:text-gray-100 mb-4">إضافة صنف (ابحث بالاسم أو الكود أو امسح الباركود)</h2>
+          {showPurchaseCost && (
+            <p className="text-xs text-sky-800 dark:text-sky-200 bg-sky-50 dark:bg-sky-950/40 border border-sky-200 dark:border-sky-800 rounded-lg px-3 py-2 mb-3">
+              يظهر لك <strong>سعر الشراء</strong> بجانب سعر البيع لمساعدتك على ضبط الخصم دون البيع بخسارة (الموظفون لا يرون سعر الشراء).
+            </p>
+          )}
           <p className="text-xs text-gray-500 dark:text-gray-400 mb-2" title="اختصارات لوحة المفاتيح">
             ⌨️ F2 بحث | Ctrl+Enter إضافة للسلة | Alt+Enter إتمام البيع
           </p>
@@ -644,11 +702,26 @@ export function CashierContent() {
                 inputId="cashier-product-search"
                 options={items
                   .filter((i) => i.quantity > 0)
-                  .map((i) => ({
-                    id: i.id,
-                    label: `${i.name} (متاح: ${i.quantity}) — ${i.sale_price.toFixed(2)} ج.م`,
-                    searchText: [i.code, i.barcode, i.category, i.name].filter(Boolean).join(" "),
-                  }))}
+                  .map((i) => {
+                    const salePart = `بيع ${i.sale_price.toFixed(2)} ج.م`;
+                    const pur =
+                      showPurchaseCost &&
+                      i.purchase_price != null &&
+                      Number.isFinite(Number(i.purchase_price)) &&
+                      Number(i.purchase_price) > 0
+                        ? ` • شراء ${Number(i.purchase_price).toFixed(2)} ج.م`
+                        : showPurchaseCost
+                          ? " • شراء —"
+                          : "";
+                    const label = showPurchaseCost
+                      ? `${i.name} (متاح: ${i.quantity}) — ${salePart}${pur}`
+                      : `${i.name} (متاح: ${i.quantity}) — ${i.sale_price.toFixed(2)} ج.م`;
+                    return {
+                      id: i.id,
+                      label,
+                      searchText: [i.code, i.barcode, i.category, i.name].filter(Boolean).join(" "),
+                    };
+                  })}
                 value={addItemId}
                 onChange={(id) => setAddItemId(id)}
                 placeholder="ابحث بالاسم أو الكود..."
@@ -726,7 +799,20 @@ export function CashierContent() {
                           onChange={(e) => updateCartQty(c.item_id, Number(e.target.value))}
                           className="w-20 px-2 py-1 text-sm rounded border border-gray-300"
                         />
-                        <span className="text-sm text-gray-500">× {c.unit_price.toFixed(2)} ج.م</span>
+                        <span className="text-sm text-gray-500 dark:text-gray-400">× {c.unit_price.toFixed(2)} ج.م</span>
+                        {showPurchaseCost &&
+                          c.purchase_price != null &&
+                          Number.isFinite(Number(c.purchase_price)) && (
+                            <span
+                              className={`text-xs ${
+                                c.unit_price + 1e-9 < Number(c.purchase_price)
+                                  ? "text-red-600 dark:text-red-400 font-medium"
+                                  : "text-sky-700 dark:text-sky-300"
+                              }`}
+                            >
+                              شراء {Number(c.purchase_price).toFixed(2)} ج.م
+                            </span>
+                          )}
                       </div>
                     </div>
                     <div className="flex items-center gap-2">
@@ -853,6 +939,27 @@ export function CashierContent() {
                 />
                 <span className="text-sm text-gray-500">= {discountAmount.toFixed(2)} ج.م</span>
               </div>
+            )}
+            {showPurchaseCost && cart.length > 0 && (
+              <>
+                {hasLineBelowPurchase && (
+                  <p className="text-xs text-amber-800 dark:text-amber-200 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 rounded-lg px-3 py-2">
+                    تنبيه: سطر في السلة بسعر بيع أقل من <strong>سعر الشراء</strong> — تأكد أن هذا مقصود.
+                  </p>
+                )}
+                {marginAfterDiscount !== null && marginAfterDiscount < 0 && (
+                  <p className="text-xs text-red-800 dark:text-red-200 bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-800 rounded-lg px-3 py-2">
+                    بعد الخصم، هامش السلة أقل من تكلفة الشراء بحوالي{" "}
+                    <strong>{Math.abs(marginAfterDiscount).toFixed(2)} ج.م</strong> — أنت تبيع بخسارة على الأصناف المعروضة.
+                  </p>
+                )}
+                {marginAfterDiscount !== null && marginAfterDiscount >= 0 && discountEnabled && (
+                  <p className="text-xs text-emerald-800 dark:text-emerald-200 bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800 rounded-lg px-3 py-2">
+                    تقريباً بعد الخصم: هامش عن تكلفة الشراء ≈{" "}
+                    <strong>{marginAfterDiscount.toFixed(2)} ج.م</strong> (قبل الضريبة والخدمة الرقمية).
+                  </p>
+                )}
+              </>
             )}
             <div className="flex items-center gap-3">
               <label className="flex items-center gap-2 cursor-pointer">

@@ -16,6 +16,8 @@ export default async function CashierPage() {
       (await canAccess(session.user.id, session.user.role ?? "", companyId, "cashier", "read")));
   if (!allowed) redirect("/login");
 
+  const showPurchaseCost = session.user.role === "tenant_owner";
+
   return (
     <div className="p-4 md:p-8">
       <div className="mb-8">
@@ -23,7 +25,7 @@ export default async function CashierPage() {
         <p className="text-gray-500 dark:text-gray-400 mt-1">بيع القطع والخدمات — إنشاء فاتورة بيع</p>
       </div>
 
-      <CashierContent />
+      <CashierContent showPurchaseCost={showPurchaseCost} />
     </div>
   );
 }
