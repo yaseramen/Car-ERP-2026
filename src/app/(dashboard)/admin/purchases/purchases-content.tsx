@@ -34,6 +34,55 @@ interface Supplier {
 
 type ItemSupplier = { supplier_id: string; supplier_name: string; last_price: number; last_date: string };
 
+const PURCHASE_DRAFT_KEY = "alameen-purchase-draft";
+
+type PurchaseDraftPayload = {
+  cart: CartItem[];
+  supplierId: string;
+  notes: string;
+  taxEnabled: boolean;
+  taxRate: string;
+  discountEnabled: boolean;
+  discountType: "percent" | "fixed";
+  discountValue: string;
+  itemCategoryFilter: string;
+};
+
+function loadPurchaseDraft(): Partial<PurchaseDraftPayload> | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const s = localStorage.getItem(PURCHASE_DRAFT_KEY);
+    if (!s) return null;
+    return JSON.parse(s) as Partial<PurchaseDraftPayload>;
+  } catch {
+    return null;
+  }
+}
+
+function savePurchaseDraft(data: PurchaseDraftPayload) {
+  if (typeof window === "undefined") return;
+  try {
+    const hasProgress =
+      data.cart.length > 0 ||
+      Boolean(data.supplierId) ||
+      Boolean(data.notes?.trim()) ||
+      data.taxEnabled ||
+      data.discountEnabled;
+    if (!hasProgress) {
+      localStorage.removeItem(PURCHASE_DRAFT_KEY);
+      return;
+    }
+    localStorage.setItem(PURCHASE_DRAFT_KEY, JSON.stringify(data));
+  } catch {}
+}
+
+function clearPurchaseDraft() {
+  if (typeof window === "undefined") return;
+  try {
+    localStorage.removeItem(PURCHASE_DRAFT_KEY);
+  } catch {}
+}
+
 export function PurchasesContent({
   initialItemId,
   initialQty,
@@ -49,6 +98,8 @@ export function PurchasesContent({
   const [itemSuppliers, setItemSuppliers] = useState<ItemSupplier[]>([]);
   const [showSupplierCompare, setShowSupplierCompare] = useState(false);
   const initialApplied = useRef(false);
+  /** لا نحفظ/نمسح مسودة الشراء أثناء إضافة صنف من رابط ?item= حتى يكتمل التوجيه */
+  const [allowPurchaseDraftPersist, setAllowPurchaseDraftPersist] = useState(() => !initialItemId);
   const newProductBarcodeRef = useRef<HTMLInputElement>(null);
   const [cart, setCart] = useState<CartItem[]>([]);
   const [supplierId, setSupplierId] = useState("");
@@ -140,6 +191,81 @@ export function PurchasesContent({
     return () => window.removeEventListener("alameen-online", handleOnline);
   }, []);
 
+  const [draftLoaded, setDraftLoaded] = useState(false);
+  const [restoredFromDraft, setRestoredFromDraft] = useState(false);
+
+  useEffect(() => {
+    if (!initialItemId) return;
+    setDraftLoaded(true);
+  }, [initialItemId]);
+
+  useEffect(() => {
+    if (initialItemId || items.length === 0 || draftLoaded) return;
+    const draft = loadPurchaseDraft();
+    if (!draft?.cart?.length && !draft?.supplierId && !draft?.notes?.trim() && !draft?.taxEnabled && !draft?.discountEnabled) {
+      setDraftLoaded(true);
+      return;
+    }
+    const merged: CartItem[] = [];
+    if (draft.cart?.length) {
+      for (const c of draft.cart) {
+        const item = items.find((i) => i.id === c.item_id);
+        if (!item) continue;
+        const qty = Math.max(0.01, Number(c.quantity) || 0.01);
+        const unit = Number.isFinite(Number(c.unit_price)) && Number(c.unit_price) >= 0 ? Number(c.unit_price) : item.purchase_price;
+        merged.push({
+          item_id: item.id,
+          name: item.name,
+          quantity: qty,
+          unit_price: unit,
+          total: qty * unit,
+        });
+      }
+    }
+    if (merged.length > 0) setCart(merged);
+    if (draft.supplierId) setSupplierId(draft.supplierId);
+    if (draft.notes) setNotes(draft.notes);
+    if (draft.taxEnabled) setTaxEnabled(true);
+    if (draft.taxRate) setTaxRate(draft.taxRate);
+    if (draft.discountEnabled) setDiscountEnabled(true);
+    if (draft.discountType) setDiscountType(draft.discountType);
+    if (draft.discountValue) setDiscountValue(draft.discountValue);
+    if (draft.itemCategoryFilter !== undefined && draft.itemCategoryFilter !== "") {
+      setItemCategoryFilter(draft.itemCategoryFilter);
+    }
+    if (merged.length > 0 || draft.supplierId || draft.notes?.trim() || draft.taxEnabled || draft.discountEnabled) {
+      setRestoredFromDraft(true);
+    }
+    setDraftLoaded(true);
+  }, [items.length, draftLoaded, initialItemId]);
+
+  useEffect(() => {
+    if (!draftLoaded || !allowPurchaseDraftPersist) return;
+    savePurchaseDraft({
+      cart,
+      supplierId,
+      notes,
+      taxEnabled,
+      taxRate,
+      discountEnabled,
+      discountType,
+      discountValue,
+      itemCategoryFilter,
+    });
+  }, [
+    draftLoaded,
+    allowPurchaseDraftPersist,
+    cart,
+    supplierId,
+    notes,
+    taxEnabled,
+    taxRate,
+    discountEnabled,
+    discountType,
+    discountValue,
+    itemCategoryFilter,
+  ]);
+
   useEffect(() => {
     if (addProductOpen) fetchCategories();
   }, [addProductOpen]);
@@ -147,7 +273,11 @@ export function PurchasesContent({
   useEffect(() => {
     if (initialApplied.current || !initialItemId || items.length === 0) return;
     const item = items.find((i) => i.id === initialItemId);
-    if (!item) return;
+    if (!item) {
+      initialApplied.current = true;
+      setAllowPurchaseDraftPersist(true);
+      return;
+    }
     initialApplied.current = true;
 
     const qty = Math.max(1, Number(initialQty) || 1);
@@ -194,6 +324,7 @@ export function PurchasesContent({
       })
       .finally(() => {
         router.replace("/admin/purchases", { scroll: false });
+        setAllowPurchaseDraftPersist(true);
       });
   }, [items, initialItemId, initialQty, initialSupplierId, router]);
 
@@ -302,6 +433,7 @@ export function PurchasesContent({
         setTaxEnabled(false);
         setDiscountEnabled(false);
         setDiscountValue("");
+        clearPurchaseDraft();
         alert("انقطع الاتصال. تم حفظ فاتورة الشراء محلياً. سيتم إرسالها تلقائياً عند عودة الإنترنت.");
         return;
       }
@@ -326,6 +458,7 @@ export function PurchasesContent({
       setTaxEnabled(false);
       setDiscountEnabled(false);
       setDiscountValue("");
+      clearPurchaseDraft();
       fetchData();
     } catch {
       if (!navigator.onLine) {
@@ -336,6 +469,7 @@ export function PurchasesContent({
         setTaxEnabled(false);
         setDiscountEnabled(false);
         setDiscountValue("");
+        clearPurchaseDraft();
         alert("انقطع الاتصال. تم حفظ فاتورة الشراء محلياً. سيتم إرسالها تلقائياً عند عودة الإنترنت.");
       } else {
         alert("حدث خطأ. حاول مرة أخرى.");
@@ -602,8 +736,28 @@ export function PurchasesContent({
         </div>
 
         <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-          <div className="p-4 border-b border-gray-100">
-            <h2 className="font-bold text-gray-900">بنود الفاتورة ({cart.length})</h2>
+          <div className="p-4 border-b border-gray-100 flex justify-between items-center gap-2">
+            <h2 className="font-bold text-gray-900 dark:text-gray-100">بنود الفاتورة ({cart.length})</h2>
+            {cart.length > 0 && (
+              <button
+                type="button"
+                onClick={() => {
+                  if (confirm("مسح مسودة فاتورة الشراء والبدء من جديد؟")) {
+                    setCart([]);
+                    setSupplierId("");
+                    setNotes("");
+                    setTaxEnabled(false);
+                    setDiscountEnabled(false);
+                    setDiscountValue("");
+                    clearPurchaseDraft();
+                    setRestoredFromDraft(false);
+                  }
+                }}
+                className="text-sm text-red-600 hover:text-red-700 dark:text-red-400 shrink-0"
+              >
+                مسح المسودة
+              </button>
+            )}
           </div>
           <div className="max-h-64 overflow-y-auto">
             {cart.length === 0 ? (
@@ -652,7 +806,13 @@ export function PurchasesContent({
       </div>
 
       <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-        <h2 className="font-bold text-gray-900 mb-4">إنشاء فاتورة شراء</h2>
+        <h2 className="font-bold text-gray-900 dark:text-gray-100 mb-4">إنشاء فاتورة شراء</h2>
+
+        {restoredFromDraft && (
+          <div className="mb-4 p-3 bg-amber-50 dark:bg-amber-900/40 border border-amber-200 dark:border-amber-700 rounded-lg text-sm text-amber-800 dark:text-amber-200">
+            تم استعادة مسودة فاتورة الشراء. يمكنك إكمال الفاتورة أو مسح المسودة من أعلى قائمة البنود.
+          </div>
+        )}
 
         {lastInvoice && (
           <div className="mb-6 p-4 bg-emerald-50 border border-emerald-200 rounded-lg">
