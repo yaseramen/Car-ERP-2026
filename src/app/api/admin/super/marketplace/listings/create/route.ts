@@ -37,11 +37,19 @@ export async function POST(request: Request) {
     }
 
     const co = await db.execute({
-      sql: "SELECT id FROM companies WHERE id = ? AND COALESCE(is_active,1) = 1",
+      sql: `SELECT id, COALESCE(business_type, 'both') as business_type
+            FROM companies WHERE id = ? AND COALESCE(is_active,1) = 1`,
       args: [String(company_id).trim()],
     });
     if (co.rows.length === 0) {
       return NextResponse.json({ error: "الشركة غير موجودة أو معطّلة" }, { status: 400 });
+    }
+    const bt = String(co.rows[0].business_type ?? "both");
+    if (bt !== "supplier" && bt !== "both") {
+      return NextResponse.json(
+        { error: "يُسمح بإعلان السوق تحت شركات نوعها «مورّد» أو «مختلط» فقط" },
+        { status: 400 }
+      );
     }
 
     const pkgRes = await db.execute({

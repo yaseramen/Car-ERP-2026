@@ -7,6 +7,22 @@ const DEMO_FIELD =
   "w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 px-3 py-2 text-gray-900 dark:text-gray-100 placeholder:text-gray-400 dark:placeholder:text-gray-500";
 const DEMO_IMAGE_MAX_BYTES = 600 * 1024;
 
+type WalletCompanyRow = { id: string; name: string; business_type?: string; is_active?: boolean };
+
+/** شركة يُسمح لها ظهور إعلانات سوق تحت اسمها (مورّد أو مختلط) */
+function pickAnnounceCompanyId(rows: WalletCompanyRow[]): string {
+  const active = rows.filter((r) => r.is_active !== false);
+  const eligible = active.filter((r) => {
+    const bt = String(r.business_type ?? "both");
+    return bt === "supplier" || bt === "both";
+  });
+  if (eligible.length === 0) return "";
+  const suppliers = eligible.filter((r) => String(r.business_type ?? "") === "supplier");
+  const pool = suppliers.length > 0 ? suppliers : eligible;
+  const sorted = [...pool].sort((a, b) => a.name.localeCompare(b.name, "ar"));
+  return sorted[0].id;
+}
+
 function SuperMarketplaceAdmin() {
   const [packages, setPackages] = useState<
     { id: string; label_ar: string; duration_days: number; price: number; category_scope: string; is_active: boolean }[]
@@ -14,8 +30,9 @@ function SuperMarketplaceAdmin() {
   const [listings, setListings] = useState<
     { id: string; title_ar: string; status: string; ends_at: string | null; company_name: string }[]
   >([]);
-  const [companies, setCompanies] = useState<{ id: string; name: string }[]>([]);
+  const [companies, setCompanies] = useState<WalletCompanyRow[]>([]);
   const [demoCompanyId, setDemoCompanyId] = useState("");
+  const [demoCompanyOverride, setDemoCompanyOverride] = useState(false);
   const [demoTitle, setDemoTitle] = useState("إعلان تجريبي");
   const [demoDesc, setDemoDesc] = useState("");
   const [demoPrice, setDemoPrice] = useState("");
@@ -40,8 +57,13 @@ function SuperMarketplaceAdmin() {
       if (l.ok) setListings((await l.json()).listings ?? []);
       if (c.ok) {
         const rows = await c.json();
-        const list = Array.isArray(rows)
-          ? rows.map((x: { id: string; name: string }) => ({ id: x.id, name: x.name }))
+        const list: WalletCompanyRow[] = Array.isArray(rows)
+          ? rows.map((x: WalletCompanyRow) => ({
+              id: x.id,
+              name: x.name,
+              business_type: x.business_type,
+              is_active: x.is_active,
+            }))
           : [];
         setCompanies(list);
       }
@@ -54,12 +76,18 @@ function SuperMarketplaceAdmin() {
     void load();
   }, [load]);
 
-  /** أول شركة بالقائمة = افتراضي (كل إعلان يجب أن يُسجَّل تحت company_id في قاعدة البيانات) */
+  /** تلقائياً: أول شركة مورّد (أو مختلط إن لم يوجد مورّد) — الإعلان يُسجَّل باسمها */
   useEffect(() => {
-    if (companies.length > 0 && !demoCompanyId) {
-      setDemoCompanyId(companies[0].id);
-    }
-  }, [companies, demoCompanyId]);
+    if (companies.length === 0 || demoCompanyOverride) return;
+    const id = pickAnnounceCompanyId(companies);
+    if (id) setDemoCompanyId(id);
+  }, [companies, demoCompanyOverride]);
+
+  const announceCompanyName = companies.find((c) => c.id === demoCompanyId)?.name ?? "";
+  const eligibleCompanies = companies.filter((r) => {
+    const bt = String(r.business_type ?? "both");
+    return r.is_active !== false && (bt === "supplier" || bt === "both");
+  });
 
   function onDemoImageFile(e: ChangeEvent<HTMLInputElement>) {
     const f = e.target.files?.[0];
@@ -114,7 +142,11 @@ function SuperMarketplaceAdmin() {
 
   async function submitDemoListing() {
     if (!demoCompanyId || !demoTitle.trim() || !demoPhone.trim() || !demoPackageId) {
-      alert("اختر الشركة وأدخل العنوان والهاتف والباقة");
+      if (!demoCompanyId && eligibleCompanies.length === 0) {
+        alert("لا توجد شركة نوعها «مورّد» أو «مختلط» لتسجيل الإعلان باسمها. أضف شركة أو غيّر النشاط من المحافظ.");
+      } else {
+        alert("أدخل العنوان والهاتف وتأكد من اختيار الشركة المعتمدة");
+      }
       return;
     }
     setDemoSaving(true);
@@ -153,31 +185,66 @@ function SuperMarketplaceAdmin() {
       <div className="bg-amber-50/90 dark:bg-amber-950/30 rounded-xl border border-amber-200 dark:border-amber-800 p-6">
         <h2 className="font-bold text-gray-900 dark:text-gray-100 mb-2">إعلان تجريبي (سوبر أدمن)</h2>
         <p className="text-sm text-gray-800 dark:text-gray-200 mb-2 leading-relaxed">
-          نشر فوري على صفحة السوق العامة <strong>بدون خصم من المحفظة</strong> ودون قيود نوع شركة أو تفعيل السوق. للاختبار
-          والعرض فقط.
+          نشر فوري على صفحة السوق العامة <strong>بدون خصم من المحفظة</strong> (تجريبي). يُسجَّل الإعلان في النظام <strong>باسم شركة معلّن</strong> (مورّد أو مختلط) — هي الظاهرة في السوق والمعنية بالمحتوى والتواصل أمام العملاء.
         </p>
-        <p className="text-xs text-gray-700 dark:text-gray-300 mb-4 leading-relaxed border border-amber-200/80 dark:border-amber-800/60 rounded-lg px-3 py-2 bg-white/60 dark:bg-gray-900/40">
-          <strong>لماذا «شركة»؟</strong> في قاعدة البيانات كل إعلان مربوط بـ <code className="text-emerald-700 dark:text-emerald-400">company_id</code> —
-          الاسم الظاهر في السوق هو اسم تلك الشركة. يُختار أول شركة في القائمة تلقائياً؛ غيّر القائمة إن أردت أن يظهر الإعلان باسم شركة أخرى (تجربة لصالح عميل معيّن).
+        <p className="text-xs text-amber-900 dark:text-amber-200/90 mb-4 leading-relaxed border border-amber-300/80 dark:border-amber-700/60 rounded-lg px-3 py-2 bg-amber-100/50 dark:bg-amber-950/50">
+          <strong>المسؤولية:</strong> المنصة وسيط عرض؛ <strong>اسم الشركة المعروض</strong> هو مرجع الإعلان في قاعدة البيانات. يُفضّل أن يطابق بيانات التواصل والمنتج الفعليين لدى تلك الشركة.
         </p>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
-          <div className="md:col-span-2">
-            <label className={DEMO_LABEL}>الاسم الظاهر في السوق (شركة)</label>
-            <select
-              value={demoCompanyId}
-              onChange={(e) => setDemoCompanyId(e.target.value)}
-              className={DEMO_FIELD}
-            >
-              {companies.length === 0 ? (
-                <option value="">— لا توجد شركات —</option>
-              ) : (
-                companies.map((co) => (
-                  <option key={co.id} value={co.id}>
-                    {co.name}
-                  </option>
-                ))
-              )}
-            </select>
+          <div className="md:col-span-2 rounded-lg border border-gray-200 dark:border-gray-600 bg-white/80 dark:bg-gray-900/60 px-3 py-3">
+            <label className={DEMO_LABEL}>المعلن (يُختار تلقائياً)</label>
+            {eligibleCompanies.length === 0 ? (
+              <p className="text-sm text-red-700 dark:text-red-300">
+                لا توجد شركة نشطة نوعها «مورّد» أو «مختلط». أضف شركة أو عدّل النشاط من المحافظ.
+              </p>
+            ) : (
+              <>
+                <p className="text-base font-semibold text-gray-900 dark:text-gray-100">
+                  {announceCompanyName || "…"}
+                </p>
+                <p className="text-xs text-gray-600 dark:text-gray-400 mt-1">
+                  تلقائياً: أول شركة <strong>مورّد</strong> (أبجدياً)، أو أول شركة <strong>مختلط</strong> إن لم يوجد مورّد.
+                </p>
+                <label className="mt-3 flex items-center gap-2 cursor-pointer text-xs text-gray-700 dark:text-gray-300">
+                  <input
+                    type="checkbox"
+                    checked={demoCompanyOverride}
+                    onChange={(e) => {
+                      const on = e.target.checked;
+                      setDemoCompanyOverride(on);
+                      if (!on) {
+                        const id = pickAnnounceCompanyId(companies);
+                        if (id) setDemoCompanyId(id);
+                      } else {
+                        const el = companies.filter((r) => {
+                          const bt = String(r.business_type ?? "both");
+                          return r.is_active !== false && (bt === "supplier" || bt === "both");
+                        });
+                        if (el.length && !el.some((c) => c.id === demoCompanyId)) {
+                          setDemoCompanyId(el[0].id);
+                        }
+                      }
+                    }}
+                    className="rounded"
+                  />
+                  تغيير الشركة المعتمدة يدوياً (مورّد / مختلط فقط)
+                </label>
+                {demoCompanyOverride && (
+                  <select
+                    value={demoCompanyId}
+                    onChange={(e) => setDemoCompanyId(e.target.value)}
+                    className={`${DEMO_FIELD} mt-2`}
+                  >
+                    {eligibleCompanies.map((co) => (
+                      <option key={co.id} value={co.id}>
+                        {co.name}
+                        {String(co.business_type ?? "") === "supplier" ? " (مورّد)" : " (مختلط)"}
+                      </option>
+                    ))}
+                  </select>
+                )}
+              </>
+            )}
           </div>
           <div>
             <label className={DEMO_LABEL}>القسم</label>
