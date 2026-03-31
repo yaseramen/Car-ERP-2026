@@ -9,17 +9,36 @@ function SuperMarketplaceAdmin() {
   const [listings, setListings] = useState<
     { id: string; title_ar: string; status: string; ends_at: string | null; company_name: string }[]
   >([]);
+  const [companies, setCompanies] = useState<{ id: string; name: string }[]>([]);
+  const [demoCompanyId, setDemoCompanyId] = useState("");
+  const [demoTitle, setDemoTitle] = useState("إعلان تجريبي");
+  const [demoDesc, setDemoDesc] = useState("");
+  const [demoPrice, setDemoPrice] = useState("");
+  const [demoPhone, setDemoPhone] = useState("");
+  const [demoWa, setDemoWa] = useState("");
+  const [demoImage, setDemoImage] = useState("");
+  const [demoCategory, setDemoCategory] = useState<"parts" | "workshop">("parts");
+  const [demoPackageId, setDemoPackageId] = useState("");
+  const [demoSaving, setDemoSaving] = useState(false);
   const [loading, setLoading] = useState(true);
 
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const [p, l] = await Promise.all([
+      const [p, l, c] = await Promise.all([
         fetch("/api/admin/super/marketplace/packages"),
         fetch("/api/admin/super/marketplace/listings?limit=50"),
+        fetch("/api/admin/wallets/companies"),
       ]);
       if (p.ok) setPackages((await p.json()).packages ?? []);
       if (l.ok) setListings((await l.json()).listings ?? []);
+      if (c.ok) {
+        const rows = await c.json();
+        const list = Array.isArray(rows)
+          ? rows.map((x: { id: string; name: string }) => ({ id: x.id, name: x.name }))
+          : [];
+        setCompanies(list);
+      }
     } finally {
       setLoading(false);
     }
@@ -45,10 +64,170 @@ function SuperMarketplaceAdmin() {
     else alert((await res.json()).error || "فشل");
   }
 
+  useEffect(() => {
+    const forCat = packages.filter(
+      (x) => x.is_active && (x.category_scope === demoCategory || x.category_scope === "both")
+    );
+    if (forCat.length === 0) return;
+    const stillOk = forCat.some((x) => x.id === demoPackageId);
+    if (!demoPackageId || !stillOk) {
+      setDemoPackageId(forCat[0].id);
+    }
+  }, [packages, demoCategory, demoPackageId]);
+
+  async function submitDemoListing() {
+    if (!demoCompanyId || !demoTitle.trim() || !demoPhone.trim() || !demoPackageId) {
+      alert("اختر الشركة وأدخل العنوان والهاتف والباقة");
+      return;
+    }
+    setDemoSaving(true);
+    try {
+      const res = await fetch("/api/admin/super/marketplace/listings/create", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          company_id: demoCompanyId,
+          title_ar: demoTitle.trim(),
+          description_ar: demoDesc.trim() || undefined,
+          list_price: demoPrice ? Number(demoPrice) : undefined,
+          category: demoCategory,
+          package_id: demoPackageId,
+          contact_phone: demoPhone.trim(),
+          contact_whatsapp: demoWa.trim() || undefined,
+          image_url: demoImage.trim() || undefined,
+        }),
+      });
+      const d = await res.json();
+      if (!res.ok) {
+        alert(d.error || "فشل");
+        return;
+      }
+      alert(`تم نشر الإعلان التجريبي حتى ${d.ends_at}. يظهر في /market`);
+      await load();
+    } finally {
+      setDemoSaving(false);
+    }
+  }
+
   if (loading) return <p className="text-gray-500">جاري التحميل...</p>;
 
   return (
     <div className="space-y-8">
+      <div className="bg-amber-50/90 dark:bg-amber-950/30 rounded-xl border border-amber-200 dark:border-amber-800 p-6">
+        <h2 className="font-bold text-gray-900 dark:text-gray-100 mb-2">إعلان تجريبي (سوبر أدمن)</h2>
+        <p className="text-sm text-gray-700 dark:text-gray-300 mb-4">
+          نشر فوري على صفحة السوق العامة <strong>بدون خصم من المحفظة</strong> ودون قيود نوع شركة أو تفعيل السوق. للاختبار
+          والعرض فقط.
+        </p>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
+          <div className="md:col-span-2">
+            <label className="block text-xs text-gray-500 mb-1">الشركة الظاهرة كمورّد</label>
+            <select
+              value={demoCompanyId}
+              onChange={(e) => setDemoCompanyId(e.target.value)}
+              className="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 px-3 py-2"
+            >
+              <option value="">— اختر شركة —</option>
+              {companies.map((co) => (
+                <option key={co.id} value={co.id}>
+                  {co.name}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="block text-xs text-gray-500 mb-1">القسم</label>
+            <select
+              value={demoCategory}
+              onChange={(e) => setDemoCategory(e.target.value as "parts" | "workshop")}
+              className="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 px-3 py-2"
+            >
+              <option value="parts">قطع غيار</option>
+              <option value="workshop">مستلزمات ومعدات ورشة</option>
+            </select>
+          </div>
+          <div>
+            <label className="block text-xs text-gray-500 mb-1">الباقة (للمدة فقط — بدون دفع)</label>
+            <select
+              value={demoPackageId}
+              onChange={(e) => setDemoPackageId(e.target.value)}
+              className="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 px-3 py-2"
+            >
+              {packages
+                .filter((p) => p.is_active && (p.category_scope === demoCategory || p.category_scope === "both"))
+                .map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.label_ar} ({p.duration_days} يوم)
+                  </option>
+                ))}
+            </select>
+          </div>
+          <div className="md:col-span-2">
+            <label className="block text-xs text-gray-500 mb-1">عنوان الإعلان</label>
+            <input
+              value={demoTitle}
+              onChange={(e) => setDemoTitle(e.target.value)}
+              className="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 px-3 py-2"
+            />
+          </div>
+          <div className="md:col-span-2">
+            <label className="block text-xs text-gray-500 mb-1">الوصف</label>
+            <textarea
+              value={demoDesc}
+              onChange={(e) => setDemoDesc(e.target.value)}
+              rows={2}
+              className="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 px-3 py-2"
+            />
+          </div>
+          <div>
+            <label className="block text-xs text-gray-500 mb-1">سعر إرشادي</label>
+            <input
+              type="number"
+              step="0.01"
+              value={demoPrice}
+              onChange={(e) => setDemoPrice(e.target.value)}
+              className="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 px-3 py-2"
+            />
+          </div>
+          <div>
+            <label className="block text-xs text-gray-500 mb-1">هاتف</label>
+            <input
+              value={demoPhone}
+              onChange={(e) => setDemoPhone(e.target.value)}
+              className="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 px-3 py-2"
+              dir="ltr"
+            />
+          </div>
+          <div>
+            <label className="block text-xs text-gray-500 mb-1">واتساب (اختياري)</label>
+            <input
+              value={demoWa}
+              onChange={(e) => setDemoWa(e.target.value)}
+              className="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 px-3 py-2"
+              dir="ltr"
+              placeholder="2010..."
+            />
+          </div>
+          <div className="md:col-span-2">
+            <label className="block text-xs text-gray-500 mb-1">رابط صورة (اختياري)</label>
+            <input
+              value={demoImage}
+              onChange={(e) => setDemoImage(e.target.value)}
+              className="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 px-3 py-2"
+              dir="ltr"
+            />
+          </div>
+        </div>
+        <button
+          type="button"
+          disabled={demoSaving}
+          onClick={() => void submitDemoListing()}
+          className="mt-4 px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white rounded-lg font-medium"
+        >
+          {demoSaving ? "..." : "نشر الإعلان التجريبي"}
+        </button>
+      </div>
+
       <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6">
         <h2 className="font-bold text-gray-900 dark:text-gray-100 mb-4">باقات السوق</h2>
         <p className="text-sm text-gray-500 mb-4">تعديل السعر أو المدة أو تعطيل الباقة. الشركات المورّدة ترى الباقات النشطة فقط.</p>

@@ -27,9 +27,11 @@ export async function GET(request: Request) {
       JOIN companies c ON c.id = l.company_id
       WHERE l.status = 'active'
         AND COALESCE(c.is_active, 1) = 1
-        AND COALESCE(c.marketplace_enabled, 1) = 1
-        AND COALESCE(c.ads_globally_disabled, 0) = 0
         AND l.ends_at IS NOT NULL AND datetime(l.ends_at) > datetime('now')
+        AND (
+          (COALESCE(c.marketplace_enabled, 1) = 1 AND COALESCE(c.ads_globally_disabled, 0) = 0)
+          OR l.wallet_tx_id IS NULL
+        )
     `;
     const args: string[] = [];
     if (cat) {
