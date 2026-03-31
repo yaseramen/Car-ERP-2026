@@ -32,7 +32,8 @@ export async function GET(request: Request) {
     categoryParam ||
     inStockOnly ||
     !!expiryFilter;
-  const limit = usePagination ? Math.min(200, Math.max(1, Number(searchParams.get("limit")) || 50)) : 10000;
+  /** حد أعلى أعلى للكاشير وقوائم كبيرة (كان 200 فيخفي أصناف عن البحث المحلي) */
+  const limit = usePagination ? Math.min(3000, Math.max(1, Number(searchParams.get("limit")) || 50)) : 10000;
   const offset = usePagination ? Math.max(0, Number(searchParams.get("offset")) || 0) : 0;
 
   try {

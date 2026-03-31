@@ -133,7 +133,7 @@ export function CashierContent({ showPurchaseCost = false }: CashierContentProps
 
   async function fetchData() {
     try {
-      const itemsUrl = `/api/admin/inventory/items?limit=500&offset=0${itemCategoryFilter ? `&category=${encodeURIComponent(itemCategoryFilter)}` : ""}`;
+      const itemsUrl = `/api/admin/inventory/items?limit=2500&offset=0${itemCategoryFilter ? `&category=${encodeURIComponent(itemCategoryFilter)}` : ""}`;
       const [itemsRes, customersRes, methodsRes, feeRes, distRes] = await Promise.all([
         fetch(itemsUrl),
         fetch("/api/admin/customers?limit=500&offset=0"),
@@ -271,6 +271,55 @@ export function CashierContent({ showPurchaseCost = false }: CashierContentProps
       return undefined;
     }
   }
+
+  const itemToCashierOption = useCallback(
+    (i: InventoryItem) => {
+      const salePart = `بيع ${i.sale_price.toFixed(2)} ج.م`;
+      const pur =
+        showPurchaseCost &&
+        i.purchase_price != null &&
+        Number.isFinite(Number(i.purchase_price)) &&
+        Number(i.purchase_price) > 0
+          ? ` • شراء ${Number(i.purchase_price).toFixed(2)} ج.م`
+          : showPurchaseCost
+            ? " • شراء —"
+            : "";
+      const label = `${i.name} (متاح: ${i.quantity}) — ${salePart}${pur}`;
+      return {
+        id: i.id,
+        label,
+        searchText: [i.code, i.barcode, i.category, i.name].filter(Boolean).join(" "),
+      };
+    },
+    [showPurchaseCost]
+  );
+
+  /** دمج نتائج البحث من الخادم حتى يُختار صنف لم يكن ضمن أول دفعة محمّلة */
+  const cashierRemoteSearch = useCallback(
+    async (q: string) => {
+      const qs = q.trim();
+      if (!qs) return [];
+      const cat = itemCategoryFilter ? `&category=${encodeURIComponent(itemCategoryFilter)}` : "";
+      try {
+        const res = await fetch(`/api/admin/inventory/items?limit=120&offset=0&search=${encodeURIComponent(qs)}${cat}`);
+        if (!res.ok) return [];
+        const d = await res.json();
+        const list: InventoryItem[] = Array.isArray(d) ? d : (d.items ?? []);
+        const withStock = list.filter((i) => i.quantity > 0);
+        setItems((prev) => {
+          const byId = new Map(prev.map((p) => [p.id, p]));
+          for (const it of withStock) {
+            byId.set(it.id, it);
+          }
+          return Array.from(byId.values());
+        });
+        return withStock.map(itemToCashierOption);
+      } catch {
+        return [];
+      }
+    },
+    [itemCategoryFilter, itemToCashierOption]
+  );
 
   const addToCart = useCallback(() => {
     const item = items.find((i) => i.id === addItemId);
@@ -705,30 +754,13 @@ export function CashierContent({ showPurchaseCost = false }: CashierContentProps
             <div className="flex-1 min-w-[200px]">
               <SearchableSelect
                 inputId="cashier-product-search"
-                options={items
-                  .filter((i) => i.quantity > 0)
-                  .map((i) => {
-                    const salePart = `بيع ${i.sale_price.toFixed(2)} ج.م`;
-                    const pur =
-                      showPurchaseCost &&
-                      i.purchase_price != null &&
-                      Number.isFinite(Number(i.purchase_price)) &&
-                      Number(i.purchase_price) > 0
-                        ? ` • شراء ${Number(i.purchase_price).toFixed(2)} ج.م`
-                        : showPurchaseCost
-                          ? " • شراء —"
-                          : "";
-                    const label = `${i.name} (متاح: ${i.quantity}) — ${salePart}${pur}`;
-                    return {
-                      id: i.id,
-                      label,
-                      searchText: [i.code, i.barcode, i.category, i.name].filter(Boolean).join(" "),
-                    };
-                  })}
+                options={items.filter((i) => i.quantity > 0).map(itemToCashierOption)}
                 value={addItemId}
                 onChange={(id) => setAddItemId(id)}
                 placeholder="ابحث بالاسم أو الكود..."
                 className={inputClass}
+                remoteSearch={cashierRemoteSearch}
+                remoteSearchMinChars={1}
               />
             </div>
             <button
