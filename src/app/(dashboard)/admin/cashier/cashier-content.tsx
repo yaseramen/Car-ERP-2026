@@ -630,6 +630,11 @@ export function CashierContent({ showPurchaseCost = false }: CashierContentProps
   const inputClass =
     "w-full px-4 py-2.5 rounded-lg border border-gray-300 bg-white text-gray-900 placeholder-gray-500 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none";
 
+  const selectedAddItem = useMemo(
+    () => (addItemId ? items.find((i) => i.id === addItemId) : undefined),
+    [items, addItemId]
+  );
+
   return (
     <div className="space-y-6">
       {distInfo && (
@@ -752,6 +757,69 @@ export function CashierContent({ showPurchaseCost = false }: CashierContentProps
               إضافة
             </button>
           </div>
+          {selectedAddItem && selectedAddItem.quantity > 0 && (
+            <div
+              className={`mt-3 grid gap-3 ${showPurchaseCost ? "grid-cols-1 sm:grid-cols-2" : "grid-cols-1"}`}
+            >
+              <div className="rounded-xl border border-emerald-200 dark:border-emerald-800 bg-emerald-50/90 dark:bg-emerald-950/35 px-4 py-3 text-center sm:text-right">
+                <p className="text-xs font-semibold text-emerald-800 dark:text-emerald-200 mb-1">سعر البيع</p>
+                <p className="text-xl font-bold text-emerald-950 dark:text-emerald-50 tabular-nums">
+                  {selectedAddItem.sale_price.toFixed(2)}{" "}
+                  <span className="text-sm font-medium text-emerald-800 dark:text-emerald-200">ج.م</span>
+                </p>
+                <p className="text-xs text-emerald-700 dark:text-emerald-300 mt-1">
+                  الكمية المتاحة: {selectedAddItem.quantity}
+                </p>
+              </div>
+              {showPurchaseCost && (
+                <div
+                  className={`rounded-xl border px-4 py-3 text-center sm:text-right ${
+                    selectedAddItem.purchase_price != null &&
+                    Number.isFinite(Number(selectedAddItem.purchase_price)) &&
+                    Number(selectedAddItem.purchase_price) > 0 &&
+                    selectedAddItem.sale_price + 1e-9 < Number(selectedAddItem.purchase_price)
+                      ? "border-red-300 dark:border-red-800 bg-red-50/90 dark:bg-red-950/30"
+                      : "border-sky-200 dark:border-sky-800 bg-sky-50/90 dark:bg-sky-950/35"
+                  }`}
+                >
+                  <p
+                    className={`text-xs font-semibold mb-1 ${
+                      selectedAddItem.purchase_price != null &&
+                      Number.isFinite(Number(selectedAddItem.purchase_price)) &&
+                      Number(selectedAddItem.purchase_price) > 0 &&
+                      selectedAddItem.sale_price + 1e-9 < Number(selectedAddItem.purchase_price)
+                        ? "text-red-900 dark:text-red-100"
+                        : "text-sky-900 dark:text-sky-100"
+                    }`}
+                  >
+                    سعر الشراء
+                  </p>
+                  {selectedAddItem.purchase_price != null &&
+                  Number.isFinite(Number(selectedAddItem.purchase_price)) &&
+                  Number(selectedAddItem.purchase_price) > 0 ? (
+                    <>
+                      <p className="text-xl font-bold text-gray-900 dark:text-gray-100 tabular-nums">
+                        {Number(selectedAddItem.purchase_price).toFixed(2)}{" "}
+                        <span className="text-sm font-medium text-gray-600 dark:text-gray-400">ج.م</span>
+                      </p>
+                      {selectedAddItem.sale_price + 1e-9 < Number(selectedAddItem.purchase_price) ? (
+                        <p className="text-xs text-red-800 dark:text-red-200 mt-1 font-medium">
+                          تنبيه: سعر البيع أقل من سعر الشراء
+                        </p>
+                      ) : (
+                        <p className="text-xs text-sky-800 dark:text-sky-200 mt-1">
+                          هامش تقريبي:{" "}
+                          {(selectedAddItem.sale_price - Number(selectedAddItem.purchase_price)).toFixed(2)} ج.م للوحدة
+                        </p>
+                      )}
+                    </>
+                  ) : (
+                    <p className="text-sm text-gray-600 dark:text-gray-400">غير مسجّل — حدّثه من المخزن أو فاتورة شراء</p>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
         <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
