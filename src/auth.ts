@@ -12,6 +12,8 @@ declare module "next-auth" {
     companyId?: string | null;
     companyName?: string | null;
     companyBusinessType?: string | null;
+    companyMarketplaceEnabled?: boolean;
+    companyAdsGloballyDisabled?: boolean;
   }
 
   interface Session {
@@ -26,6 +28,8 @@ declare module "@auth/core/jwt" {
     companyId?: string | null;
     companyName?: string | null;
     companyBusinessType?: string | null;
+    companyMarketplaceEnabled?: boolean;
+    companyAdsGloballyDisabled?: boolean;
   }
 }
 
@@ -43,7 +47,9 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
 
         const result = await db.execute({
           sql: `SELECT u.id, u.email, u.name, u.password_hash, u.role, u.company_id, u.is_active, u.is_blocked,
-                c.business_type, c.name as company_name, c.is_active as company_is_active
+                c.business_type, c.name as company_name, c.is_active as company_is_active,
+                COALESCE(c.marketplace_enabled, 1) as marketplace_enabled,
+                COALESCE(c.ads_globally_disabled, 0) as ads_globally_disabled
                 FROM users u
                 LEFT JOIN companies c ON c.id = u.company_id
                 WHERE u.email = ?`,
@@ -68,6 +74,8 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           companyId: user.company_id ? String(user.company_id) : null,
           companyName: user.company_name ? String(user.company_name) : null,
           companyBusinessType: user.business_type ? String(user.business_type) : null,
+          companyMarketplaceEnabled: Number(user.marketplace_enabled ?? 1) === 1,
+          companyAdsGloballyDisabled: Number(user.ads_globally_disabled ?? 0) === 1,
         };
       },
     }),
@@ -85,6 +93,8 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         token.companyId = user.companyId;
         token.companyName = (user as { companyName?: string }).companyName ?? null;
         token.companyBusinessType = (user as { companyBusinessType?: string }).companyBusinessType ?? null;
+        token.companyMarketplaceEnabled = (user as { companyMarketplaceEnabled?: boolean }).companyMarketplaceEnabled ?? true;
+        token.companyAdsGloballyDisabled = (user as { companyAdsGloballyDisabled?: boolean }).companyAdsGloballyDisabled ?? false;
       }
       return token;
     },
@@ -95,6 +105,8 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         session.user.companyId = token.companyId ?? null;
         session.user.companyName = token.companyName ?? null;
         session.user.companyBusinessType = token.companyBusinessType ?? null;
+        session.user.companyMarketplaceEnabled = token.companyMarketplaceEnabled !== false;
+        session.user.companyAdsGloballyDisabled = token.companyAdsGloballyDisabled === true;
       }
       return session;
     },

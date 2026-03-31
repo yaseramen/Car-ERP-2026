@@ -11,8 +11,27 @@ export default auth((req) => {
     return NextResponse.next();
   }
 
+  /** سوق عام (عرض إعلانات فقط) */
+  if (path.startsWith("/api/marketplace")) {
+    return NextResponse.next();
+  }
+
+  /** Cron داخلي — يحمى بـ CRON_SECRET في المسار نفسه */
+  if (path.startsWith("/api/cron/")) {
+    return NextResponse.next();
+  }
+
   // صفحات عامة (SEO، PWA، لا تتطلب تسجيل دخول)
-  const publicPaths = ["/login", "/register", "/reset-password", "/how-it-works", "/faq", "/terms", "/manifest.webmanifest"];
+  const publicPaths = [
+    "/login",
+    "/register",
+    "/reset-password",
+    "/how-it-works",
+    "/faq",
+    "/terms",
+    "/manifest.webmanifest",
+    "/market",
+  ];
   if (publicPaths.includes(path)) {
     if (path === "/login" || path === "/register") {
       if (isLoggedIn && ["super_admin", "tenant_owner", "employee"].includes(req.auth?.user?.role ?? "")) {
