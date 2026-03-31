@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { addToQueue } from "@/lib/offline-queue";
 import { getErrorMessage } from "@/lib/error-messages";
+import { type BusinessType } from "@/lib/business-types";
 
 interface Company {
   id: string;
@@ -10,6 +11,9 @@ interface Company {
   phone: string | null;
   address: string | null;
   is_active: boolean;
+  business_type: string;
+  marketplace_enabled: boolean;
+  ads_globally_disabled: boolean;
   wallet_id: string | null;
   balance: number;
 }
@@ -45,15 +49,74 @@ export function WalletsContent() {
   const [companyActionType, setCompanyActionType] = useState<"block" | "unblock" | "delete">("block");
   const [companyActionTarget, setCompanyActionTarget] = useState<Company | null>(null);
   const [companyActionSaving, setCompanyActionSaving] = useState(false);
+  const [marketplaceSavingId, setMarketplaceSavingId] = useState<string | null>(null);
+  const [businessTypeSavingId, setBusinessTypeSavingId] = useState<string | null>(null);
 
   async function fetchCompanies() {
     try {
       const res = await fetch("/api/admin/wallets/companies");
-      if (res.ok) setCompanies(await res.json());
+      if (res.ok) {
+        const list = await res.json();
+        setCompanies(
+          (Array.isArray(list) ? list : []).map((c: Company & { business_type?: string }) => ({
+            ...c,
+            business_type: c.business_type ?? "both",
+            marketplace_enabled: c.marketplace_enabled !== false,
+            ads_globally_disabled: c.ads_globally_disabled === true,
+          }))
+        );
+      }
     } catch {
       setCompanies([]);
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function patchCompanyFlags(
+    companyId: string,
+    body: Record<string, boolean | string>
+  ): Promise<boolean> {
+    setMarketplaceSavingId(companyId);
+    try {
+      const res = await fetch(`/api/admin/super/companies/${companyId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      if (!res.ok) {
+        const d = await res.json().catch(() => ({}));
+        alert(d.error || "فشل التحديث");
+        return false;
+      }
+      await fetchCompanies();
+      return true;
+    } catch {
+      alert("فشل الاتصال");
+      return false;
+    } finally {
+      setMarketplaceSavingId(null);
+    }
+  }
+
+  async function setCompanyBusinessType(companyId: string, business_type: BusinessType) {
+    setBusinessTypeSavingId(companyId);
+    try {
+      const res = await fetch(`/api/admin/super/companies/${companyId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ business_type }),
+      });
+      if (!res.ok) {
+        const d = await res.json().catch(() => ({}));
+        alert(d.error || "فشل التحديث");
+        return;
+      }
+      await fetchCompanies();
+    } catch {
+      alert("فشل الاتصال");
+    } finally {
+      setBusinessTypeSavingId(null);
     }
   }
 
@@ -326,6 +389,11 @@ export function WalletsContent() {
         </form>
       </div>
 
+      <div className="rounded-xl border border-sky-200 dark:border-sky-800 bg-sky-50/80 dark:bg-sky-950/30 px-4 py-3 text-sm text-sky-900 dark:text-sky-100">
+        <strong>السوق والإعلانات (تجريبي):</strong> عمود «السوق» يتحكم في تفعيل ميزات السوق لاحقاً وإيقاف ظهور إعلانات الشركة عالمياً.
+        شركات «مورّد» الجديدة تُسجَّل مع السوق معطّل حتى تفعّله السوبر أدمن بعد المراجعة.
+      </div>
+
       <div className="flex justify-between items-center">
         <h2 className="font-medium text-gray-900 dark:text-gray-100">الشركات والمحافظ</h2>
         <button
@@ -342,6 +410,8 @@ export function WalletsContent() {
             <thead>
               <tr className="bg-gray-50 dark:bg-gray-700/50 border-b border-gray-100 dark:border-gray-600">
                 <th className="text-right px-4 py-3 text-sm font-medium text-gray-600 dark:text-gray-300">الشركة</th>
+                <th className="text-right px-4 py-3 text-sm font-medium text-gray-600 dark:text-gray-300 whitespace-nowrap">نوع النشاط</th>
+                <th className="text-right px-4 py-3 text-sm font-medium text-gray-600 dark:text-gray-300">السوق</th>
                 <th className="text-right px-4 py-3 text-sm font-medium text-gray-600 dark:text-gray-300">الحالة</th>
                 <th className="text-right px-4 py-3 text-sm font-medium text-gray-600 dark:text-gray-300">الهاتف</th>
                 <th className="text-right px-4 py-3 text-sm font-medium text-gray-600 dark:text-gray-300">الرصيد</th>
@@ -352,14 +422,64 @@ export function WalletsContent() {
             <tbody>
               {companies.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="px-4 py-12 text-center text-gray-500 dark:text-gray-400">
-                    لا توجد شركات. اضغط "إضافة شركة" للبدء.
+                  <td colSpan={8} className="px-4 py-12 text-center text-gray-500 dark:text-gray-400">
+                    لا توجد شركات. اضغط «إضافة شركة» للبدء.
                   </td>
                 </tr>
               ) : (
                 companies.map((c) => (
                   <tr key={c.id} className={`border-b border-gray-50 dark:border-gray-700 hover:bg-gray-50/50 dark:hover:bg-gray-700/30 ${!c.is_active ? "opacity-60" : ""}`}>
                     <td className="px-4 py-3 text-sm font-medium text-gray-900 dark:text-gray-100">{c.name}</td>
+                    <td className="px-4 py-3">
+                      <select
+                        value={c.business_type}
+                        onChange={(e) =>
+                          setCompanyBusinessType(c.id, e.target.value as BusinessType)
+                        }
+                        disabled={businessTypeSavingId === c.id}
+                        className="max-w-[11rem] text-xs rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-2 py-1.5"
+                        title="نوع النشاط"
+                      >
+                        <option value="both">بيع + خدمة</option>
+                        <option value="sales_only">قطع غيار فقط</option>
+                        <option value="service_only">خدمة فقط</option>
+                        <option value="supplier">مورّد</option>
+                      </select>
+                    </td>
+                    <td className="px-4 py-3">
+                      <div className="flex flex-col gap-1.5 text-xs">
+                        <button
+                          type="button"
+                          disabled={marketplaceSavingId === c.id}
+                          onClick={() =>
+                            void patchCompanyFlags(c.id, { marketplace_enabled: !c.marketplace_enabled })
+                          }
+                          className={`px-2 py-1 rounded text-right font-medium ${
+                            c.marketplace_enabled
+                              ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-200"
+                              : "bg-gray-200 text-gray-700 dark:bg-gray-600 dark:text-gray-200"
+                          }`}
+                          title="تفعيل أو تعطيل ميزات السوق للشركة"
+                        >
+                          {c.marketplace_enabled ? "السوق: مفعّل" : "السوق: معطّل"}
+                        </button>
+                        <button
+                          type="button"
+                          disabled={marketplaceSavingId === c.id}
+                          onClick={() =>
+                            void patchCompanyFlags(c.id, { ads_globally_disabled: !c.ads_globally_disabled })
+                          }
+                          className={`px-2 py-1 rounded text-right font-medium ${
+                            c.ads_globally_disabled
+                              ? "bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-200"
+                              : "bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-200"
+                          }`}
+                          title="إخفاء كل إعلانات الشركة من السوق فوراً"
+                        >
+                          {c.ads_globally_disabled ? "إعلانات: موقوفة" : "إعلانات: مسموحة"}
+                        </button>
+                      </div>
+                    </td>
                     <td className="px-4 py-3">
                       <span className={`px-2 py-0.5 text-xs rounded ${c.is_active ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300" : "bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300"}`}>
                         {c.is_active ? "نشطة" : "محظورة"}

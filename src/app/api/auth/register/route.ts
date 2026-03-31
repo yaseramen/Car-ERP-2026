@@ -2,8 +2,7 @@ import { NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import { randomUUID } from "crypto";
 import { db } from "@/lib/db/client";
-
-type BusinessType = "sales_only" | "service_only" | "both";
+import { normalizeBusinessType } from "@/lib/business-types";
 
 export async function POST(request: Request) {
   try {
@@ -17,9 +16,7 @@ export async function POST(request: Request) {
       );
     }
 
-    const bt: BusinessType = ["sales_only", "service_only", "both"].includes(business_type)
-      ? business_type
-      : "both";
+    const bt = normalizeBusinessType(business_type);
 
     if (String(password).length < 6) {
       return NextResponse.json({ error: "كلمة المرور يجب أن تكون 6 أحرف على الأقل" }, { status: 400 });
@@ -56,10 +53,17 @@ export async function POST(request: Request) {
     const companyId = randomUUID();
     const userId = randomUUID();
 
+    const marketplaceEnabled = bt === "supplier" ? 0 : 1;
     await db.execute({
-      sql: `INSERT INTO companies (id, name, phone, business_type, is_active)
-            VALUES (?, ?, ?, ?, 1)`,
-      args: [companyId, String(company_name).trim(), phone ? String(phone) : null, bt],
+      sql: `INSERT INTO companies (id, name, phone, business_type, marketplace_enabled, ads_globally_disabled, is_active)
+            VALUES (?, ?, ?, ?, ?, 0, 1)`,
+      args: [
+        companyId,
+        String(company_name).trim(),
+        phone ? String(phone) : null,
+        bt,
+        marketplaceEnabled,
+      ],
     });
 
     await db.execute({

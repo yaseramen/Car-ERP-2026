@@ -85,6 +85,8 @@ export function Sidebar({ role = "super_admin", businessType, companyName: initi
     if (role === "super_admin") return true;
     if (businessType === "sales_only" && item.serviceOnly) return false;
     if (businessType === "service_only" && item.salesOnly) return false;
+    /** مورّد = مثل محل القطع: مبيعات ومخزن، بدون ورشة/OBD */
+    if (businessType === "supplier" && item.serviceOnly) return false;
     if (role === "employee" && item.module && perms) {
       return perms[item.module]?.read === true;
     }
@@ -105,7 +107,13 @@ export function Sidebar({ role = "super_admin", businessType, companyName: initi
             {companyName && role !== "super_admin" ? companyName : "EFCT"}
           </h2>
           <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-            {role === "super_admin" ? "لوحة Super Admin" : role === "employee" ? "لوحة الموظف" : "لوحة المالك"}
+            {role === "super_admin"
+              ? "لوحة Super Admin"
+              : role === "employee"
+                ? "لوحة الموظف"
+                : businessType === "supplier"
+                  ? "لوحة المورّد"
+                  : "لوحة المالك"}
           </p>
         </div>
         {onClose && (

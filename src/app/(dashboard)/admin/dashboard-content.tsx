@@ -43,6 +43,7 @@ type SuperStats = {
 type CompanyUsage = {
   id: string;
   name: string;
+  business_type?: string;
   created_at: string;
   last_activity: string | null;
   days_since_activity: number | null;
@@ -276,6 +277,7 @@ export function DashboardContent({ isSuperAdmin = false }: { isSuperAdmin?: bool
                     <thead>
                       <tr className="bg-gray-50 dark:bg-gray-700/50 border-b border-gray-200 dark:border-gray-600">
                         <th className="text-right px-3 py-2">الشركة</th>
+                        <th className="text-right px-3 py-2">النشاط</th>
                         <th className="text-right px-3 py-2">الحالة</th>
                         <th className="text-right px-3 py-2">آخر نشاط</th>
                         <th className="text-right px-3 py-2">فواتير</th>
@@ -287,6 +289,15 @@ export function DashboardContent({ isSuperAdmin = false }: { isSuperAdmin?: bool
                       {companiesUsage.rows.map((c) => (
                         <tr key={c.id} className="border-b border-gray-100 dark:border-gray-700">
                           <td className="px-3 py-2 font-medium text-gray-900 dark:text-gray-100">{c.name}</td>
+                          <td className="px-3 py-2 text-xs text-gray-600 dark:text-gray-400 whitespace-nowrap">
+                            {c.business_type === "supplier"
+                              ? "مورّد"
+                              : c.business_type === "sales_only"
+                                ? "قطع غيار"
+                                : c.business_type === "service_only"
+                                  ? "خدمة"
+                                  : "مختلط"}
+                          </td>
                           <td className="px-3 py-2">
                             <span className={c.status === "active" ? "text-emerald-600 dark:text-emerald-400" : "text-amber-600 dark:text-amber-400"}>
                               {c.status === "active" ? "نشطة" : "خاملة"}

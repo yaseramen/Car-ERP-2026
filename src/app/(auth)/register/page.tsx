@@ -12,7 +12,7 @@ export default function RegisterPage() {
     name: "",
     phone: "",
     company_name: "",
-    business_type: "both" as "sales_only" | "service_only" | "both",
+    business_type: "both" as "sales_only" | "service_only" | "both" | "supplier",
     accept_terms: false,
   });
   const [error, setError] = useState("");
@@ -102,6 +102,9 @@ export default function RegisterPage() {
             <option value="both">بيع وشراء + مركز خدمة (الاثنين معاً)</option>
             <option value="sales_only">محل بيع وشراء فقط</option>
             <option value="service_only">مركز خدمة فقط</option>
+            <option value="supplier">
+              مورّد — محل قطع غيار للحسابات (بدون ورشة)؛ السوق والإعلانات تُفعّل لاحقاً من الإدارة
+            </option>
           </select>
         </div>
 

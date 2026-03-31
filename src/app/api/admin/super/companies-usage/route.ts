@@ -31,6 +31,7 @@ export async function GET(request: Request) {
       SELECT
         c.id,
         c.name,
+        COALESCE(c.business_type, 'both') as business_type,
         c.created_at,
         (SELECT MAX(created_at) FROM invoices i WHERE i.company_id = c.id AND i.status NOT IN ('cancelled')) as last_invoice,
         (SELECT MAX(last_login_at) FROM users u WHERE u.company_id = c.id) as last_login,
@@ -85,6 +86,7 @@ export async function GET(request: Request) {
       return {
         id: r.id,
         name: r.name,
+        business_type: String(r.business_type ?? "both"),
         created_at: r.created_at,
         last_activity: lastActivity,
         days_since_activity: daysSinceActivity,

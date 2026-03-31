@@ -32,6 +32,7 @@
 
 - `src/app/(auth)/` — تسجيل الدخول، التسجيل، استعادة كلمة مرور المالك
 - `src/app/(dashboard)/admin/` — لوحة التحكم (فواتير، مخزن، ورشة، …)
+- أنواع نشاط الشركة (`companies.business_type`): `both` | `sales_only` | `service_only` | `supplier` (مورّد = بدون ورشة/OBD، مثل محل القطع). أعلام السوق: `marketplace_enabled`, `ads_globally_disabled` — ترحيل `027_supplier_marketplace_flags.sql`.
 - `src/lib/` — منطق مشترك (صلاحيات، محفظة، نسخ احتياطي، …)
 
 ---

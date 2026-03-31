@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { db } from "@/lib/db/client";
 import { randomUUID } from "crypto";
+import { normalizeBusinessType } from "@/lib/business-types";
 
 export async function GET() {
   const session = await auth();
@@ -12,6 +13,9 @@ export async function GET() {
   try {
     const result = await db.execute({
       sql: `SELECT c.id, c.name, c.phone, c.address, c.is_active,
+            COALESCE(c.business_type, 'both') as business_type,
+            COALESCE(c.marketplace_enabled, 1) as marketplace_enabled,
+            COALESCE(c.ads_globally_disabled, 0) as ads_globally_disabled,
             COALESCE(cw.id, '') as wallet_id,
             COALESCE(cw.balance, 0) as balance
             FROM companies c
@@ -26,6 +30,9 @@ export async function GET() {
       phone: row.phone,
       address: row.address,
       is_active: Number(row.is_active ?? 1) === 1,
+      business_type: String(row.business_type ?? "both"),
+      marketplace_enabled: Number(row.marketplace_enabled ?? 1) === 1,
+      ads_globally_disabled: Number(row.ads_globally_disabled ?? 0) === 1,
       wallet_id: row.wallet_id || null,
       balance: Number(row.balance ?? 0),
     }));
@@ -45,18 +52,20 @@ export async function POST(request: Request) {
 
   try {
     const body = await request.json();
-    const { name, phone, address } = body;
+    const { name, phone, address, business_type } = body;
 
     if (!name?.trim()) {
       return NextResponse.json({ error: "اسم الشركة مطلوب" }, { status: 400 });
     }
 
+    const bt = normalizeBusinessType(business_type);
     const companyId = randomUUID();
     const walletId = randomUUID();
 
     await db.execute({
-      sql: "INSERT INTO companies (id, name, phone, address, is_active) VALUES (?, ?, ?, ?, 1)",
-      args: [companyId, name.trim(), phone?.trim() || null, address?.trim() || null],
+      sql: `INSERT INTO companies (id, name, phone, address, business_type, marketplace_enabled, ads_globally_disabled, is_active)
+            VALUES (?, ?, ?, ?, ?, 1, 0, 1)`,
+      args: [companyId, name.trim(), phone?.trim() || null, address?.trim() || null, bt],
     });
 
     await db.execute({
