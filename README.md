@@ -81,6 +81,10 @@
 
 - **Next.js 16 / middleware:** تظهر رسالة أن `middleware` أصبحت `proxy`. الحل المستقبلي: تشغيل `npx @next/codemod@canary middleware-to-proxy .` أو نقل منطق المصادقة إلى layout guards حسب توصيات Next.js 16.
 
+## خارطة الطريق (ما بُني وما التالي)
+
+راجع **`docs/PRODUCT_ROADMAP.md`** — ملخص تنفيذي لما تم منذ بداية المشروع وخطط التطوير المؤجلة (للمتابعة بين المحادثات).
+
 ## الميزات الرئيسية
 
 - **مستخدمون وصلاحيات:** Super Admin، Tenant Owner، موظفون بصلاحيات دقيقة
