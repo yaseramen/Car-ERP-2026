@@ -55,6 +55,7 @@
    ```bash
    npm run db:migrate
    ```
+   **على Vercel:** لا حاجة لجهاز سطح مكتب — أمر `npm run build` يشغّل `db:migrate` تلقائياً باستخدام نفس `TURSO_DATABASE_URL` و`TURSO_AUTH_TOKEN` المضبوطين في المشروع. إن فشل الترحيل يفشل النشر وتجد التفاصيل في **Deployments → Build Logs**.
 
 3. **إضافة Super Admin (اختياري):**
    ```bash

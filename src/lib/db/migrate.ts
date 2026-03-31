@@ -21,6 +21,7 @@ function getStatements(sql: string): string[] {
 }
 
 export async function runMigrations() {
+  console.log("[EFCT] بدء ترحيل قاعدة البيانات…");
   const schemaPath = join(process.cwd(), "database", "schema.sql");
   const schema = readFileSync(schemaPath, "utf-8");
   const statements = getStatements(schema);
