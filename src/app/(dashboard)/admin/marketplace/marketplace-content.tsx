@@ -1,6 +1,11 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef, type ChangeEvent } from "react";
+
+const DEMO_LABEL = "block text-xs font-medium text-gray-800 dark:text-gray-200 mb-1";
+const DEMO_FIELD =
+  "w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 px-3 py-2 text-gray-900 dark:text-gray-100 placeholder:text-gray-400 dark:placeholder:text-gray-500";
+const DEMO_IMAGE_MAX_BYTES = 600 * 1024;
 
 function SuperMarketplaceAdmin() {
   const [packages, setPackages] = useState<
@@ -21,6 +26,7 @@ function SuperMarketplaceAdmin() {
   const [demoPackageId, setDemoPackageId] = useState("");
   const [demoSaving, setDemoSaving] = useState(false);
   const [loading, setLoading] = useState(true);
+  const demoImageFileRef = useRef<HTMLInputElement>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -47,6 +53,37 @@ function SuperMarketplaceAdmin() {
   useEffect(() => {
     void load();
   }, [load]);
+
+  /** أول شركة بالقائمة = افتراضي (كل إعلان يجب أن يُسجَّل تحت company_id في قاعدة البيانات) */
+  useEffect(() => {
+    if (companies.length > 0 && !demoCompanyId) {
+      setDemoCompanyId(companies[0].id);
+    }
+  }, [companies, demoCompanyId]);
+
+  function onDemoImageFile(e: ChangeEvent<HTMLInputElement>) {
+    const f = e.target.files?.[0];
+    e.target.value = "";
+    if (!f) return;
+    if (!f.type.startsWith("image/")) {
+      alert("اختر ملف صورة (PNG أو JPEG …)");
+      return;
+    }
+    if (f.size > DEMO_IMAGE_MAX_BYTES) {
+      alert(`حجم الصورة كبير (الحد حوالي ${Math.round(DEMO_IMAGE_MAX_BYTES / 1024)} كيلو). صغّر الصورة أو الصق رابطاً بدلاً من الرفع.`);
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => {
+      const data = String(reader.result ?? "");
+      if (data.length > 900_000) {
+        alert("الصورة بعد التحويل كبيرة جداً. استخدم رابط صورة أو ملفاً أصغر.");
+        return;
+      }
+      setDemoImage(data);
+    };
+    reader.readAsDataURL(f);
+  }
 
   async function togglePackage(id: string, is_active: boolean) {
     await fetch(`/api/admin/super/marketplace/packages/${id}`, {
@@ -109,49 +146,56 @@ function SuperMarketplaceAdmin() {
     }
   }
 
-  if (loading) return <p className="text-gray-500">جاري التحميل...</p>;
+  if (loading) return <p className="text-gray-600 dark:text-gray-400">جاري التحميل...</p>;
 
   return (
     <div className="space-y-8">
       <div className="bg-amber-50/90 dark:bg-amber-950/30 rounded-xl border border-amber-200 dark:border-amber-800 p-6">
         <h2 className="font-bold text-gray-900 dark:text-gray-100 mb-2">إعلان تجريبي (سوبر أدمن)</h2>
-        <p className="text-sm text-gray-700 dark:text-gray-300 mb-4">
+        <p className="text-sm text-gray-800 dark:text-gray-200 mb-2 leading-relaxed">
           نشر فوري على صفحة السوق العامة <strong>بدون خصم من المحفظة</strong> ودون قيود نوع شركة أو تفعيل السوق. للاختبار
           والعرض فقط.
         </p>
+        <p className="text-xs text-gray-700 dark:text-gray-300 mb-4 leading-relaxed border border-amber-200/80 dark:border-amber-800/60 rounded-lg px-3 py-2 bg-white/60 dark:bg-gray-900/40">
+          <strong>لماذا «شركة»؟</strong> في قاعدة البيانات كل إعلان مربوط بـ <code className="text-emerald-700 dark:text-emerald-400">company_id</code> —
+          الاسم الظاهر في السوق هو اسم تلك الشركة. يُختار أول شركة في القائمة تلقائياً؛ غيّر القائمة إن أردت أن يظهر الإعلان باسم شركة أخرى (تجربة لصالح عميل معيّن).
+        </p>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
           <div className="md:col-span-2">
-            <label className="block text-xs text-gray-500 mb-1">الشركة الظاهرة كمورّد</label>
+            <label className={DEMO_LABEL}>الاسم الظاهر في السوق (شركة)</label>
             <select
               value={demoCompanyId}
               onChange={(e) => setDemoCompanyId(e.target.value)}
-              className="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 px-3 py-2"
+              className={DEMO_FIELD}
             >
-              <option value="">— اختر شركة —</option>
-              {companies.map((co) => (
-                <option key={co.id} value={co.id}>
-                  {co.name}
-                </option>
-              ))}
+              {companies.length === 0 ? (
+                <option value="">— لا توجد شركات —</option>
+              ) : (
+                companies.map((co) => (
+                  <option key={co.id} value={co.id}>
+                    {co.name}
+                  </option>
+                ))
+              )}
             </select>
           </div>
           <div>
-            <label className="block text-xs text-gray-500 mb-1">القسم</label>
+            <label className={DEMO_LABEL}>القسم</label>
             <select
               value={demoCategory}
               onChange={(e) => setDemoCategory(e.target.value as "parts" | "workshop")}
-              className="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 px-3 py-2"
+              className={DEMO_FIELD}
             >
               <option value="parts">قطع غيار</option>
               <option value="workshop">مستلزمات ومعدات ورشة</option>
             </select>
           </div>
           <div>
-            <label className="block text-xs text-gray-500 mb-1">الباقة (للمدة فقط — بدون دفع)</label>
+            <label className={DEMO_LABEL}>الباقة (للمدة فقط — بدون دفع)</label>
             <select
               value={demoPackageId}
               onChange={(e) => setDemoPackageId(e.target.value)}
-              className="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 px-3 py-2"
+              className={DEMO_FIELD}
             >
               {packages
                 .filter((p) => p.is_active && (p.category_scope === demoCategory || p.category_scope === "both"))
@@ -163,58 +207,91 @@ function SuperMarketplaceAdmin() {
             </select>
           </div>
           <div className="md:col-span-2">
-            <label className="block text-xs text-gray-500 mb-1">عنوان الإعلان</label>
+            <label className={DEMO_LABEL}>عنوان الإعلان</label>
             <input
               value={demoTitle}
               onChange={(e) => setDemoTitle(e.target.value)}
-              className="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 px-3 py-2"
+              className={DEMO_FIELD}
             />
           </div>
           <div className="md:col-span-2">
-            <label className="block text-xs text-gray-500 mb-1">الوصف</label>
+            <label className={DEMO_LABEL}>الوصف</label>
             <textarea
               value={demoDesc}
               onChange={(e) => setDemoDesc(e.target.value)}
               rows={2}
-              className="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 px-3 py-2"
+              className={DEMO_FIELD}
             />
           </div>
           <div>
-            <label className="block text-xs text-gray-500 mb-1">سعر إرشادي</label>
+            <label className={DEMO_LABEL}>سعر إرشادي</label>
             <input
               type="number"
               step="0.01"
               value={demoPrice}
               onChange={(e) => setDemoPrice(e.target.value)}
-              className="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 px-3 py-2"
+              className={DEMO_FIELD}
             />
           </div>
           <div>
-            <label className="block text-xs text-gray-500 mb-1">هاتف</label>
+            <label className={DEMO_LABEL}>هاتف</label>
             <input
               value={demoPhone}
               onChange={(e) => setDemoPhone(e.target.value)}
-              className="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 px-3 py-2"
+              className={DEMO_FIELD}
               dir="ltr"
             />
           </div>
           <div>
-            <label className="block text-xs text-gray-500 mb-1">واتساب (اختياري)</label>
+            <label className={DEMO_LABEL}>واتساب (اختياري)</label>
             <input
               value={demoWa}
               onChange={(e) => setDemoWa(e.target.value)}
-              className="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 px-3 py-2"
+              className={DEMO_FIELD}
               dir="ltr"
               placeholder="2010..."
             />
           </div>
-          <div className="md:col-span-2">
-            <label className="block text-xs text-gray-500 mb-1">رابط صورة (اختياري)</label>
+          <div className="md:col-span-2 space-y-2">
+            <label className={DEMO_LABEL}>صورة الإعلان</label>
             <input
-              value={demoImage}
+              ref={demoImageFileRef}
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={onDemoImageFile}
+            />
+            <div className="flex flex-wrap gap-2 items-center">
+              <button
+                type="button"
+                onClick={() => demoImageFileRef.current?.click()}
+                className="px-4 py-2 rounded-lg border border-emerald-600 text-emerald-700 dark:text-emerald-400 dark:border-emerald-500 text-sm font-medium hover:bg-emerald-50 dark:hover:bg-emerald-950/50"
+              >
+                رفع صورة من الجهاز
+              </button>
+              {demoImage.startsWith("data:") && (
+                <span className="text-xs text-emerald-700 dark:text-emerald-400">تم تحميل صورة من الجهاز</span>
+              )}
+              {demoImage && (
+                <button
+                  type="button"
+                  onClick={() => setDemoImage("")}
+                  className="text-xs text-red-600 dark:text-red-400 underline"
+                >
+                  إزالة الصورة
+                </button>
+              )}
+            </div>
+            <p className="text-xs text-gray-600 dark:text-gray-400">
+              حتى حوالي {Math.round(DEMO_IMAGE_MAX_BYTES / 1024)} كيلو. للصور الأكبر استخدم رابطاً عاماً (مثل رفع على Drive ثم رابط مباشر).
+            </p>
+            <label className={DEMO_LABEL}>أو رابط صورة (https://…)</label>
+            <input
+              value={demoImage.startsWith("data:") ? "" : demoImage}
               onChange={(e) => setDemoImage(e.target.value)}
-              className="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 px-3 py-2"
+              className={DEMO_FIELD}
               dir="ltr"
+              placeholder="https://..."
             />
           </div>
         </div>
