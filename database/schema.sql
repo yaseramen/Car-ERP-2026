@@ -50,6 +50,9 @@ CREATE TABLE IF NOT EXISTS screens (
     module TEXT NOT NULL
 );
 
+INSERT OR IGNORE INTO screens (id, name_ar, name_en, module) VALUES
+('screen-marketplace', 'السوق والإعلانات', 'Marketplace', 'marketplace');
+
 -- مصفوفة الصلاحيات (لكل موظف لكل شاشة)
 CREATE TABLE IF NOT EXISTS user_permissions (
     id TEXT PRIMARY KEY,
@@ -84,7 +87,7 @@ CREATE TABLE IF NOT EXISTS wallet_transactions (
     id TEXT PRIMARY KEY,
     wallet_id TEXT NOT NULL,
     amount REAL NOT NULL,
-    type TEXT NOT NULL CHECK(type IN ('credit', 'debit', 'digital_service', 'obd_search', 'assistant_company', 'assistant_obd_global')),
+    type TEXT NOT NULL CHECK(type IN ('credit', 'debit', 'digital_service', 'obd_search', 'assistant_company', 'assistant_obd_global', 'marketplace_ad')),
     description TEXT,
     reference_type TEXT,
     reference_id TEXT,
@@ -93,6 +96,63 @@ CREATE TABLE IF NOT EXISTS wallet_transactions (
     FOREIGN KEY (wallet_id) REFERENCES company_wallets(id) ON DELETE CASCADE,
     FOREIGN KEY (performed_by) REFERENCES users(id)
 );
+
+-- باقات إعلان السوق
+CREATE TABLE IF NOT EXISTS marketplace_ad_packages (
+    id TEXT PRIMARY KEY,
+    label_ar TEXT NOT NULL,
+    duration_days INTEGER NOT NULL,
+    price REAL NOT NULL,
+    category_scope TEXT NOT NULL DEFAULT 'both' CHECK(category_scope IN ('parts', 'workshop', 'both')),
+    sort_order INTEGER DEFAULT 0,
+    is_active INTEGER DEFAULT 1,
+    created_at TEXT DEFAULT (datetime('now')),
+    updated_at TEXT DEFAULT (datetime('now'))
+);
+
+-- إعلانات السوق (عرض فقط — لا معاملات عبر المنصة)
+CREATE TABLE IF NOT EXISTS marketplace_listings (
+    id TEXT PRIMARY KEY,
+    company_id TEXT NOT NULL,
+    item_id TEXT,
+    category TEXT NOT NULL CHECK(category IN ('parts', 'workshop')),
+    package_id TEXT NOT NULL,
+    title_ar TEXT NOT NULL,
+    description_ar TEXT,
+    list_price REAL,
+    contact_phone TEXT NOT NULL,
+    contact_whatsapp TEXT,
+    image_url TEXT,
+    status TEXT NOT NULL DEFAULT 'draft' CHECK(status IN ('draft', 'active', 'expired', 'cancelled')),
+    starts_at TEXT,
+    ends_at TEXT,
+    auto_renew INTEGER DEFAULT 0,
+    last_reminder_at TEXT,
+    wallet_tx_id TEXT,
+    created_by TEXT NOT NULL,
+    created_at TEXT DEFAULT (datetime('now')),
+    updated_at TEXT DEFAULT (datetime('now')),
+    cancelled_at TEXT,
+    cancelled_by TEXT,
+    cancel_reason TEXT,
+    FOREIGN KEY (company_id) REFERENCES companies(id) ON DELETE CASCADE,
+    FOREIGN KEY (item_id) REFERENCES items(id) ON DELETE SET NULL,
+    FOREIGN KEY (package_id) REFERENCES marketplace_ad_packages(id),
+    FOREIGN KEY (created_by) REFERENCES users(id),
+    FOREIGN KEY (cancelled_by) REFERENCES users(id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_marketplace_listings_company ON marketplace_listings(company_id);
+CREATE INDEX IF NOT EXISTS idx_marketplace_listings_status_ends ON marketplace_listings(status, ends_at);
+CREATE INDEX IF NOT EXISTS idx_marketplace_listings_category ON marketplace_listings(category);
+
+INSERT OR IGNORE INTO marketplace_ad_packages (id, label_ar, duration_days, price, category_scope, sort_order, is_active) VALUES
+('pkg-week-parts', 'عرض أسبوع — قطع غيار', 7, 50, 'parts', 10, 1),
+('pkg-month-parts', 'عرض شهر — قطع غيار', 30, 150, 'parts', 20, 1),
+('pkg-quarter-parts', 'عرض 3 أشهر — قطع غيار', 90, 400, 'parts', 30, 1),
+('pkg-week-workshop', 'عرض أسبوع — معدات ورشة', 7, 50, 'workshop', 40, 1),
+('pkg-month-workshop', 'عرض شهر — معدات ورشة', 30, 150, 'workshop', 50, 1),
+('pkg-quarter-workshop', 'عرض 3 أشهر — معدات ورشة', 90, 400, 'workshop', 60, 1);
 
 -- الخزائن (صندوق البيع، صندوق الورشة)
 CREATE TABLE IF NOT EXISTS treasuries (
