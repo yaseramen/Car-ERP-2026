@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { addToQueue } from "@/lib/offline-queue";
+import { DigitalWalletPaymentFields } from "@/components/payment/digital-wallet-fields";
 
 interface AddPaymentProps {
   invoiceId: string;
@@ -199,41 +200,15 @@ export function AddPayment({
           </select>
         </div>
         {showRefField && isDigitalWallet && (
-          <>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                رقم الهاتف أو الحساب المحول منه <span className="text-gray-400 font-normal">(اختياري)</span>
-              </label>
-              <input
-                type="text"
-                value={referenceFrom}
-                onChange={(e) => setReferenceFrom(e.target.value)}
-                className={inputClass}
-                placeholder="رقم العميل أو المرسل"
-              />
-              {suggestedFrom && referenceFrom.trim() === suggestedFrom && (
-                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                  مُعبأ تلقائياً من هاتف العميل/المورد على الفاتورة — يمكنك تعديله إن كان الدفع من رقم آخر.
-                </p>
-              )}
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                رقم المحفظة أو الحساب المحول إليه *
-              </label>
-              <input
-                type="text"
-                value={referenceTo}
-                onChange={(e) => setReferenceTo(e.target.value)}
-                required
-                className={inputClass}
-                placeholder="رقم محفظة الشركة (يُنشأ سجل استلام تلقائياً إن لم يكن موجوداً)"
-              />
-              <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 leading-relaxed">
-                يظهر هذا الرقم في الخزائن كمحفظة استلام منفصلة مع رصيدها، مثل خزائن المبيعات والورشة.
-              </p>
-            </div>
-          </>
+          <DigitalWalletPaymentFields
+            paymentChannel={methodType as "vodafone_cash" | "instapay"}
+            referenceFrom={referenceFrom}
+            referenceTo={referenceTo}
+            onReferenceFromChange={setReferenceFrom}
+            onReferenceToChange={setReferenceTo}
+            defaultReferenceFromHint={suggestedFrom || null}
+            inputClass={inputClass}
+          />
         )}
         {showRefField && !isDigitalWallet && (
           <div>

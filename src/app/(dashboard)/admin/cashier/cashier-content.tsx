@@ -6,6 +6,7 @@ import { SearchableSelect } from "@/components/ui/searchable-select";
 import { InventoryCategoryFilter } from "@/components/inventory/inventory-category-filter";
 import { BarcodeScanner } from "@/components/inventory/barcode-scanner";
 import { addToQueue } from "@/lib/offline-queue";
+import { DigitalWalletPaymentFields } from "@/components/payment/digital-wallet-fields";
 
 interface CartItem {
   item_id: string;
@@ -518,6 +519,16 @@ export function CashierContent({ showPurchaseCost = false }: CashierContentProps
   const isDigitalWalletPay =
     paymentMethodType === "vodafone_cash" || paymentMethodType === "instapay";
 
+  const customerPhoneForWallet = useMemo(() => {
+    const c = customers.find((x) => x.id === customerId);
+    return (c?.phone ?? "").trim();
+  }, [customers, customerId]);
+
+  useEffect(() => {
+    if (!isDigitalWalletPay || !customerPhoneForWallet) return;
+    setReferenceFrom((prev) => (prev.trim() ? prev : customerPhoneForWallet));
+  }, [isDigitalWalletPay, customerPhoneForWallet, paymentMethodId]);
+
   useEffect(() => {
     const method = paymentMethods.find((m) => m.id === paymentMethodId);
     if (method?.type === "cash") {
@@ -533,7 +544,7 @@ export function CashierContent({ showPurchaseCost = false }: CashierContentProps
     }
 
     if (paid > 0 && isDigitalWalletPay && !referenceTo.trim()) {
-      alert("أدخل رقم المحفظة أو الحساب المحول إليه (فودافون كاش / إنستاباي)");
+      alert("أدخل رقم المحفظة أو الحساب المحول إليه (محفظة إلكترونية / إنستاباي)");
       return;
     }
 
@@ -1155,31 +1166,15 @@ export function CashierContent({ showPurchaseCost = false }: CashierContentProps
           </div>
 
           {paid > 0 && isDigitalWalletPay && (
-            <>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  المحول منه <span className="text-gray-400 font-normal">(اختياري)</span>
-                </label>
-                <input
-                  type="text"
-                  value={referenceFrom}
-                  onChange={(e) => setReferenceFrom(e.target.value)}
-                  className={inputClass}
-                  placeholder="رقم العميل"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">المحول إليه *</label>
-                <input
-                  type="text"
-                  value={referenceTo}
-                  onChange={(e) => setReferenceTo(e.target.value)}
-                  required={paid > 0 && isDigitalWalletPay}
-                  className={inputClass}
-                  placeholder="رقم محفظة الشركة"
-                />
-              </div>
-            </>
+            <DigitalWalletPaymentFields
+              paymentChannel={paymentMethodType as "vodafone_cash" | "instapay"}
+              referenceFrom={referenceFrom}
+              referenceTo={referenceTo}
+              onReferenceFromChange={setReferenceFrom}
+              onReferenceToChange={setReferenceTo}
+              defaultReferenceFromHint={customerPhoneForWallet || null}
+              inputClass={inputClass}
+            />
           )}
 
           <div>
