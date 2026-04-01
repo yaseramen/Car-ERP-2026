@@ -133,6 +133,13 @@ export function WorkshopContent({ showPurchaseCost = false }: { showPurchaseCost
     [inventoryItems, addForm.item_id]
   );
 
+  /** كمية السطر لحساب إجمالي البيع/الشراء المعروض (كسور مسموحة مثل 0.6) */
+  const partFormQty = useMemo(() => {
+    const q = Number(addForm.quantity);
+    if (!Number.isFinite(q) || q <= 0) return null;
+    return q;
+  }, [addForm.quantity]);
+
   async function fetchOrders() {
     try {
       const url = typeFilter ? `/api/admin/workshop/orders?type=${typeFilter}` : "/api/admin/workshop/orders";
@@ -1185,13 +1192,24 @@ export function WorkshopContent({ showPurchaseCost = false }: { showPurchaseCost
                       className={`mt-3 grid gap-3 ${showPurchaseCost ? "grid-cols-1 sm:grid-cols-2" : "grid-cols-1"}`}
                     >
                       <div className="rounded-xl border border-emerald-200 dark:border-emerald-800 bg-emerald-50/90 dark:bg-emerald-950/35 px-4 py-3 text-center sm:text-right">
-                        <p className="text-xs font-semibold text-emerald-800 dark:text-emerald-200 mb-1">سعر البيع</p>
+                        <p className="text-xs font-semibold text-emerald-800 dark:text-emerald-200 mb-1">
+                          {partFormQty != null
+                            ? `إجمالي البيع للكمية (${partFormQty})`
+                            : "سعر البيع (وحدة)"}
+                        </p>
                         <p className="text-lg font-bold text-emerald-950 dark:text-emerald-50 tabular-nums">
-                          {selectedPartItem.sale_price.toFixed(2)}{" "}
+                          {(partFormQty != null
+                            ? selectedPartItem.sale_price * partFormQty
+                            : selectedPartItem.sale_price
+                          ).toFixed(2)}{" "}
                           <span className="text-sm font-medium text-emerald-800 dark:text-emerald-200">ج.م</span>
                         </p>
                         <p className="text-xs text-emerald-700 dark:text-emerald-300 mt-1">
-                          الكمية المتاحة: {selectedPartItem.quantity}
+                          سعر الوحدة: {selectedPartItem.sale_price.toFixed(2)} ج.م
+                          {partFormQty != null ? ` × ${partFormQty}` : " — أدخل الكمية لحساب إجمالي السطر"}
+                        </p>
+                        <p className="text-xs text-emerald-600 dark:text-emerald-400 mt-0.5">
+                          المتاح في المخزن: {selectedPartItem.quantity}
                         </p>
                       </div>
                       {showPurchaseCost && (
@@ -1215,24 +1233,40 @@ export function WorkshopContent({ showPurchaseCost = false }: { showPurchaseCost
                                 : "text-sky-900 dark:text-sky-100"
                             }`}
                           >
-                            سعر الشراء
+                            {partFormQty != null
+                              ? `إجمالي الشراء للكمية (${partFormQty})`
+                              : "سعر الشراء (وحدة)"}
                           </p>
                           {selectedPartItem.purchase_price != null &&
                           Number.isFinite(selectedPartItem.purchase_price) &&
                           selectedPartItem.purchase_price > 0 ? (
                             <>
                               <p className="text-lg font-bold text-gray-900 dark:text-gray-100 tabular-nums">
-                                {selectedPartItem.purchase_price.toFixed(2)}{" "}
+                                {(partFormQty != null
+                                  ? selectedPartItem.purchase_price * partFormQty
+                                  : selectedPartItem.purchase_price
+                                ).toFixed(2)}{" "}
                                 <span className="text-sm font-medium text-gray-600 dark:text-gray-400">ج.م</span>
+                              </p>
+                              <p className="text-xs text-gray-600 dark:text-gray-400 mt-1">
+                                تكلفة الوحدة: {selectedPartItem.purchase_price.toFixed(2)} ج.م
+                                {partFormQty != null ? ` × ${partFormQty}` : ""}
                               </p>
                               {selectedPartItem.sale_price + 1e-9 < selectedPartItem.purchase_price ? (
                                 <p className="text-xs text-red-800 dark:text-red-200 mt-1 font-medium">
-                                  تنبيه: سعر البيع أقل من سعر الشراء
+                                  تنبيه: سعر البيع أقل من سعر الشراء (للوحدة)
                                 </p>
                               ) : (
                                 <p className="text-xs text-sky-800 dark:text-sky-200 mt-1">
-                                  هامش تقريبي:{" "}
-                                  {(selectedPartItem.sale_price - selectedPartItem.purchase_price).toFixed(2)} ج.م للوحدة
+                                  هامش تقريبي
+                                  {partFormQty != null
+                                    ? ` للكمية: ${(
+                                        (selectedPartItem.sale_price - selectedPartItem.purchase_price) *
+                                        partFormQty
+                                      ).toFixed(2)} ج.م`
+                                    : `: ${(selectedPartItem.sale_price - selectedPartItem.purchase_price).toFixed(
+                                        2
+                                      )} ج.م للوحدة`}
                                 </p>
                               )}
                             </>
