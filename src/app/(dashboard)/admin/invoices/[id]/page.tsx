@@ -204,6 +204,8 @@ export default async function InvoiceDetailPage({
             warehouseName={data.warehouse_name}
             createdAt={data.created_at}
             items={items}
+            repairOrderNumber={data.order_number}
+            repairOrderInspectionNotes={data.repair_order_inspection_notes}
           />
         </div>
       </div>

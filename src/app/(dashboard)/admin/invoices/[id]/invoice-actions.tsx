@@ -27,6 +27,9 @@ type InvoiceActionsProps = {
   /** وقت إصدار الفاتورة (ISO) — للواتساب */
   createdAt?: string;
   items?: InvoiceItem[];
+  /** من أمر الإصلاح المرتبط — للواتساب */
+  repairOrderNumber?: string | null;
+  repairOrderInspectionNotes?: string | null;
 };
 
 const TYPE_LABELS: Record<string, string> = {
@@ -51,6 +54,8 @@ function buildWhatsAppText(props: InvoiceActionsProps): string {
     warehouseName,
     createdAt,
     items = [],
+    repairOrderNumber,
+    repairOrderInspectionNotes,
   } = props;
   const typeLabel = TYPE_LABELS[invoiceType] || invoiceType;
   const issuedAtLine = (() => {
@@ -89,6 +94,13 @@ function buildWhatsAppText(props: InvoiceActionsProps): string {
   if (discount > 0) lines.push(`الخصم: -${discount.toFixed(2)} ج.م`);
   if (tax > 0) lines.push(`الضريبة: +${tax.toFixed(2)} ج.م`);
   lines.push(`الإجمالي النهائي: ${total.toFixed(2)} ج.م`);
+
+  const inspection = repairOrderInspectionNotes?.trim();
+  if (inspection) {
+    lines.push("", "── ملاحظات الفحص (مرجع ورشة) ──");
+    if (repairOrderNumber) lines.push(`🔧 أمر الإصلاح: ${repairOrderNumber}`);
+    lines.push(inspection);
+  }
 
   return lines.join("\n");
 }
