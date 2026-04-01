@@ -558,12 +558,6 @@ CREATE INDEX IF NOT EXISTS idx_customers_company ON customers(company_id);
 CREATE INDEX IF NOT EXISTS idx_suppliers_company ON suppliers(company_id);
 CREATE INDEX IF NOT EXISTS idx_warehouses_company ON warehouses(company_id);
 CREATE INDEX IF NOT EXISTS idx_items_company ON items(company_id);
-CREATE UNIQUE INDEX IF NOT EXISTS idx_items_company_code_unique
-ON items (company_id, code)
-WHERE code IS NOT NULL AND TRIM(code) != '';
-CREATE UNIQUE INDEX IF NOT EXISTS idx_items_company_barcode_unique
-ON items (company_id, barcode)
-WHERE barcode IS NOT NULL AND TRIM(barcode) != '';
 CREATE INDEX IF NOT EXISTS idx_item_warehouse_stock_item ON item_warehouse_stock(item_id);
 CREATE INDEX IF NOT EXISTS idx_item_warehouse_stock_warehouse ON item_warehouse_stock(warehouse_id);
 CREATE INDEX IF NOT EXISTS idx_stock_movements_item ON stock_movements(item_id);
