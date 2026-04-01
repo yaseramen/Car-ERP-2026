@@ -8,7 +8,7 @@ interface Treasury {
   name: string;
   type: string;
   balance: number;
-  /** محافظ فودافون كاش / إنستاباي (المحول إليه) */
+  /** محافظ استلام (محفظة إلكترونية / إنستاباي — رقم المحول إليه) */
   is_payment_wallet?: boolean;
 }
 

@@ -10,7 +10,7 @@ interface AddPaymentProps {
   total: number;
   paidAmount: number;
   status: string;
-  /** يُقترح في «المحول منه» لفودافون/إنستاباي إن وُجد هاتف عميل/مورد على الفاتورة */
+  /** يُقترح في «المحول منه» للمحفظة الإلكترونية/إنستاباي إن وُجد هاتف عميل/مورد على الفاتورة */
   defaultReferenceFrom?: string | null;
 }
 

@@ -340,7 +340,7 @@ CREATE TABLE IF NOT EXISTS payment_methods (
     FOREIGN KEY (company_id) REFERENCES companies(id) ON DELETE CASCADE
 );
 
--- محافظ استلام (رقم المحول إليه — فودافون كاش / إنستاباي)
+-- محافظ استلام (رقم المحول إليه — محفظة إلكترونية / إنستاباي)
 CREATE TABLE IF NOT EXISTS payment_wallets (
     id TEXT PRIMARY KEY,
     company_id TEXT NOT NULL,
