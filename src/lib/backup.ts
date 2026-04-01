@@ -54,6 +54,8 @@ export interface BackupData {
   repair_order_services?: Record<string, unknown>[];
   treasuries?: Record<string, unknown>[];
   treasury_transactions?: Record<string, unknown>[];
+  payment_wallets?: Record<string, unknown>[];
+  payment_wallet_transactions?: Record<string, unknown>[];
   item_warehouse_stock?: Record<string, unknown>[];
   stock_movements?: Record<string, unknown>[];
   payment_methods?: Record<string, unknown>[];
@@ -175,6 +177,19 @@ export async function exportBackup(companyId: string, modules?: BackupModules[])
     } else {
       data.treasury_transactions = [];
     }
+    const pw = await db.execute({ sql: "SELECT * FROM payment_wallets WHERE company_id = ?", args: [companyId] });
+    data.payment_wallets = pw.rows.map((row) => rowToObj(row as Record<string, unknown>));
+    const pwIds = (data.payment_wallets as { id: string }[]).map((p) => p.id);
+    if (pwIds.length > 0) {
+      const ph2 = pwIds.map(() => "?").join(",");
+      const pwtx = await db.execute({
+        sql: `SELECT * FROM payment_wallet_transactions WHERE payment_wallet_id IN (${ph2})`,
+        args: pwIds,
+      });
+      data.payment_wallet_transactions = pwtx.rows.map((row) => rowToObj(row as Record<string, unknown>));
+    } else {
+      data.payment_wallet_transactions = [];
+    }
   }
 
   if (mods.includes("stock_movements")) {
@@ -240,6 +255,12 @@ export async function restoreBackup(
         await db.execute({ sql: "DELETE FROM treasury_transactions WHERE treasury_id = ?", args: [row.id] });
       }
       await db.execute({ sql: "DELETE FROM treasuries WHERE company_id = ?", args: [companyId] });
+
+      const pwDel = await db.execute({ sql: "SELECT id FROM payment_wallets WHERE company_id = ?", args: [companyId] });
+      for (const row of pwDel.rows) {
+        await db.execute({ sql: "DELETE FROM payment_wallet_transactions WHERE payment_wallet_id = ?", args: [row.id] });
+      }
+      await db.execute({ sql: "DELETE FROM payment_wallets WHERE company_id = ?", args: [companyId] });
 
       await db.execute({
         sql: "DELETE FROM stock_movements WHERE item_id IN (SELECT id FROM items WHERE company_id = ?)",
@@ -432,6 +453,51 @@ export async function restoreBackup(
           });
         }
       }
+
+      if (data.payment_wallets?.length) {
+        for (const row of data.payment_wallets as Record<string, unknown>[]) {
+          const id = mapId(row.id as string) ?? (row.id as string);
+          await db.execute({
+            sql: `INSERT OR REPLACE INTO payment_wallets (id, company_id, payment_channel, phone_digits, name, balance, is_active, created_at, updated_at)
+                  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            args: [
+              id,
+              companyId,
+              String(row.payment_channel ?? "vodafone_cash"),
+              String(row.phone_digits ?? ""),
+              String(row.name ?? ""),
+              Number(row.balance ?? 0),
+              Number(row.is_active ?? 1),
+              String(row.created_at ?? new Date().toISOString()),
+              String(row.updated_at ?? new Date().toISOString()),
+            ] as InArgs,
+          });
+        }
+        counts.payment_wallets = (data.payment_wallets as unknown[]).length;
+      }
+
+      if (data.payment_wallet_transactions?.length) {
+        for (const row of data.payment_wallet_transactions as Record<string, unknown>[]) {
+          const wId = mapId(row.payment_wallet_id as string) ?? (row.payment_wallet_id as string);
+          const id = mapId(row.id as string) ?? randomUUID();
+          await db.execute({
+            sql: `INSERT INTO payment_wallet_transactions (id, payment_wallet_id, amount, type, description, reference_type, reference_id, payment_method_id, performed_by, created_at)
+                  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            args: [
+              id,
+              wId,
+              Number(row.amount ?? 0),
+              String(row.type ?? "in"),
+              toInValue(row.description),
+              toInValue(row.reference_type),
+              toInValue(row.reference_id),
+              toInValue(row.payment_method_id),
+              userId,
+              String(row.created_at ?? new Date().toISOString()),
+            ] as InArgs,
+          });
+        }
+      }
     }
 
     if (mods.includes("repair_orders") && data.repair_orders?.length) {
@@ -590,15 +656,19 @@ export async function restoreBackup(
           const invId = mapId(row.invoice_id as string) ?? (row.invoice_id as string);
           const id = mapId(row.id as string) ?? randomUUID();
           await db.execute({
-            sql: `INSERT INTO invoice_payments (id, invoice_id, amount, payment_method_id, treasury_id, reference_number, notes, created_by, created_at)
-                  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            sql: `INSERT INTO invoice_payments (id, invoice_id, amount, payment_method_id, treasury_id, distribution_treasury_id, payment_wallet_id, reference_number, reference_from, reference_to, notes, created_by, created_at)
+                  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
             args: [
               id,
               invId,
               Number(row.amount ?? 0),
               toInValue(row.payment_method_id),
               mapId(row.treasury_id as string),
+              mapId(row.distribution_treasury_id as string),
+              mapId(row.payment_wallet_id as string),
               toInValue(row.reference_number),
+              toInValue(row.reference_from),
+              toInValue(row.reference_to),
               toInValue(row.notes),
               userId,
               String(row.created_at ?? new Date().toISOString()),

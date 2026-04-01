@@ -8,6 +8,8 @@ interface Treasury {
   name: string;
   type: string;
   balance: number;
+  /** محافظ فودافون كاش / إنستاباي (المحول إليه) */
+  is_payment_wallet?: boolean;
 }
 
 interface Transaction {
@@ -33,9 +35,10 @@ function SettleButton({ treasuries, onSuccess }: { treasuries: Treasury[]; onSuc
   const [toDate, setToDate] = useState("");
   const [note, setNote] = useState("");
 
-  const sales = treasuries.find((t) => t.type === "sales");
-  const workshop = treasuries.find((t) => t.type === "workshop");
-  const main = treasuries.find((t) => t.type === "main");
+  const core = treasuries.filter((t) => !t.is_payment_wallet);
+  const sales = core.find((t) => t.type === "sales");
+  const workshop = core.find((t) => t.type === "workshop");
+  const main = core.find((t) => t.type === "main");
   const totalToSettle = (sales?.balance ?? 0) + (workshop?.balance ?? 0);
 
   if (!main || totalToSettle <= 0) return null;
@@ -391,9 +394,13 @@ export function TreasuriesContent() {
     }
   }
 
-  async function fetchTransactions(id: string) {
+  async function fetchTransactions(id: string, list: Treasury[]) {
     try {
-      const res = await fetch(`/api/admin/treasuries/${id}/transactions`);
+      const isWallet = list.some((t) => t.id === id && t.is_payment_wallet);
+      const url = isWallet
+        ? `/api/admin/treasuries/payment-wallets/${id}/transactions`
+        : `/api/admin/treasuries/${id}/transactions`;
+      const res = await fetch(url);
       if (res.ok) setTransactions(await res.json());
       else setTransactions([]);
     } catch {
@@ -410,15 +417,15 @@ export function TreasuriesContent() {
     const handleOnline = () => {
       fetchTreasuries();
       fetchPaymentMethods();
-      if (selectedId) fetchTransactions(selectedId);
+      if (selectedId) fetchTransactions(selectedId, treasuries);
     };
     window.addEventListener("alameen-online", handleOnline);
     return () => window.removeEventListener("alameen-online", handleOnline);
-  }, [selectedId]);
+  }, [selectedId, treasuries]);
 
   useEffect(() => {
-    if (selectedId) fetchTransactions(selectedId);
-  }, [selectedId]);
+    if (selectedId) fetchTransactions(selectedId, treasuries);
+  }, [selectedId, treasuries]);
 
   async function handleTransfer(e: React.FormEvent) {
     e.preventDefault();
@@ -462,7 +469,7 @@ export function TreasuriesContent() {
       setTransferAmount("");
       setTransferDesc("");
       fetchTreasuries();
-      if (selectedId) fetchTransactions(selectedId);
+      if (selectedId) fetchTransactions(selectedId, treasuries);
     } catch {
       if (!navigator.onLine) {
         addToQueue({ type: "treasury_transfer", data: payload });
@@ -525,9 +532,10 @@ export function TreasuriesContent() {
         </button>
         <button
           onClick={() => {
-            if (treasuries.length >= 2) {
-              setTransferFrom(treasuries[0].id);
-              setTransferTo(treasuries[1].id);
+            const core = treasuries.filter((t) => !t.is_payment_wallet);
+            if (core.length >= 2) {
+              setTransferFrom(core[0].id);
+              setTransferTo(core[1].id);
               setTransferOpen(true);
             }
           }}
@@ -535,18 +543,18 @@ export function TreasuriesContent() {
         >
           تحويل بين الخزائن
         </button>
-        <SettleButton treasuries={treasuries} onSuccess={fetchTreasuries} />
+        <SettleButton treasuries={treasuries.filter((t) => !t.is_payment_wallet)} onSuccess={fetchTreasuries} />
       </div>
 
       {expenseIncomeModal && (
         <ExpenseIncomeModal
           type={expenseIncomeModal}
-          treasuries={treasuries}
+          treasuries={treasuries.filter((t) => !t.is_payment_wallet)}
           paymentMethods={paymentMethods}
           onClose={() => setExpenseIncomeModal(null)}
           onSuccess={() => {
             fetchTreasuries();
-            if (selectedId) fetchTransactions(selectedId);
+            if (selectedId) fetchTransactions(selectedId, treasuries);
           }}
         />
       )}
@@ -595,7 +603,7 @@ export function TreasuriesContent() {
                   required
                   className={inputClass}
                 >
-                  {treasuries.map((t) => (
+                  {treasuries.filter((t) => !t.is_payment_wallet).map((t) => (
                     <option key={t.id} value={t.id}>{t.name}</option>
                   ))}
                 </select>
@@ -608,7 +616,7 @@ export function TreasuriesContent() {
                   required
                   className={inputClass}
                 >
-                  {treasuries.map((t) => (
+                  {treasuries.filter((t) => !t.is_payment_wallet).map((t) => (
                     <option key={t.id} value={t.id}>{t.name}</option>
                   ))}
                 </select>

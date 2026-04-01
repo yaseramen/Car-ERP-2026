@@ -115,6 +115,8 @@ export default async function InvoiceDetailPage({
       amount: Number(r.amount ?? 0),
       method_name: String(r.method_name ?? ""),
       reference_number: r.reference_number ? String(r.reference_number) : null,
+      reference_from: r.reference_from ? String(r.reference_from) : null,
+      reference_to: r.reference_to ? String(r.reference_to) : null,
       created_at: String(r.created_at ?? ""),
     }));
 

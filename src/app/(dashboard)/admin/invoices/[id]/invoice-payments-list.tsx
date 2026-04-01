@@ -8,6 +8,9 @@ type PaymentRow = {
   amount: number;
   method_name: string;
   created_at: string;
+  reference_from?: string | null;
+  reference_to?: string | null;
+  reference_number?: string | null;
 };
 
 export function InvoicePaymentsList({
@@ -72,6 +75,16 @@ export function InvoicePaymentsList({
           >
             <span>
               {p.method_name} — {new Date(p.created_at).toLocaleString("ar-EG")}
+              {(p.reference_from || p.reference_to) && (
+                <span className="block text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                  {p.reference_from ? `من: ${p.reference_from}` : null}
+                  {p.reference_from && p.reference_to ? " — " : null}
+                  {p.reference_to ? `إلى: ${p.reference_to}` : null}
+                </span>
+              )}
+              {!p.reference_to && !p.reference_from && p.reference_number && (
+                <span className="block text-xs text-gray-500 dark:text-gray-400 mt-0.5">{p.reference_number}</span>
+              )}
             </span>
             <span className="flex items-center gap-2">
               <span className="font-medium text-emerald-600 dark:text-emerald-400">+{p.amount.toFixed(2)} ج.م</span>

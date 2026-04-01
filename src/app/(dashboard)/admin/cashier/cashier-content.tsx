@@ -47,6 +47,8 @@ function loadCashierDraft(): Partial<{
   customerId: string;
   paymentMethodId: string;
   paidAmount: string;
+  referenceFrom: string;
+  referenceTo: string;
   notes: string;
   taxEnabled: boolean;
   taxRate: string;
@@ -69,6 +71,8 @@ function saveCashierDraft(data: {
   customerId: string;
   paymentMethodId: string;
   paidAmount: string;
+  referenceFrom: string;
+  referenceTo: string;
   notes: string;
   taxEnabled: boolean;
   taxRate: string;
@@ -103,6 +107,8 @@ export function CashierContent({ showPurchaseCost = false }: CashierContentProps
   const [customerId, setCustomerId] = useState("");
   const [paymentMethodId, setPaymentMethodId] = useState("");
   const [paidAmount, setPaidAmount] = useState("");
+  const [referenceFrom, setReferenceFrom] = useState("");
+  const [referenceTo, setReferenceTo] = useState("");
   const [notes, setNotes] = useState("");
   const [saving, setSaving] = useState(false);
   const [lastInvoice, setLastInvoice] = useState<{ id: string; invoice_number: string } | null>(null);
@@ -213,6 +219,8 @@ export function CashierContent({ showPurchaseCost = false }: CashierContentProps
       if (draft.customerId) setCustomerId(draft.customerId);
       if (draft.paymentMethodId) setPaymentMethodId(draft.paymentMethodId);
       if (draft.paidAmount) setPaidAmount(draft.paidAmount);
+      if (draft.referenceFrom) setReferenceFrom(draft.referenceFrom);
+      if (draft.referenceTo) setReferenceTo(draft.referenceTo);
       if (draft.notes) setNotes(draft.notes);
       if (draft.taxEnabled) setTaxEnabled(true);
       if (draft.taxRate) setTaxRate(draft.taxRate);
@@ -230,6 +238,8 @@ export function CashierContent({ showPurchaseCost = false }: CashierContentProps
       customerId,
       paymentMethodId,
       paidAmount,
+      referenceFrom,
+      referenceTo,
       notes,
       taxEnabled,
       taxRate,
@@ -237,7 +247,7 @@ export function CashierContent({ showPurchaseCost = false }: CashierContentProps
       discountType,
       discountValue,
     });
-  }, [cart, customerId, paymentMethodId, paidAmount, notes, taxEnabled, taxRate, discountEnabled, discountType, discountValue]);
+  }, [cart, customerId, paymentMethodId, paidAmount, referenceFrom, referenceTo, notes, taxEnabled, taxRate, discountEnabled, discountType, discountValue]);
 
   function findItemByBarcodeOrCode(value: string): InventoryItem | undefined {
     const v = String(value || "").trim().toLowerCase();
@@ -503,6 +513,10 @@ export function CashierContent({ showPurchaseCost = false }: CashierContentProps
   const digitalFee = Math.max(feeConfig.minFee, beforeDigitalFee * feeConfig.rate);
   const total = beforeDigitalFee + digitalFee;
   const paid = Number(paidAmount) || 0;
+  const selectedPaymentMethod = paymentMethods.find((m) => m.id === paymentMethodId);
+  const paymentMethodType = selectedPaymentMethod?.type ?? "";
+  const isDigitalWalletPay =
+    paymentMethodType === "vodafone_cash" || paymentMethodType === "instapay";
 
   useEffect(() => {
     const method = paymentMethods.find((m) => m.id === paymentMethodId);
@@ -518,6 +532,11 @@ export function CashierContent({ showPurchaseCost = false }: CashierContentProps
       return;
     }
 
+    if (paid > 0 && isDigitalWalletPay && !referenceTo.trim()) {
+      alert("أدخل رقم المحفظة أو الحساب المحول إليه (فودافون كاش / إنستاباي)");
+      return;
+    }
+
     const payload = {
       customer_id: customerId || undefined,
       items: cart.map((c) => ({ item_id: c.item_id, quantity: c.quantity })),
@@ -526,6 +545,9 @@ export function CashierContent({ showPurchaseCost = false }: CashierContentProps
       discount: discountEnabled ? discountAmount : 0,
       tax: taxEnabled ? taxAmount : 0,
       notes: notes.trim() || undefined,
+      reference_from:
+        paid > 0 && isDigitalWalletPay && referenceFrom.trim() ? referenceFrom.trim() : undefined,
+      reference_to: paid > 0 && isDigitalWalletPay ? referenceTo.trim() : undefined,
     };
 
     setSaving(true);
@@ -536,6 +558,8 @@ export function CashierContent({ showPurchaseCost = false }: CashierContentProps
         setCustomerId("");
         setPaymentMethodId("");
         setPaidAmount("");
+        setReferenceFrom("");
+        setReferenceTo("");
         setNotes("");
         setTaxEnabled(false);
         setDiscountEnabled(false);
@@ -563,6 +587,8 @@ export function CashierContent({ showPurchaseCost = false }: CashierContentProps
       setCustomerId("");
       setPaymentMethodId("");
       setPaidAmount("");
+      setReferenceFrom("");
+      setReferenceTo("");
       setNotes("");
       setTaxEnabled(false);
       setDiscountEnabled(false);
@@ -576,6 +602,8 @@ export function CashierContent({ showPurchaseCost = false }: CashierContentProps
         setCustomerId("");
         setPaymentMethodId("");
         setPaidAmount("");
+        setReferenceFrom("");
+        setReferenceTo("");
         setNotes("");
         setTaxEnabled(false);
         setDiscountEnabled(false);
@@ -866,6 +894,8 @@ export function CashierContent({ showPurchaseCost = false }: CashierContentProps
                     setCustomerId("");
                     setPaymentMethodId("");
                     setPaidAmount("");
+                    setReferenceFrom("");
+                    setReferenceTo("");
                     setNotes("");
                     setTaxEnabled(false);
                     setDiscountEnabled(false);
@@ -1123,6 +1153,34 @@ export function CashierContent({ showPurchaseCost = false }: CashierContentProps
               placeholder="0"
             />
           </div>
+
+          {paid > 0 && isDigitalWalletPay && (
+            <>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  المحول منه <span className="text-gray-400 font-normal">(اختياري)</span>
+                </label>
+                <input
+                  type="text"
+                  value={referenceFrom}
+                  onChange={(e) => setReferenceFrom(e.target.value)}
+                  className={inputClass}
+                  placeholder="رقم العميل"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">المحول إليه *</label>
+                <input
+                  type="text"
+                  value={referenceTo}
+                  onChange={(e) => setReferenceTo(e.target.value)}
+                  required={paid > 0 && isDigitalWalletPay}
+                  className={inputClass}
+                  placeholder="رقم محفظة الشركة"
+                />
+              </div>
+            </>
+          )}
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">ملاحظات</label>

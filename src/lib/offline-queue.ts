@@ -17,6 +17,8 @@ export type QueuedOp =
         discount?: number;
         tax?: number;
         notes?: string;
+        reference_from?: string;
+        reference_to?: string;
       };
     }
   | {
@@ -44,7 +46,14 @@ export type QueuedOp =
   | {
       type: "invoice_pay";
       invoiceId: string;
-      data: { amount: number; payment_method_id: string; reference_number?: string; notes?: string };
+      data: {
+        amount: number;
+        payment_method_id: string;
+        reference_number?: string;
+        reference_from?: string;
+        reference_to?: string;
+        notes?: string;
+      };
     }
   | {
       type: "create_repair_order";

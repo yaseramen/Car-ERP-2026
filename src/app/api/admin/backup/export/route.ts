@@ -49,6 +49,8 @@ export async function GET(request: Request) {
         ["repair_order_services", data.repair_order_services ?? []],
         ["treasuries", data.treasuries ?? []],
         ["treasury_transactions", data.treasury_transactions ?? []],
+        ["payment_wallets", data.payment_wallets ?? []],
+        ["payment_wallet_transactions", data.payment_wallet_transactions ?? []],
         ["item_warehouse_stock", data.item_warehouse_stock ?? []],
         ["stock_movements", data.stock_movements ?? []],
         ["payment_methods", data.payment_methods ?? []],

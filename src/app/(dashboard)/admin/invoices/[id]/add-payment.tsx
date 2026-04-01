@@ -19,6 +19,8 @@ export function AddPayment({ invoiceId, total, paidAmount, status }: AddPaymentP
   const [amount, setAmount] = useState("");
   const [paymentMethodId, setPaymentMethodId] = useState("");
   const [referenceNumber, setReferenceNumber] = useState("");
+  const [referenceFrom, setReferenceFrom] = useState("");
+  const [referenceTo, setReferenceTo] = useState("");
   const [paymentDate, setPaymentDate] = useState("");
   const [notes, setNotes] = useState("");
   const [saving, setSaving] = useState(false);
@@ -27,6 +29,7 @@ export function AddPayment({ invoiceId, total, paidAmount, status }: AddPaymentP
   const methodType = selectedMethod?.type ?? "";
   const showRefField = methodType && methodType !== "cash";
   const isCredit = methodType === "credit";
+  const isDigitalWallet = methodType === "vodafone_cash" || methodType === "instapay";
 
   const remaining = total - paidAmount;
   const isFullyPaid = status === "paid";
@@ -55,10 +58,22 @@ export function AddPayment({ invoiceId, total, paidAmount, status }: AddPaymentP
     e.preventDefault();
     if (!amount || Number(amount) <= 0 || !paymentMethodId) return;
 
+    if (isDigitalWallet && !referenceTo.trim()) {
+      alert("أدخل رقم المحفظة أو الحساب المحول إليه");
+      return;
+    }
+
     const payload = {
       amount: Number(amount),
       payment_method_id: paymentMethodId,
-      reference_number: methodType === "cash" ? undefined : (isCredit ? paymentDate : referenceNumber) || undefined,
+      reference_number:
+        methodType === "cash"
+          ? undefined
+          : isDigitalWallet
+            ? undefined
+            : (isCredit ? paymentDate : referenceNumber) || undefined,
+      reference_from: isDigitalWallet ? referenceFrom.trim() || undefined : undefined,
+      reference_to: isDigitalWallet ? referenceTo.trim() : undefined,
       notes: notes || undefined,
     };
 
@@ -68,6 +83,8 @@ export function AddPayment({ invoiceId, total, paidAmount, status }: AddPaymentP
         addToQueue({ type: "invoice_pay", invoiceId, data: payload });
         setAmount("");
         setReferenceNumber("");
+        setReferenceFrom("");
+        setReferenceTo("");
         setPaymentDate("");
         setNotes("");
         alert("انقطع الاتصال. تم حفظ الدفعة محلياً. سيتم إرسالها تلقائياً عند عودة الإنترنت.");
@@ -88,6 +105,8 @@ export function AddPayment({ invoiceId, total, paidAmount, status }: AddPaymentP
 
       setAmount("");
       setReferenceNumber("");
+      setReferenceFrom("");
+      setReferenceTo("");
       setPaymentDate("");
       setNotes("");
       router.refresh();
@@ -96,6 +115,8 @@ export function AddPayment({ invoiceId, total, paidAmount, status }: AddPaymentP
         addToQueue({ type: "invoice_pay", invoiceId, data: payload });
         setAmount("");
         setReferenceNumber("");
+        setReferenceFrom("");
+        setReferenceTo("");
         setPaymentDate("");
         setNotes("");
         alert("انقطع الاتصال. تم حفظ الدفعة محلياً. سيتم إرسالها تلقائياً عند عودة الإنترنت.");
@@ -162,10 +183,42 @@ export function AddPayment({ invoiceId, total, paidAmount, status }: AddPaymentP
             ))}
           </select>
         </div>
-        {showRefField && (
+        {showRefField && isDigitalWallet && (
+          <>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                رقم الهاتف أو الحساب المحول منه <span className="text-gray-400 font-normal">(اختياري)</span>
+              </label>
+              <input
+                type="text"
+                value={referenceFrom}
+                onChange={(e) => setReferenceFrom(e.target.value)}
+                className={inputClass}
+                placeholder="رقم العميل أو المرسل"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                رقم المحفظة أو الحساب المحول إليه *
+              </label>
+              <input
+                type="text"
+                value={referenceTo}
+                onChange={(e) => setReferenceTo(e.target.value)}
+                required
+                className={inputClass}
+                placeholder="رقم محفظة الشركة (يُنشأ سجل استلام تلقائياً إن لم يكن موجوداً)"
+              />
+              <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 leading-relaxed">
+                يظهر هذا الرقم في الخزائن كمحفظة استلام منفصلة مع رصيدها، مثل خزائن المبيعات والورشة.
+              </p>
+            </div>
+          </>
+        )}
+        {showRefField && !isDigitalWallet && (
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-              {isCredit ? "تاريخ الدفع المتوقع" : methodType === "cheque" ? "رقم الشيك" : methodType === "bank" ? "رقم التحويل" : "رقم الهاتف المحول منه"}
+              {isCredit ? "تاريخ الدفع المتوقع" : methodType === "cheque" ? "رقم الشيك" : methodType === "bank" ? "رقم التحويل" : "مرجع"}
             </label>
             {isCredit ? (
               <input
@@ -184,8 +237,8 @@ export function AddPayment({ invoiceId, total, paidAmount, status }: AddPaymentP
                   methodType === "cheque"
                     ? "رقم الشيك"
                     : methodType === "bank"
-                    ? "رقم التحويل"
-                    : "رقم الهاتف المحول منه"
+                      ? "رقم التحويل"
+                      : "مرجع"
                 }
               />
             )}
