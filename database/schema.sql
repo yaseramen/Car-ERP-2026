@@ -154,12 +154,12 @@ INSERT OR IGNORE INTO marketplace_ad_packages (id, label_ar, duration_days, pric
 ('pkg-month-workshop', 'عرض شهر — معدات ورشة', 30, 150, 'workshop', 50, 1),
 ('pkg-quarter-workshop', 'عرض 3 أشهر — معدات ورشة', 90, 400, 'workshop', 60, 1);
 
--- الخزائن (صندوق البيع، صندوق الورشة)
+-- الخزائن (مبيعات، ورشة، رئيسية)
 CREATE TABLE IF NOT EXISTS treasuries (
     id TEXT PRIMARY KEY,
     company_id TEXT NOT NULL,
     name TEXT NOT NULL,
-    type TEXT NOT NULL CHECK(type IN ('sales', 'workshop')),
+    type TEXT NOT NULL CHECK(type IN ('sales', 'workshop', 'main')),
     balance REAL DEFAULT 0,
     is_active INTEGER DEFAULT 1,
     created_at TEXT DEFAULT (datetime('now')),
@@ -339,6 +339,37 @@ CREATE TABLE IF NOT EXISTS payment_methods (
     FOREIGN KEY (company_id) REFERENCES companies(id) ON DELETE CASCADE
 );
 
+-- محافظ استلام (رقم المحول إليه — فودافون كاش / إنستاباي)
+CREATE TABLE IF NOT EXISTS payment_wallets (
+    id TEXT PRIMARY KEY,
+    company_id TEXT NOT NULL,
+    payment_channel TEXT NOT NULL CHECK(payment_channel IN ('vodafone_cash', 'instapay')),
+    phone_digits TEXT NOT NULL,
+    name TEXT NOT NULL,
+    balance REAL DEFAULT 0,
+    is_active INTEGER DEFAULT 1,
+    created_at TEXT DEFAULT (datetime('now')),
+    updated_at TEXT DEFAULT (datetime('now')),
+    UNIQUE(company_id, payment_channel, phone_digits),
+    FOREIGN KEY (company_id) REFERENCES companies(id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS payment_wallet_transactions (
+    id TEXT PRIMARY KEY,
+    payment_wallet_id TEXT NOT NULL,
+    amount REAL NOT NULL,
+    type TEXT NOT NULL CHECK(type IN ('in', 'out')),
+    description TEXT,
+    reference_type TEXT,
+    reference_id TEXT,
+    payment_method_id TEXT,
+    performed_by TEXT NOT NULL,
+    created_at TEXT DEFAULT (datetime('now')),
+    FOREIGN KEY (payment_wallet_id) REFERENCES payment_wallets(id) ON DELETE CASCADE,
+    FOREIGN KEY (payment_method_id) REFERENCES payment_methods(id),
+    FOREIGN KEY (performed_by) REFERENCES users(id)
+);
+
 -- ==================== 6. الفواتير ====================
 
 -- الفواتير (بيع، شراء، صيانة)
@@ -400,6 +431,9 @@ CREATE TABLE IF NOT EXISTS invoice_payments (
     payment_method_id TEXT NOT NULL,
     treasury_id TEXT,
     reference_number TEXT,
+    reference_from TEXT,
+    reference_to TEXT,
+    payment_wallet_id TEXT,
     notes TEXT,
     created_by TEXT NOT NULL,
     distribution_treasury_id TEXT,
@@ -407,6 +441,7 @@ CREATE TABLE IF NOT EXISTS invoice_payments (
     FOREIGN KEY (invoice_id) REFERENCES invoices(id) ON DELETE CASCADE,
     FOREIGN KEY (payment_method_id) REFERENCES payment_methods(id),
     FOREIGN KEY (treasury_id) REFERENCES treasuries(id),
+    FOREIGN KEY (payment_wallet_id) REFERENCES payment_wallets(id),
     FOREIGN KEY (distribution_treasury_id) REFERENCES distribution_treasuries(id),
     FOREIGN KEY (created_by) REFERENCES users(id)
 );
@@ -553,6 +588,8 @@ CREATE INDEX IF NOT EXISTS idx_user_permissions_user ON user_permissions(user_id
 CREATE INDEX IF NOT EXISTS idx_wallet_transactions_wallet ON wallet_transactions(wallet_id);
 CREATE INDEX IF NOT EXISTS idx_wallet_transactions_created ON wallet_transactions(created_at);
 CREATE INDEX IF NOT EXISTS idx_treasuries_company ON treasuries(company_id);
+CREATE INDEX IF NOT EXISTS idx_payment_wallets_company ON payment_wallets(company_id);
+CREATE INDEX IF NOT EXISTS idx_payment_wallet_tx_wallet ON payment_wallet_transactions(payment_wallet_id);
 CREATE INDEX IF NOT EXISTS idx_treasury_transactions_treasury ON treasury_transactions(treasury_id);
 CREATE INDEX IF NOT EXISTS idx_customers_company ON customers(company_id);
 CREATE INDEX IF NOT EXISTS idx_suppliers_company ON suppliers(company_id);
