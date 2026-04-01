@@ -26,9 +26,37 @@ export async function GET() {
       name: r.name,
       type: r.type,
       balance: Number(r.balance ?? 0),
+      is_payment_wallet: false as const,
     }));
 
-    return NextResponse.json(treasuries);
+    let wallets: {
+      id: string;
+      name: string;
+      type: string;
+      balance: number;
+      is_payment_wallet: true;
+      payment_channel: string;
+      phone_digits: string;
+    }[] = [];
+    try {
+      const pw = await db.execute({
+        sql: "SELECT id, name, payment_channel, phone_digits, balance FROM payment_wallets WHERE company_id = ? AND is_active = 1 ORDER BY payment_channel, phone_digits",
+        args: [companyId],
+      });
+      wallets = pw.rows.map((r) => ({
+        id: String(r.id),
+        name: String(r.name ?? ""),
+        type: "payment_wallet",
+        balance: Number(r.balance ?? 0),
+        is_payment_wallet: true as const,
+        payment_channel: String(r.payment_channel ?? ""),
+        phone_digits: String(r.phone_digits ?? ""),
+      }));
+    } catch {
+      wallets = [];
+    }
+
+    return NextResponse.json([...treasuries, ...wallets]);
   } catch (error) {
     console.error("Treasuries GET error:", error);
     return NextResponse.json({ error: "فشل في جلب البيانات" }, { status: 500 });

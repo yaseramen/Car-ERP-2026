@@ -3,10 +3,15 @@ import { auth } from "@/auth";
 import { db } from "@/lib/db/client";
 import { getCompanyId } from "@/lib/company";
 import { ensureTreasuries, getTreasuryIdByType } from "@/lib/treasuries";
+import { getOrCreatePaymentWallet, type PaymentWalletChannel } from "@/lib/payment-wallets";
 import { logAudit } from "@/lib/audit";
 import { randomUUID } from "crypto";
 
 const ALLOWED_ROLES = ["super_admin", "tenant_owner", "employee"] as const;
+
+function isDigitalMethodType(t: string): t is PaymentWalletChannel {
+  return t === "vodafone_cash" || t === "instapay";
+}
 
 export async function POST(
   request: Request,
@@ -22,7 +27,21 @@ export async function POST(
 
   try {
     const body = await request.json();
-    const { amount, payment_method_id, reference_number, notes } = body;
+    const {
+      amount,
+      payment_method_id,
+      reference_number,
+      reference_from,
+      reference_to,
+      notes,
+    } = body as {
+      amount?: number;
+      payment_method_id?: string;
+      reference_number?: string;
+      reference_from?: string;
+      reference_to?: string;
+      notes?: string;
+    };
 
     if (!amount || Number(amount) <= 0) {
       return NextResponse.json({ error: "المبلغ مطلوب ويجب أن يكون أكبر من صفر" }, { status: 400 });
@@ -32,6 +51,15 @@ export async function POST(
     }
 
     const amt = Number(amount);
+
+    const pmResult = await db.execute({
+      sql: "SELECT type FROM payment_methods WHERE id = ?",
+      args: [payment_method_id],
+    });
+    if (pmResult.rows.length === 0) {
+      return NextResponse.json({ error: "طريقة الدفع غير موجودة" }, { status: 400 });
+    }
+    const methodType = String(pmResult.rows[0].type ?? "");
 
     const invResult = await db.execute({
       sql: "SELECT total, paid_amount, status, type, invoice_number, warehouse_id FROM invoices WHERE id = ? AND company_id = ?",
@@ -57,6 +85,34 @@ export async function POST(
 
     let treasuryId: string | null = null;
     let distributionTreasuryId: string | null = null;
+    let paymentWalletId: string | null = null;
+
+    const refFromRaw =
+      typeof reference_from === "string" && reference_from.trim()
+        ? reference_from.trim()
+        : typeof reference_number === "string" && reference_number.trim()
+          ? reference_number.trim()
+          : "";
+    const refToRaw = typeof reference_to === "string" ? reference_to.trim() : "";
+
+    const useDigitalWallet =
+      isDigitalMethodType(methodType) && (invType === "sale" || invType === "maintenance");
+
+    if (useDigitalWallet) {
+      if (!refToRaw) {
+        return NextResponse.json(
+          { error: "أدخل رقم المحفظة أو الحساب المحول إليه (فودافون كاش / إنستاباي)" },
+          { status: 400 }
+        );
+      }
+      try {
+        const w = await getOrCreatePaymentWallet(companyId, methodType, refToRaw);
+        paymentWalletId = w.id;
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : "رقم المحفظة غير صالح";
+        return NextResponse.json({ error: msg }, { status: 400 });
+      }
+    }
 
     if (invType === "sale" && inv.warehouse_id) {
       const dist = await db.execute({
@@ -71,27 +127,67 @@ export async function POST(
     await ensureTreasuries(companyId);
 
     if (invType === "sale" && distributionTreasuryId) {
-      await db.execute({
-        sql: "UPDATE distribution_treasuries SET balance = balance + ?, updated_at = datetime('now') WHERE id = ?",
-        args: [amt, distributionTreasuryId],
-      });
-      await db.execute({
-        sql: `INSERT INTO distribution_treasury_transactions (id, distribution_treasury_id, amount, type, description, reference_type, reference_id, payment_method_id, performed_by)
-              VALUES (?, ?, ?, 'in', ?, 'invoice', ?, ?, ?)`,
-        args: [randomUUID(), distributionTreasuryId, amt, `دفعة فاتورة ${invNum}`, invoiceId, payment_method_id, session.user.id],
-      });
-    } else if (invType === "sale" || invType === "maintenance") {
-      treasuryId = invType === "sale" ? await getTreasuryIdByType(companyId, "sales") : await getTreasuryIdByType(companyId, "workshop");
-      if (treasuryId) {
+      if (useDigitalWallet && paymentWalletId) {
         await db.execute({
-          sql: "UPDATE treasuries SET balance = balance + ?, updated_at = datetime('now') WHERE id = ?",
-          args: [amt, treasuryId],
+          sql: "UPDATE payment_wallets SET balance = balance + ?, updated_at = datetime('now') WHERE id = ? AND company_id = ?",
+          args: [amt, paymentWalletId, companyId],
         });
         await db.execute({
-          sql: `INSERT INTO treasury_transactions (id, treasury_id, amount, type, description, reference_type, reference_id, payment_method_id, performed_by)
+          sql: `INSERT INTO payment_wallet_transactions (id, payment_wallet_id, amount, type, description, reference_type, reference_id, payment_method_id, performed_by)
                 VALUES (?, ?, ?, 'in', ?, 'invoice', ?, ?, ?)`,
-          args: [randomUUID(), treasuryId, amt, `دفعة فاتورة ${invNum}`, invoiceId, payment_method_id, session.user.id],
+          args: [
+            randomUUID(),
+            paymentWalletId,
+            amt,
+            `دفعة فاتورة ${invNum}`,
+            invoiceId,
+            payment_method_id,
+            session.user.id,
+          ],
         });
+      } else {
+        await db.execute({
+          sql: "UPDATE distribution_treasuries SET balance = balance + ?, updated_at = datetime('now') WHERE id = ?",
+          args: [amt, distributionTreasuryId],
+        });
+        await db.execute({
+          sql: `INSERT INTO distribution_treasury_transactions (id, distribution_treasury_id, amount, type, description, reference_type, reference_id, payment_method_id, performed_by)
+              VALUES (?, ?, ?, 'in', ?, 'invoice', ?, ?, ?)`,
+          args: [randomUUID(), distributionTreasuryId, amt, `دفعة فاتورة ${invNum}`, invoiceId, payment_method_id, session.user.id],
+        });
+      }
+    } else if (invType === "sale" || invType === "maintenance") {
+      if (useDigitalWallet && paymentWalletId) {
+        await db.execute({
+          sql: "UPDATE payment_wallets SET balance = balance + ?, updated_at = datetime('now') WHERE id = ? AND company_id = ?",
+          args: [amt, paymentWalletId, companyId],
+        });
+        await db.execute({
+          sql: `INSERT INTO payment_wallet_transactions (id, payment_wallet_id, amount, type, description, reference_type, reference_id, payment_method_id, performed_by)
+                VALUES (?, ?, ?, 'in', ?, 'invoice', ?, ?, ?)`,
+          args: [
+            randomUUID(),
+            paymentWalletId,
+            amt,
+            `دفعة فاتورة ${invNum}`,
+            invoiceId,
+            payment_method_id,
+            session.user.id,
+          ],
+        });
+      } else {
+        treasuryId = invType === "sale" ? await getTreasuryIdByType(companyId, "sales") : await getTreasuryIdByType(companyId, "workshop");
+        if (treasuryId) {
+          await db.execute({
+            sql: "UPDATE treasuries SET balance = balance + ?, updated_at = datetime('now') WHERE id = ?",
+            args: [amt, treasuryId],
+          });
+          await db.execute({
+            sql: `INSERT INTO treasury_transactions (id, treasury_id, amount, type, description, reference_type, reference_id, payment_method_id, performed_by)
+                VALUES (?, ?, ?, 'in', ?, 'invoice', ?, ?, ?)`,
+            args: [randomUUID(), treasuryId, amt, `دفعة فاتورة ${invNum}`, invoiceId, payment_method_id, session.user.id],
+          });
+        }
       }
     } else if (invType === "purchase") {
       treasuryId = await getTreasuryIdByType(companyId, "main");
@@ -118,9 +214,16 @@ export async function POST(
       }
     }
 
+    const refFromDb = refFromRaw || null;
+    const refToDb = refToRaw || null;
+    const legacyRef =
+      refFromDb && refToDb
+        ? `من ${refFromDb} → إلى ${refToDb}`
+        : refFromDb || refToDb || null;
+
     await db.execute({
-      sql: `INSERT INTO invoice_payments (id, invoice_id, amount, payment_method_id, treasury_id, distribution_treasury_id, reference_number, notes, created_by)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      sql: `INSERT INTO invoice_payments (id, invoice_id, amount, payment_method_id, treasury_id, distribution_treasury_id, payment_wallet_id, reference_number, reference_from, reference_to, notes, created_by)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       args: [
         randomUUID(),
         invoiceId,
@@ -128,8 +231,11 @@ export async function POST(
         payment_method_id,
         treasuryId,
         distributionTreasuryId,
-        reference_number?.trim() || null,
-        notes?.trim() || null,
+        paymentWalletId,
+        legacyRef,
+        refFromDb,
+        refToDb,
+        typeof notes === "string" ? notes.trim() || null : null,
         session.user.id,
       ],
     });

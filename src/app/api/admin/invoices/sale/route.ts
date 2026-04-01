@@ -4,6 +4,7 @@ import { db } from "@/lib/db/client";
 import { getCompanyId, isPlatformOwnerCompany } from "@/lib/company";
 import { resolveSaleWarehouseId } from "@/lib/distribution";
 import { ensureTreasuries, getTreasuryIdByType } from "@/lib/treasuries";
+import { getOrCreatePaymentWallet } from "@/lib/payment-wallets";
 import { getDigitalFeeConfig, calcDigitalFee } from "@/lib/digital-fee";
 import { WALLET_CHARGE_MESSAGE, walletInsufficientError } from "@/lib/wallet-charge-contact";
 import { allocateInvoiceNumber } from "@/lib/invoice-numbers";
@@ -30,11 +31,26 @@ export async function POST(request: Request) {
       tax,
       notes,
       warehouse_id: bodyWarehouseId,
-    } = body;
+      reference_from,
+      reference_to,
+    } = body as {
+      customer_id?: string;
+      items?: unknown[];
+      payment_method_id?: string;
+      paid_amount?: number;
+      discount?: number;
+      tax?: number;
+      notes?: string;
+      warehouse_id?: string | null;
+      reference_from?: string;
+      reference_to?: string;
+    };
 
     if (!items || !Array.isArray(items) || items.length === 0) {
       return NextResponse.json({ error: "يجب إضافة صنف واحد على الأقل" }, { status: 400 });
     }
+
+    const saleItems = items as { item_id: string; quantity: number }[];
 
     let warehouseId: string;
     let distributionTreasuryId: string | null = null;
@@ -52,7 +68,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: msg }, { status: 400 });
     }
 
-    for (const it of items) {
+    for (const it of saleItems) {
       if (!it.item_id || !it.quantity || Number(it.quantity) <= 0) {
         return NextResponse.json({ error: "بيانات الصنف غير صالحة" }, { status: 400 });
       }
@@ -64,7 +80,7 @@ export async function POST(request: Request) {
     let subtotal = 0;
     const validItems: { item_id: string; quantity: number; unit_price: number; total: number; name: string }[] = [];
 
-    for (const it of items) {
+    for (const it of saleItems) {
       const itemId = it.item_id;
       const qty = Number(it.quantity);
 
@@ -157,6 +173,55 @@ export async function POST(request: Request) {
       }
     }
 
+    let paymentWalletIdForInsert: string | null = null;
+    let refFromDb: string | null = null;
+    let refToDb: string | null = null;
+    let legacyRef: string | null = null;
+
+    if (paid > 0 && payment_method_id) {
+      const pmRow = await db.execute({
+        sql: "SELECT type FROM payment_methods WHERE id = ?",
+        args: [payment_method_id],
+      });
+      const pmType = pmRow.rows[0] ? String(pmRow.rows[0].type ?? "") : "";
+      const isDigital = pmType === "vodafone_cash" || pmType === "instapay";
+      const refFromRaw = typeof reference_from === "string" ? reference_from.trim() : "";
+      const refToRaw = typeof reference_to === "string" ? reference_to.trim() : "";
+      refFromDb = refFromRaw || null;
+      refToDb = refToRaw || null;
+      if (refFromDb && refToDb) legacyRef = `من ${refFromDb} → إلى ${refToDb}`;
+      else legacyRef = refFromDb || refToDb || null;
+
+      if (
+        isDigital &&
+        paid > 0 &&
+        (distributionTreasuryId || salesTreasuryId) &&
+        refToRaw.length === 0
+      ) {
+        return NextResponse.json(
+          { error: "أدخل رقم المحفظة أو الحساب المحول إليه (فودافون كاش / إنستاباي)" },
+          { status: 400 }
+        );
+      }
+
+      const canUseWallet =
+        isDigital &&
+        refToRaw.length > 0 &&
+        (distributionTreasuryId || salesTreasuryId);
+
+      if (canUseWallet) {
+        try {
+          const w = await getOrCreatePaymentWallet(companyId, pmType as "vodafone_cash" | "instapay", refToRaw);
+          paymentWalletIdForInsert = w.id;
+        } catch (e) {
+          return NextResponse.json(
+            { error: e instanceof Error ? e.message : "رقم المحفظة غير صالح" },
+            { status: 400 }
+          );
+        }
+      }
+    }
+
     const commitStmts: { sql: string; args: (string | number | null)[] }[] = [
       {
         sql: `INSERT INTO invoices (id, company_id, invoice_number, type, status, customer_id, warehouse_id, subtotal, discount, tax, digital_service_fee, total, paid_amount, notes, created_by)
@@ -203,35 +268,106 @@ export async function POST(request: Request) {
       const payTxId = randomUUID();
       const payId = randomUUID();
       if (distributionTreasuryId) {
-        commitStmts.push({
-          sql: "UPDATE distribution_treasuries SET balance = balance + ?, updated_at = datetime('now') WHERE id = ?",
-          args: [paid, distributionTreasuryId],
-        });
-        commitStmts.push({
-          sql: `INSERT INTO distribution_treasury_transactions (id, distribution_treasury_id, amount, type, description, reference_type, reference_id, payment_method_id, performed_by)
+        if (paymentWalletIdForInsert) {
+          commitStmts.push({
+            sql: "UPDATE payment_wallets SET balance = balance + ?, updated_at = datetime('now') WHERE id = ? AND company_id = ?",
+            args: [paid, paymentWalletIdForInsert, companyId],
+          });
+          commitStmts.push({
+            sql: `INSERT INTO payment_wallet_transactions (id, payment_wallet_id, amount, type, description, reference_type, reference_id, payment_method_id, performed_by)
+                  VALUES (?, ?, ?, 'in', ?, 'invoice', ?, ?, ?)`,
+            args: [
+              payTxId,
+              paymentWalletIdForInsert,
+              paid,
+              `فاتورة بيع ${invNum}`,
+              invoiceId,
+              payment_method_id,
+              session.user.id,
+            ],
+          });
+          commitStmts.push({
+            sql: `INSERT INTO invoice_payments (id, invoice_id, amount, payment_method_id, treasury_id, distribution_treasury_id, payment_wallet_id, reference_number, reference_from, reference_to, created_by)
+                  VALUES (?, ?, ?, ?, NULL, ?, ?, ?, ?, ?, ?)`,
+            args: [
+              payId,
+              invoiceId,
+              paid,
+              payment_method_id,
+              distributionTreasuryId,
+              paymentWalletIdForInsert,
+              legacyRef,
+              refFromDb,
+              refToDb,
+              session.user.id,
+            ],
+          });
+        } else {
+          commitStmts.push({
+            sql: "UPDATE distribution_treasuries SET balance = balance + ?, updated_at = datetime('now') WHERE id = ?",
+            args: [paid, distributionTreasuryId],
+          });
+          commitStmts.push({
+            sql: `INSERT INTO distribution_treasury_transactions (id, distribution_treasury_id, amount, type, description, reference_type, reference_id, payment_method_id, performed_by)
                 VALUES (?, ?, ?, 'in', ?, 'invoice', ?, ?, ?)`,
-          args: [payTxId, distributionTreasuryId, paid, `فاتورة بيع ${invNum}`, invoiceId, payment_method_id, session.user.id],
-        });
-        commitStmts.push({
-          sql: `INSERT INTO invoice_payments (id, invoice_id, amount, payment_method_id, treasury_id, distribution_treasury_id, created_by)
+            args: [payTxId, distributionTreasuryId, paid, `فاتورة بيع ${invNum}`, invoiceId, payment_method_id, session.user.id],
+          });
+          commitStmts.push({
+            sql: `INSERT INTO invoice_payments (id, invoice_id, amount, payment_method_id, treasury_id, distribution_treasury_id, created_by)
                 VALUES (?, ?, ?, ?, NULL, ?, ?)`,
-          args: [payId, invoiceId, paid, payment_method_id, distributionTreasuryId, session.user.id],
-        });
+            args: [payId, invoiceId, paid, payment_method_id, distributionTreasuryId, session.user.id],
+          });
+        }
       } else if (salesTreasuryId) {
-        commitStmts.push({
-          sql: "UPDATE treasuries SET balance = balance + ?, updated_at = datetime('now') WHERE id = ?",
-          args: [paid, salesTreasuryId],
-        });
-        commitStmts.push({
-          sql: `INSERT INTO treasury_transactions (id, treasury_id, amount, type, description, reference_type, reference_id, payment_method_id, performed_by)
+        if (paymentWalletIdForInsert) {
+          commitStmts.push({
+            sql: "UPDATE payment_wallets SET balance = balance + ?, updated_at = datetime('now') WHERE id = ? AND company_id = ?",
+            args: [paid, paymentWalletIdForInsert, companyId],
+          });
+          commitStmts.push({
+            sql: `INSERT INTO payment_wallet_transactions (id, payment_wallet_id, amount, type, description, reference_type, reference_id, payment_method_id, performed_by)
+                  VALUES (?, ?, ?, 'in', ?, 'invoice', ?, ?, ?)`,
+            args: [
+              payTxId,
+              paymentWalletIdForInsert,
+              paid,
+              `فاتورة بيع ${invNum}`,
+              invoiceId,
+              payment_method_id,
+              session.user.id,
+            ],
+          });
+          commitStmts.push({
+            sql: `INSERT INTO invoice_payments (id, invoice_id, amount, payment_method_id, treasury_id, distribution_treasury_id, payment_wallet_id, reference_number, reference_from, reference_to, created_by)
+                  VALUES (?, ?, ?, ?, NULL, NULL, ?, ?, ?, ?, ?)`,
+            args: [
+              payId,
+              invoiceId,
+              paid,
+              payment_method_id,
+              paymentWalletIdForInsert,
+              legacyRef,
+              refFromDb,
+              refToDb,
+              session.user.id,
+            ],
+          });
+        } else {
+          commitStmts.push({
+            sql: "UPDATE treasuries SET balance = balance + ?, updated_at = datetime('now') WHERE id = ?",
+            args: [paid, salesTreasuryId],
+          });
+          commitStmts.push({
+            sql: `INSERT INTO treasury_transactions (id, treasury_id, amount, type, description, reference_type, reference_id, payment_method_id, performed_by)
                 VALUES (?, ?, ?, 'in', ?, 'invoice', ?, ?, ?)`,
-          args: [payTxId, salesTreasuryId, paid, `فاتورة بيع ${invNum}`, invoiceId, payment_method_id, session.user.id],
-        });
-        commitStmts.push({
-          sql: `INSERT INTO invoice_payments (id, invoice_id, amount, payment_method_id, treasury_id, distribution_treasury_id, created_by)
+            args: [payTxId, salesTreasuryId, paid, `فاتورة بيع ${invNum}`, invoiceId, payment_method_id, session.user.id],
+          });
+          commitStmts.push({
+            sql: `INSERT INTO invoice_payments (id, invoice_id, amount, payment_method_id, treasury_id, distribution_treasury_id, created_by)
                 VALUES (?, ?, ?, ?, ?, NULL, ?)`,
-          args: [payId, invoiceId, paid, payment_method_id, salesTreasuryId, session.user.id],
-        });
+            args: [payId, invoiceId, paid, payment_method_id, salesTreasuryId, session.user.id],
+          });
+        }
       }
     }
 

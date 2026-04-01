@@ -100,14 +100,44 @@ export async function POST(
     }
 
     const paymentsResult = await db.execute({
-      sql: "SELECT amount, treasury_id FROM invoice_payments WHERE invoice_id = ?",
+      sql: "SELECT amount, treasury_id, distribution_treasury_id, payment_wallet_id FROM invoice_payments WHERE invoice_id = ?",
       args: [invoiceId],
     });
 
     for (const row of paymentsResult.rows) {
       const amt = Number(row.amount ?? 0);
-      const tid = row.treasury_id as string | null;
-      if (amt > 0 && tid) {
+      if (amt <= 0) continue;
+
+      const walletId = row.payment_wallet_id ? String(row.payment_wallet_id) : null;
+      if (walletId) {
+        await db.execute({
+          sql: "UPDATE payment_wallets SET balance = balance - ?, updated_at = datetime('now') WHERE id = ? AND company_id = ?",
+          args: [amt, walletId, companyId],
+        });
+        await db.execute({
+          sql: `INSERT INTO payment_wallet_transactions (id, payment_wallet_id, amount, type, description, reference_type, reference_id, performed_by)
+                VALUES (?, ?, ?, 'out', ?, 'invoice_cancel', ?, ?)`,
+          args: [randomUUID(), walletId, -amt, `إلغاء فاتورة ${invNum}`, invoiceId, session.user.id],
+        });
+        continue;
+      }
+
+      const distId = row.distribution_treasury_id ? String(row.distribution_treasury_id) : null;
+      if (distId && (invType === "sale" || invType === "maintenance")) {
+        await db.execute({
+          sql: "UPDATE distribution_treasuries SET balance = balance - ?, updated_at = datetime('now') WHERE id = ? AND company_id = ?",
+          args: [amt, distId, companyId],
+        });
+        await db.execute({
+          sql: `INSERT INTO distribution_treasury_transactions (id, distribution_treasury_id, amount, type, description, reference_type, reference_id, performed_by)
+                VALUES (?, ?, ?, 'out', ?, 'invoice_cancel', ?, ?)`,
+          args: [randomUUID(), distId, -amt, `إلغاء فاتورة ${invNum}`, invoiceId, session.user.id],
+        });
+        continue;
+      }
+
+      const tid = row.treasury_id ? String(row.treasury_id) : null;
+      if (tid) {
         const isPurchaseRefund = invType === "purchase";
         const balanceDelta = isPurchaseRefund ? amt : -amt;
         const txAmount = isPurchaseRefund ? amt : -amt;

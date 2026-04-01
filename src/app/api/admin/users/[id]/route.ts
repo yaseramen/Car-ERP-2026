@@ -207,6 +207,7 @@ export async function DELETE(
     const reassignTables = [
       ["wallet_transactions", "performed_by"],
       ["treasury_transactions", "performed_by"],
+      ["payment_wallet_transactions", "performed_by"],
       ["stock_movements", "performed_by"],
       ["invoices", "created_by"],
       ["invoice_payments", "created_by"],
