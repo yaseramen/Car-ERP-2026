@@ -34,7 +34,7 @@ export default async function InvoiceDetailPage({
             comp.tax_number as company_tax_number, comp.commercial_registration as company_commercial_registration,
             c.name as customer_name, c.phone as customer_phone,
             s.name as supplier_name, s.phone as supplier_phone,
-            ro.order_number, ro.vehicle_plate, ro.vehicle_model,
+            ro.order_number, ro.vehicle_plate, ro.vehicle_model, ro.inspection_notes as repair_order_inspection_notes,
             u.name as created_by_name, u.email as created_by_email,
             wh.name as warehouse_name
             FROM invoices inv
@@ -78,6 +78,9 @@ export default async function InvoiceDetailPage({
       vehicle_plate: row.vehicle_plate ? String(row.vehicle_plate) : null,
       vehicle_model: row.vehicle_model ? String(row.vehicle_model) : null,
       repair_order_id: row.repair_order_id ? String(row.repair_order_id) : null,
+      repair_order_inspection_notes: row.repair_order_inspection_notes
+        ? String(row.repair_order_inspection_notes)
+        : null,
       notes: row.notes ? String(row.notes) : null,
       created_at: String(row.created_at ?? ""),
       created_by_name: row.created_by_name ? String(row.created_by_name) : null,
@@ -440,6 +443,22 @@ export default async function InvoiceDetailPage({
           )}
         </div>
       </div>
+
+      {data.repair_order_id &&
+        data.repair_order_inspection_notes &&
+        data.repair_order_inspection_notes.trim() && (
+          <div className="bg-amber-50 dark:bg-amber-900/20 rounded-xl p-6 shadow-sm border border-amber-200 dark:border-amber-800 mb-8 invoice-print-card invoice-print-notes">
+            <h2 className="font-bold text-gray-900 dark:text-gray-100 mb-2">ملاحظات الفحص (مرجع ورشة)</h2>
+            <p className="text-gray-700 dark:text-gray-300 text-sm whitespace-pre-wrap leading-relaxed">
+              {data.repair_order_inspection_notes.trim()}
+            </p>
+            {data.order_number && (
+              <p className="text-xs text-gray-500 dark:text-gray-400 mt-3 print:text-gray-600">
+                مرتبط بأمر الإصلاح: {data.order_number}
+              </p>
+            )}
+          </div>
+        )}
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8 invoice-print-payments-row">
         <div className="no-print">
