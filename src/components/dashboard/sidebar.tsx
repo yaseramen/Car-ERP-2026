@@ -17,10 +17,10 @@ const navItems: {
   supplierOnly?: boolean;
 }[] = [
   { href: "/admin", label: "الرئيسية", module: "dashboard" },
-  { href: "/admin/help", label: "الدليل وما الجديد", module: "dashboard" },
   { href: "/admin/inventory", label: "المخزن", module: "inventory" },
   { href: "/admin/inventory/price-list", label: "عرض أسعار", module: "inventory" },
   { href: "/admin/marketplace", label: "السوق والإعلانات", module: "marketplace", supplierOnly: true },
+  { href: "/admin/help", label: "الدليل وما الجديد", module: "dashboard", supplierOnly: true },
   { href: "/admin/workshop", label: "الورشة", module: "workshop", serviceOnly: true },
   { href: "/admin/obd", label: "OBD", module: "obd", serviceOnly: true },
   { href: "/admin/cashier", label: "الكاشير", module: "cashier", salesOnly: true },
@@ -31,6 +31,7 @@ const navItems: {
   { href: "/admin/reports", label: "التقارير", module: "reports" },
   { href: "/admin/treasuries", label: "الخزائن", module: "treasuries" },
   { href: "/admin/marketplace", label: "السوق (إدارة)", module: "marketplace", superAdminOnly: true },
+  { href: "/admin/help", label: "الدليل وما الجديد", module: "dashboard", superAdminOnly: true },
   { href: "/admin/wallets", label: "المحافظ", module: "wallets", superAdminOnly: true },
   { href: "/admin/super/password-reset", label: "أكواد المالكين", module: "wallets", superAdminOnly: true },
   { href: "/admin/team", label: "المستخدمون", ownerOrAdmin: true },
@@ -141,9 +142,10 @@ export function Sidebar({ role = "super_admin", businessType, companyName: initi
         <nav className="p-4 space-y-1">
           {items.map((item) => {
           const isActive = pathname === item.href || (item.href !== "/admin" && pathname.startsWith(item.href));
+          const navKey = `${item.href}-${item.superAdminOnly ? "sa" : ""}-${item.supplierOnly ? "sup" : ""}-${item.label}`;
           return (
             <Link
-              key={item.href}
+              key={navKey}
               href={item.href}
               onClick={handleNav}
               className={`flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-colors ${
