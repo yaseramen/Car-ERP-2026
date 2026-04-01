@@ -25,7 +25,7 @@ export async function GET() {
   try {
     const res = await db.execute({
       sql: `SELECT id, title_ar, category, status, list_price, contact_phone, contact_whatsapp,
-                   image_url, starts_at, ends_at, auto_renew, package_id, item_id
+                   image_url, image_blob_url, starts_at, ends_at, auto_renew, package_id, item_id
             FROM marketplace_listings WHERE company_id = ? ORDER BY created_at DESC`,
       args: [companyId],
     });
@@ -39,6 +39,7 @@ export async function GET() {
         contact_phone: r.contact_phone,
         contact_whatsapp: r.contact_whatsapp,
         image_url: r.image_url,
+        image_blob_url: r.image_blob_url,
         starts_at: r.starts_at,
         ends_at: r.ends_at,
         auto_renew: Number(r.auto_renew ?? 0) === 1,
@@ -84,6 +85,7 @@ export async function POST(request: Request) {
       contact_phone,
       contact_whatsapp,
       image_url,
+      image_blob_url,
       auto_renew,
       confirm,
     } = body;
@@ -112,6 +114,19 @@ export async function POST(request: Request) {
     const scope = String(pkg.category_scope ?? "both");
     if (!packageMatchesCategory(scope, cat)) {
       return NextResponse.json({ error: "الباقة لا تناسب القسم المختار" }, { status: 400 });
+    }
+
+    const imgTrim = typeof image_url === "string" ? image_url.trim() : "";
+    if (imgTrim.startsWith("data:")) {
+      return NextResponse.json(
+        { error: "لا تُرسل صورة مضمّنة كبيرة. استخدم «رفع صورة» أو أدخل رابط URL." },
+        { status: 400 }
+      );
+    }
+    let blobCol: string | null = null;
+    const blobIn = typeof image_blob_url === "string" ? image_blob_url.trim() : "";
+    if (blobIn && imgTrim && blobIn === imgTrim && blobIn.includes("blob.vercel-storage.com")) {
+      blobCol = blobIn;
     }
 
     if (item_id) {
@@ -167,9 +182,9 @@ export async function POST(request: Request) {
     await db.execute({
       sql: `INSERT INTO marketplace_listings (
         id, company_id, item_id, category, package_id, title_ar, description_ar, list_price,
-        contact_phone, contact_whatsapp, image_url, status, starts_at, ends_at, auto_renew,
+        contact_phone, contact_whatsapp, image_url, image_blob_url, status, starts_at, ends_at, auto_renew,
         wallet_tx_id, created_by
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', ?, ?, ?, ?, ?)`,
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', ?, ?, ?, ?, ?)`,
       args: [
         listingId,
         companyId,
@@ -181,7 +196,8 @@ export async function POST(request: Request) {
         list_price != null && Number.isFinite(Number(list_price)) ? Number(list_price) : null,
         String(contact_phone).trim(),
         contact_whatsapp?.trim() || null,
-        image_url?.trim() || null,
+        imgTrim || null,
+        blobCol,
         startsAt,
         endsAt,
         auto_renew === true ? 1 : 0,

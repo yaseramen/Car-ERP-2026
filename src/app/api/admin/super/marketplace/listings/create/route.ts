@@ -26,6 +26,7 @@ export async function POST(request: Request) {
       contact_phone,
       contact_whatsapp,
       image_url,
+      image_blob_url,
     } = body;
 
     if (!company_id?.trim() || !title_ar?.trim() || !contact_phone?.trim() || !package_id) {
@@ -66,6 +67,19 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "الباقة لا تناسب القسم" }, { status: 400 });
     }
 
+    const imgTrim = typeof image_url === "string" ? image_url.trim() : "";
+    if (imgTrim.startsWith("data:")) {
+      return NextResponse.json(
+        { error: "لا تُرسل صورة مضمّنة كبيرة. استخدم «رفع صورة» أو رابط URL." },
+        { status: 400 }
+      );
+    }
+    let blobCol: string | null = null;
+    const blobIn = typeof image_blob_url === "string" ? image_blob_url.trim() : "";
+    if (blobIn && imgTrim && blobIn === imgTrim && blobIn.includes("blob.vercel-storage.com")) {
+      blobCol = blobIn;
+    }
+
     const listingId = randomUUID();
     const now = new Date();
     const startsAt = now.toISOString().slice(0, 19).replace("T", " ");
@@ -76,9 +90,9 @@ export async function POST(request: Request) {
     await db.execute({
       sql: `INSERT INTO marketplace_listings (
         id, company_id, item_id, category, package_id, title_ar, description_ar, list_price,
-        contact_phone, contact_whatsapp, image_url, status, starts_at, ends_at, auto_renew,
+        contact_phone, contact_whatsapp, image_url, image_blob_url, status, starts_at, ends_at, auto_renew,
         wallet_tx_id, created_by
-      ) VALUES (?, ?, NULL, ?, ?, ?, ?, ?, ?, ?, ?, 'active', ?, ?, 0, NULL, ?)`,
+      ) VALUES (?, ?, NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', ?, ?, 0, NULL, ?)`,
       args: [
         listingId,
         String(company_id).trim(),
@@ -89,7 +103,8 @@ export async function POST(request: Request) {
         list_price != null && Number.isFinite(Number(list_price)) ? Number(list_price) : null,
         String(contact_phone).trim(),
         contact_whatsapp?.trim() || null,
-        image_url?.trim() || null,
+        imgTrim || null,
+        blobCol,
         startsAt,
         endsAt,
         session.user.id,

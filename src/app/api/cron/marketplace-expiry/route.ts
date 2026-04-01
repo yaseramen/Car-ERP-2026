@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db/client";
+import { purgeMarketplaceListingBlobImage } from "@/lib/marketplace-image-blob";
 import { randomUUID } from "crypto";
 
 /**
@@ -18,7 +19,7 @@ export async function GET(request: Request) {
   let renewed = 0;
 
   const due = await db.execute({
-    sql: `SELECT l.id, l.company_id, l.package_id, l.auto_renew, l.ends_at, l.image_url,
+    sql: `SELECT l.id, l.company_id, l.package_id, l.auto_renew, l.ends_at, l.image_url, l.image_blob_url,
                  p.price, p.duration_days, p.label_ar,
                  COALESCE(c.marketplace_enabled, 1) as me,
                  COALESCE(c.ads_globally_disabled, 0) as adg,
@@ -80,8 +81,9 @@ export async function GET(request: Request) {
       continue;
     }
 
+    await purgeMarketplaceListingBlobImage(listingId);
     await db.execute({
-      sql: `UPDATE marketplace_listings SET status = 'expired', image_url = NULL, updated_at = datetime('now') WHERE id = ?`,
+      sql: `UPDATE marketplace_listings SET status = 'expired', image_url = NULL, image_blob_url = NULL, updated_at = datetime('now') WHERE id = ?`,
       args: [listingId],
     });
     expired++;

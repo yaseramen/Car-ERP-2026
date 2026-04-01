@@ -123,6 +123,7 @@ CREATE TABLE IF NOT EXISTS marketplace_listings (
     contact_phone TEXT NOT NULL,
     contact_whatsapp TEXT,
     image_url TEXT,
+    image_blob_url TEXT,
     status TEXT NOT NULL DEFAULT 'draft' CHECK(status IN ('draft', 'active', 'expired', 'cancelled')),
     starts_at TEXT,
     ends_at TEXT,

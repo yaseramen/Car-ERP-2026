@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { db } from "@/lib/db/client";
+import { purgeMarketplaceListingBlobImage } from "@/lib/marketplace-image-blob";
 
 /** إيقاف إعلان من أي شركة (طوارئ) */
 export async function DELETE(
@@ -13,8 +14,9 @@ export async function DELETE(
   }
   const { id } = await params;
   try {
+    await purgeMarketplaceListingBlobImage(id);
     const res = await db.execute({
-      sql: `UPDATE marketplace_listings SET status = 'cancelled', image_url = NULL,
+      sql: `UPDATE marketplace_listings SET status = 'cancelled', image_url = NULL, image_blob_url = NULL,
             cancelled_at = datetime('now'), cancelled_by = ?, cancel_reason = 'super_admin',
             updated_at = datetime('now') WHERE id = ?`,
       args: [session.user.id, id],

@@ -3,6 +3,7 @@ import { auth } from "@/auth";
 import { db } from "@/lib/db/client";
 import { getCompanyId } from "@/lib/company";
 import { canAccess } from "@/lib/permissions";
+import { purgeMarketplaceListingBlobImage } from "@/lib/marketplace-image-blob";
 
 const ALLOWED = ["tenant_owner", "employee"] as const;
 
@@ -73,8 +74,9 @@ export async function DELETE(
     if (res.rows.length === 0) {
       return NextResponse.json({ error: "غير موجود" }, { status: 404 });
     }
+    await purgeMarketplaceListingBlobImage(id);
     await db.execute({
-      sql: `UPDATE marketplace_listings SET status = 'cancelled', image_url = NULL,
+      sql: `UPDATE marketplace_listings SET status = 'cancelled', image_url = NULL, image_blob_url = NULL,
             cancelled_at = datetime('now'), cancelled_by = ?, cancel_reason = 'user_cancel',
             updated_at = datetime('now') WHERE id = ?`,
       args: [session.user.id, id],
