@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import Link from "next/link";
 import { SearchableSelect } from "@/components/ui/searchable-select";
 import { InventoryCategoryFilter } from "@/components/inventory/inventory-category-filter";
@@ -85,6 +85,7 @@ export function RepairOrderEditContent({
   servicesTotal: initialServicesTotal,
   orderType,
   previousOrders,
+  showPurchaseCost = false,
 }: {
   order: Order;
   items: Item[];
@@ -93,6 +94,7 @@ export function RepairOrderEditContent({
   servicesTotal: number;
   orderType: string;
   previousOrders: PrevOrder[];
+  showPurchaseCost?: boolean;
 }) {
   const [items, setItems] = useState(initialItems);
   const [services, setServices] = useState(initialServices);
@@ -103,12 +105,26 @@ export function RepairOrderEditContent({
   const [addPartOpen, setAddPartOpen] = useState(false);
   const [addServiceOpen, setAddServiceOpen] = useState(false);
   const [inventoryItems, setInventoryItems] = useState<
-    { id: string; name: string; quantity: number; category?: string | null; code?: string | null; barcode?: string | null }[]
+    {
+      id: string;
+      name: string;
+      quantity: number;
+      sale_price: number;
+      purchase_price?: number;
+      category?: string | null;
+      code?: string | null;
+      barcode?: string | null;
+    }[]
   >([]);
   const [partCategoryFilter, setPartCategoryFilter] = useState("");
   const [addForm, setAddForm] = useState({ item_id: "", quantity: "1", discount_type: "" as "" | "percent" | "amount", discount_value: "", tax_percent: "" });
   const [serviceForm, setServiceForm] = useState({ description: "", quantity: "1", unit_price: "", discount_type: "" as "" | "percent" | "amount", discount_value: "", tax_percent: "" });
   const [saving, setSaving] = useState(false);
+
+  const selectedPartItem = useMemo(
+    () => inventoryItems.find((i) => i.id === addForm.item_id),
+    [inventoryItems, addForm.item_id]
+  );
 
   const editable = canEdit(order.stage, orderType, order.invoice_id);
 
@@ -142,14 +158,30 @@ export function RepairOrderEditContent({
       .then((d) => {
         const list = Array.isArray(d) ? d : (d.items ?? []);
         setInventoryItems(
-          list.map((i: { id: string; name: string; quantity?: number; category?: string | null; code?: string | null; barcode?: string | null }) => ({
-            id: i.id,
-            name: i.name,
-            quantity: i.quantity ?? 0,
-            category: i.category,
-            code: i.code,
-            barcode: i.barcode,
-          }))
+          list.map(
+            (i: {
+              id: string;
+              name: string;
+              quantity?: number;
+              sale_price?: number;
+              purchase_price?: number;
+              category?: string | null;
+              code?: string | null;
+              barcode?: string | null;
+            }) => ({
+              id: i.id,
+              name: i.name,
+              quantity: i.quantity ?? 0,
+              sale_price: Number(i.sale_price ?? 0),
+              purchase_price:
+                i.purchase_price != null && Number.isFinite(Number(i.purchase_price))
+                  ? Number(i.purchase_price)
+                  : undefined,
+              category: i.category,
+              code: i.code,
+              barcode: i.barcode,
+            })
+          )
         );
       });
   }, [addPartOpen, partCategoryFilter]);
@@ -689,6 +721,71 @@ export function RepairOrderEditContent({
                   placeholder="ابحث بالاسم أو الكود أو الباركود..."
                   className={inputClass}
                 />
+                {selectedPartItem && selectedPartItem.quantity > 0 && (
+                  <div
+                    className={`mt-3 grid gap-3 ${showPurchaseCost ? "grid-cols-1 sm:grid-cols-2" : "grid-cols-1"}`}
+                  >
+                    <div className="rounded-xl border border-emerald-200 dark:border-emerald-800 bg-emerald-50/90 dark:bg-emerald-950/35 px-4 py-3 text-center sm:text-right">
+                      <p className="text-xs font-semibold text-emerald-800 dark:text-emerald-200 mb-1">سعر البيع</p>
+                      <p className="text-lg font-bold text-emerald-950 dark:text-emerald-50 tabular-nums">
+                        {selectedPartItem.sale_price.toFixed(2)}{" "}
+                        <span className="text-sm font-medium text-emerald-800 dark:text-emerald-200">ج.م</span>
+                      </p>
+                      <p className="text-xs text-emerald-700 dark:text-emerald-300 mt-1">
+                        الكمية المتاحة: {selectedPartItem.quantity}
+                      </p>
+                    </div>
+                    {showPurchaseCost && (
+                      <div
+                        className={`rounded-xl border px-4 py-3 text-center sm:text-right ${
+                          selectedPartItem.purchase_price != null &&
+                          Number.isFinite(selectedPartItem.purchase_price) &&
+                          selectedPartItem.purchase_price > 0 &&
+                          selectedPartItem.sale_price + 1e-9 < selectedPartItem.purchase_price
+                            ? "border-red-300 dark:border-red-800 bg-red-50/90 dark:bg-red-950/30"
+                            : "border-sky-200 dark:border-sky-800 bg-sky-50/90 dark:bg-sky-950/35"
+                        }`}
+                      >
+                        <p
+                          className={`text-xs font-semibold mb-1 ${
+                            selectedPartItem.purchase_price != null &&
+                            Number.isFinite(selectedPartItem.purchase_price) &&
+                            selectedPartItem.purchase_price > 0 &&
+                            selectedPartItem.sale_price + 1e-9 < selectedPartItem.purchase_price
+                              ? "text-red-900 dark:text-red-100"
+                              : "text-sky-900 dark:text-sky-100"
+                          }`}
+                        >
+                          سعر الشراء
+                        </p>
+                        {selectedPartItem.purchase_price != null &&
+                        Number.isFinite(selectedPartItem.purchase_price) &&
+                        selectedPartItem.purchase_price > 0 ? (
+                          <>
+                            <p className="text-lg font-bold text-gray-900 dark:text-gray-100 tabular-nums">
+                              {selectedPartItem.purchase_price.toFixed(2)}{" "}
+                              <span className="text-sm font-medium text-gray-600 dark:text-gray-400">ج.م</span>
+                            </p>
+                            {selectedPartItem.sale_price + 1e-9 < selectedPartItem.purchase_price ? (
+                              <p className="text-xs text-red-800 dark:text-red-200 mt-1 font-medium">
+                                تنبيه: سعر البيع أقل من سعر الشراء
+                              </p>
+                            ) : (
+                              <p className="text-xs text-sky-800 dark:text-sky-200 mt-1">
+                                هامش تقريبي:{" "}
+                                {(selectedPartItem.sale_price - selectedPartItem.purchase_price).toFixed(2)} ج.م للوحدة
+                              </p>
+                            )}
+                          </>
+                        ) : (
+                          <p className="text-sm text-gray-600 dark:text-gray-400">
+                            غير مسجّل — حدّثه من المخزن أو فاتورة شراء
+                          </p>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
               <div>
                 <label className="block text-sm font-medium mb-1">الكمية</label>

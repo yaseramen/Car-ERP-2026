@@ -23,6 +23,9 @@ export default async function RepairOrderReportPage({
     if (!allowed) redirect("/admin");
   }
 
+  const showPurchaseCost =
+    session.user.role === "tenant_owner" || session.user.role === "super_admin";
+
   const { id } = await params;
 
   try {
@@ -175,6 +178,7 @@ export default async function RepairOrderReportPage({
           servicesTotal={servicesTotal}
           orderType={orderType}
           previousOrders={previousOrders}
+          showPurchaseCost={showPurchaseCost}
         />
       </div>
     );

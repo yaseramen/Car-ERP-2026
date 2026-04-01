@@ -18,6 +18,10 @@ export default async function WorkshopPage() {
     if (!allowed) redirect("/admin");
   }
 
+  /** مالك المركز + السوبر أدمن — الموظف لا يرى تكلفة الشراء */
+  const showPurchaseCost =
+    session.user.role === "tenant_owner" || session.user.role === "super_admin";
+
   return (
     <div className="p-4 md:p-8">
       <div className="mb-8">
@@ -27,7 +31,7 @@ export default async function WorkshopPage() {
         </p>
       </div>
 
-      <WorkshopContent />
+      <WorkshopContent showPurchaseCost={showPurchaseCost} />
     </div>
   );
 }
