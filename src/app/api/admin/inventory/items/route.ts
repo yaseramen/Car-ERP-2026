@@ -181,7 +181,8 @@ export async function POST(request: Request) {
     let autoCode = code?.trim() || "";
     if (autoCode) {
       const existingCode = await db.execute({
-        sql: "SELECT id FROM items WHERE company_id = ? AND code = ?",
+        sql: `SELECT id FROM items WHERE company_id = ? AND code IS NOT NULL AND TRIM(code) != ''
+              AND UPPER(TRIM(code)) = UPPER(?)`,
         args: [companyId, autoCode],
       });
       if (existingCode.rows.length > 0) {
@@ -195,7 +196,35 @@ export async function POST(request: Request) {
       const count = (countResult.rows[0]?.cnt as number) ?? 0;
       autoCode = `PRD-${String(count + 1).padStart(4, "0")}`;
     }
-    const autoBarcode = barcode?.trim() || generateBarcode();
+    const barcodeTrim = barcode?.trim() ?? "";
+    let autoBarcode = "";
+    if (barcodeTrim) {
+      const dupBc = await db.execute({
+        sql: `SELECT id FROM items WHERE company_id = ? AND barcode IS NOT NULL AND TRIM(barcode) != ''
+              AND UPPER(TRIM(barcode)) = UPPER(?)`,
+        args: [companyId, barcodeTrim],
+      });
+      if (dupBc.rows.length > 0) {
+        return NextResponse.json({ error: "الباركود مستخدم لصنف آخر" }, { status: 400 });
+      }
+      autoBarcode = barcodeTrim;
+    } else {
+      for (let attempt = 0; attempt < 20; attempt++) {
+        const candidate = generateBarcode();
+        const clash = await db.execute({
+          sql: `SELECT id FROM items WHERE company_id = ? AND barcode IS NOT NULL AND TRIM(barcode) != ''
+                AND UPPER(TRIM(barcode)) = UPPER(?)`,
+          args: [companyId, candidate],
+        });
+        if (clash.rows.length === 0) {
+          autoBarcode = candidate;
+          break;
+        }
+      }
+      if (!autoBarcode) {
+        return NextResponse.json({ error: "تعذر توليد باركود فريد — أعد المحاولة" }, { status: 409 });
+      }
+    }
 
     const minQty = min_quantity_enabled ? Number(min_quantity) || 0 : 0;
 

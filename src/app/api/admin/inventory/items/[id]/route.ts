@@ -45,8 +45,9 @@ export async function PATCH(
       const codeVal = code?.trim() || null;
       if (codeVal) {
         const existingCode = await db.execute({
-          sql: "SELECT id FROM items WHERE company_id = ? AND code = ? AND id != ?",
-          args: [companyId, codeVal, id],
+          sql: `SELECT id FROM items WHERE company_id = ? AND id != ? AND code IS NOT NULL AND TRIM(code) != ''
+                AND UPPER(TRIM(code)) = UPPER(?)`,
+          args: [companyId, id, codeVal],
         });
         if (existingCode.rows.length > 0) {
           return NextResponse.json({ error: "كود المنتج مستخدم لصنف آخر" }, { status: 400 });
@@ -56,8 +57,19 @@ export async function PATCH(
       args.push(codeVal);
     }
     if (barcode !== undefined) {
+      const bcVal = barcode?.trim() || null;
+      if (bcVal) {
+        const dupBc = await db.execute({
+          sql: `SELECT id FROM items WHERE company_id = ? AND id != ? AND barcode IS NOT NULL AND TRIM(barcode) != ''
+                AND UPPER(TRIM(barcode)) = UPPER(?)`,
+          args: [companyId, id, bcVal],
+        });
+        if (dupBc.rows.length > 0) {
+          return NextResponse.json({ error: "الباركود مستخدم لصنف آخر" }, { status: 400 });
+        }
+      }
       updates.push("barcode = ?");
-      args.push(barcode?.trim() || null);
+      args.push(bcVal);
     }
     if (category !== undefined) {
       updates.push("category = ?");

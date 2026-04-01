@@ -62,6 +62,14 @@ export async function POST(request: Request) {
       existingCodes.rows.map((r) => String(r.code ?? "").trim().toUpperCase()).filter(Boolean)
     );
 
+    const existingBarcodes = await db.execute({
+      sql: "SELECT barcode FROM items WHERE company_id = ? AND barcode IS NOT NULL AND TRIM(barcode) != ''",
+      args: [companyId],
+    });
+    const usedBarcodes = new Set(
+      existingBarcodes.rows.map((r) => String(r.barcode ?? "").trim().toUpperCase()).filter(Boolean)
+    );
+
     const stmts: { sql: string; args: InArgs }[] = [];
     let created = 0;
     let skipped = 0;
@@ -89,7 +97,31 @@ export async function POST(request: Request) {
         usedCodes.add(code.toUpperCase());
       }
 
-      const barcode = r.barcode?.trim() || generateBarcode();
+      let barcode = r.barcode?.trim() || "";
+      if (barcode) {
+        const bu = barcode.toUpperCase();
+        if (usedBarcodes.has(bu)) {
+          skipped++;
+          rowErrors.push(`السطر ${line}: الباركود «${barcode}» مستخدم مسبقاً — تم التخطي`);
+          continue;
+        }
+        usedBarcodes.add(bu);
+      } else {
+        for (let a = 0; a < 25; a++) {
+          const cand = generateBarcode();
+          const cu = cand.toUpperCase();
+          if (!usedBarcodes.has(cu)) {
+            barcode = cand;
+            usedBarcodes.add(cu);
+            break;
+          }
+        }
+        if (!barcode) {
+          skipped++;
+          rowErrors.push(`السطر ${line}: تعذر توليد باركود فريد — تم التخطي`);
+          continue;
+        }
+      }
       const minQty = r.min_quantity > 0 ? r.min_quantity : 0;
       let expiryNorm: { has_expiry: number; expiry_date: string | null };
       try {

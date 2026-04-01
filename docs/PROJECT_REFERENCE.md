@@ -88,7 +88,7 @@ npm run dev
 ## 6. قاعدة البيانات والترحيل
 
 - **المخطط المرجعي:** `database/schema.sql` (يُنفَّذ عبر سكربت الترحيل)
-- **التغييرات التدريجية:** ملفات `database/migrations/*.sql` بالترتيب
+- **التغييرات التدريجية:** ملفات `database/migrations/*.sql` بالترتيب (مثلاً `031` فهرس فريد لـ `code` و`barcode` لكل شركة على `items`).
 - الأمر: `npm run db:migrate` (يستخدم `scripts/migrate.ts` عبر `tsx`)
 
 ---
