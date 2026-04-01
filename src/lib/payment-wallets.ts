@@ -10,7 +10,7 @@ export function normalizeWalletPhoneDigits(raw: string): string {
 }
 
 function channelLabelAr(ch: PaymentWalletChannel): string {
-  return ch === "vodafone_cash" ? "فودافون كاش" : "إنستاباي";
+  return ch === "vodafone_cash" ? "محفظة إلكترونية" : "إنستاباي";
 }
 
 export async function getOrCreatePaymentWallet(

@@ -617,7 +617,7 @@ CREATE INDEX IF NOT EXISTS idx_obd_searches_company ON obd_searches(company_id);
 -- طرق الدفع الافتراضية (عامة)
 INSERT OR IGNORE INTO payment_methods (id, company_id, name, type) VALUES
     ('pm_cash', NULL, 'نقدي', 'cash'),
-    ('pm_vodafone', NULL, 'فودافون كاش', 'vodafone_cash'),
+    ('pm_vodafone', NULL, 'محفظة إلكترونية', 'vodafone_cash'),
     ('pm_instapay', NULL, 'انستا باي', 'instapay'),
     ('pm_cheque', NULL, 'شيك', 'cheque'),
     ('pm_bank', NULL, 'تحويل بنكي', 'bank'),

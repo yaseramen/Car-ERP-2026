@@ -199,7 +199,7 @@ export async function POST(request: Request) {
         refToRaw.length === 0
       ) {
         return NextResponse.json(
-          { error: "أدخل رقم المحفظة أو الحساب المحول إليه (فودافون كاش / إنستاباي)" },
+          { error: "أدخل رقم المحفظة أو الحساب المحول إليه (محفظة إلكترونية / إنستاباي)" },
           { status: 400 }
         );
       }
