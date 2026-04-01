@@ -13,7 +13,11 @@ export async function GET() {
   }
 
   const result = await db.execute({
-    sql: "SELECT id, name, phone, address, tax_number, commercial_registration FROM companies WHERE id = ?",
+    sql: `SELECT id, name, phone, address, tax_number, commercial_registration,
+                 COALESCE(business_type, 'both') as business_type,
+                 COALESCE(marketplace_enabled, 1) as marketplace_enabled,
+                 COALESCE(ads_globally_disabled, 0) as ads_globally_disabled
+          FROM companies WHERE id = ?`,
     args: [companyId],
   });
   if (result.rows.length === 0) {
@@ -28,6 +32,9 @@ export async function GET() {
     address: row.address ?? "",
     tax_number: row.tax_number ?? "",
     commercial_registration: row.commercial_registration ?? "",
+    business_type: String(row.business_type ?? "both"),
+    marketplace_enabled: Number(row.marketplace_enabled ?? 1) === 1,
+    ads_globally_disabled: Number(row.ads_globally_disabled ?? 0) === 1,
   });
 }
 

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef, type ChangeEvent } from "react";
+import { SYSTEM_COMPANY_ID } from "@/lib/company";
 
 const DEMO_LABEL = "block text-xs font-medium text-gray-800 dark:text-gray-200 mb-1";
 const DEMO_FIELD =
@@ -17,6 +18,9 @@ function pickAnnounceCompanyId(rows: WalletCompanyRow[]): string {
     return bt === "supplier" || bt === "both";
   });
   if (eligible.length === 0) return "";
+  /** شركة النظام (إعدادات السوبر أدمن) تُفضَّل إن كانت مؤهّلة */
+  const system = eligible.find((r) => r.id === SYSTEM_COMPANY_ID);
+  if (system) return system.id;
   const suppliers = eligible.filter((r) => String(r.business_type ?? "") === "supplier");
   const pool = suppliers.length > 0 ? suppliers : eligible;
   const sorted = [...pool].sort((a, b) => a.name.localeCompare(b.name, "ar"));
@@ -48,16 +52,18 @@ function SuperMarketplaceAdmin() {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const [p, l, c] = await Promise.all([
+      const [p, l, c, me] = await Promise.all([
         fetch("/api/admin/super/marketplace/packages"),
         fetch("/api/admin/super/marketplace/listings?limit=50"),
         fetch("/api/admin/wallets/companies"),
+        fetch("/api/admin/company"),
       ]);
       if (p.ok) setPackages((await p.json()).packages ?? []);
       if (l.ok) setListings((await l.json()).listings ?? []);
+      let list: WalletCompanyRow[] = [];
       if (c.ok) {
         const rows = await c.json();
-        const list: WalletCompanyRow[] = Array.isArray(rows)
+        list = Array.isArray(rows)
           ? rows.map((x: WalletCompanyRow) => ({
               id: x.id,
               name: x.name,
@@ -65,8 +71,21 @@ function SuperMarketplaceAdmin() {
               is_active: x.is_active,
             }))
           : [];
-        setCompanies(list);
       }
+      /** شركة النظام (company-system) — نفس بيانات «إعدادات الشركة» للسوبر أدمن؛ مستثناة من قائمة المحافظ */
+      if (me.ok) {
+        const d = await me.json();
+        if (!d.error && d.id === SYSTEM_COMPANY_ID) {
+          const row: WalletCompanyRow = {
+            id: d.id,
+            name: d.name ?? "نظام EFCT",
+            business_type: d.business_type ?? "both",
+            is_active: true,
+          };
+          list = [row, ...list.filter((x) => x.id !== SYSTEM_COMPANY_ID)];
+        }
+      }
+      setCompanies(list);
     } finally {
       setLoading(false);
     }
@@ -203,7 +222,8 @@ function SuperMarketplaceAdmin() {
                   {announceCompanyName || "…"}
                 </p>
                 <p className="text-xs text-gray-600 dark:text-gray-400 mt-1">
-                  تلقائياً: أول شركة <strong>مورّد</strong> (أبجدياً)، أو أول شركة <strong>مختلط</strong> إن لم يوجد مورّد.
+                  تلقائياً: <strong>شركة المنصة</strong> (نفس بيانات «إعدادات الشركة» عند دخولك كسوبر أدمن) إن كان نوع النشاط مورّد
+                  أو مختلط؛ وإلا أول شركة <strong>مورّد</strong> ثم <strong>مختلط</strong> في القائمة.
                 </p>
                 <label className="mt-3 flex items-center gap-2 cursor-pointer text-xs text-gray-700 dark:text-gray-300">
                   <input
