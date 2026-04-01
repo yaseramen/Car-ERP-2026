@@ -1,12 +1,12 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef, type ChangeEvent } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { SYSTEM_COMPANY_ID } from "@/lib/company";
+import { MarketplaceImageField } from "@/components/marketplace/marketplace-image-field";
 
 const DEMO_LABEL = "block text-xs font-medium text-gray-800 dark:text-gray-200 mb-1";
 const DEMO_FIELD =
   "w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 px-3 py-2 text-gray-900 dark:text-gray-100 placeholder:text-gray-400 dark:placeholder:text-gray-500";
-const DEMO_IMAGE_MAX_BYTES = 600 * 1024;
 
 type WalletCompanyRow = { id: string; name: string; business_type?: string; is_active?: boolean };
 
@@ -42,13 +42,12 @@ function SuperMarketplaceAdmin() {
   const [demoPrice, setDemoPrice] = useState("");
   const [demoPhone, setDemoPhone] = useState("");
   const [demoWa, setDemoWa] = useState("");
-  const [demoImage, setDemoImage] = useState("");
+  const [demoImageUrl, setDemoImageUrl] = useState("");
+  const [demoImageBlobUrl, setDemoImageBlobUrl] = useState("");
   const [demoCategory, setDemoCategory] = useState<"parts" | "workshop">("parts");
   const [demoPackageId, setDemoPackageId] = useState("");
   const [demoSaving, setDemoSaving] = useState(false);
   const [loading, setLoading] = useState(true);
-  const demoImageFileRef = useRef<HTMLInputElement>(null);
-
   const load = useCallback(async () => {
     setLoading(true);
     try {
@@ -108,30 +107,6 @@ function SuperMarketplaceAdmin() {
     return r.is_active !== false && (bt === "supplier" || bt === "both");
   });
 
-  function onDemoImageFile(e: ChangeEvent<HTMLInputElement>) {
-    const f = e.target.files?.[0];
-    e.target.value = "";
-    if (!f) return;
-    if (!f.type.startsWith("image/")) {
-      alert("اختر ملف صورة (PNG أو JPEG …)");
-      return;
-    }
-    if (f.size > DEMO_IMAGE_MAX_BYTES) {
-      alert(`حجم الصورة كبير (الحد حوالي ${Math.round(DEMO_IMAGE_MAX_BYTES / 1024)} كيلو). صغّر الصورة أو الصق رابطاً بدلاً من الرفع.`);
-      return;
-    }
-    const reader = new FileReader();
-    reader.onload = () => {
-      const data = String(reader.result ?? "");
-      if (data.length > 900_000) {
-        alert("الصورة بعد التحويل كبيرة جداً. استخدم رابط صورة أو ملفاً أصغر.");
-        return;
-      }
-      setDemoImage(data);
-    };
-    reader.readAsDataURL(f);
-  }
-
   async function togglePackage(id: string, is_active: boolean) {
     await fetch(`/api/admin/super/marketplace/packages/${id}`, {
       method: "PATCH",
@@ -182,7 +157,11 @@ function SuperMarketplaceAdmin() {
           package_id: demoPackageId,
           contact_phone: demoPhone.trim(),
           contact_whatsapp: demoWa.trim() || undefined,
-          image_url: demoImage.trim() || undefined,
+          image_url: demoImageUrl.trim() || undefined,
+          image_blob_url:
+            demoImageBlobUrl && demoImageUrl.trim() === demoImageBlobUrl.trim()
+              ? demoImageBlobUrl.trim()
+              : undefined,
         }),
       });
       const d = await res.json();
@@ -339,46 +318,16 @@ function SuperMarketplaceAdmin() {
               placeholder="2010..."
             />
           </div>
-          <div className="md:col-span-2 space-y-2">
-            <label className={DEMO_LABEL}>صورة الإعلان</label>
-            <input
-              ref={demoImageFileRef}
-              type="file"
-              accept="image/*"
-              className="hidden"
-              onChange={onDemoImageFile}
-            />
-            <div className="flex flex-wrap gap-2 items-center">
-              <button
-                type="button"
-                onClick={() => demoImageFileRef.current?.click()}
-                className="px-4 py-2 rounded-lg border border-emerald-600 text-emerald-700 dark:text-emerald-400 dark:border-emerald-500 text-sm font-medium hover:bg-emerald-50 dark:hover:bg-emerald-950/50"
-              >
-                رفع صورة من الجهاز
-              </button>
-              {demoImage.startsWith("data:") && (
-                <span className="text-xs text-emerald-700 dark:text-emerald-400">تم تحميل صورة من الجهاز</span>
-              )}
-              {demoImage && (
-                <button
-                  type="button"
-                  onClick={() => setDemoImage("")}
-                  className="text-xs text-red-600 dark:text-red-400 underline"
-                >
-                  إزالة الصورة
-                </button>
-              )}
-            </div>
-            <p className="text-xs text-gray-600 dark:text-gray-400">
-              حتى حوالي {Math.round(DEMO_IMAGE_MAX_BYTES / 1024)} كيلو. للصور الأكبر استخدم رابطاً عاماً (مثل رفع على Drive ثم رابط مباشر).
-            </p>
-            <label className={DEMO_LABEL}>أو رابط صورة (https://…)</label>
-            <input
-              value={demoImage.startsWith("data:") ? "" : demoImage}
-              onChange={(e) => setDemoImage(e.target.value)}
-              className={DEMO_FIELD}
-              dir="ltr"
-              placeholder="https://..."
+          <div className="md:col-span-2">
+            <MarketplaceImageField
+              imageUrl={demoImageUrl}
+              imageBlobUrl={demoImageBlobUrl}
+              onChange={({ imageUrl, imageBlobUrl: blob }) => {
+                setDemoImageUrl(imageUrl);
+                setDemoImageBlobUrl(blob);
+              }}
+              inputClass={DEMO_FIELD}
+              labelClass={DEMO_LABEL}
             />
           </div>
         </div>
@@ -481,6 +430,7 @@ type ListingRow = {
   contact_phone: string;
   contact_whatsapp: string | null;
   image_url: string | null;
+  image_blob_url?: string | null;
   starts_at: string | null;
   ends_at: string | null;
   auto_renew: boolean;
@@ -505,6 +455,7 @@ export function MarketplaceContent({ isSuperAdmin }: { isSuperAdmin: boolean }) 
     contact_phone: "",
     contact_whatsapp: "",
     image_url: "",
+    image_blob_url: "",
     auto_renew: false,
   });
   const [saving, setSaving] = useState(false);
@@ -572,6 +523,11 @@ export function MarketplaceContent({ isSuperAdmin }: { isSuperAdmin: boolean }) 
           contact_phone: form.contact_phone.trim(),
           contact_whatsapp: form.contact_whatsapp.trim() || undefined,
           image_url: form.image_url.trim() || undefined,
+          image_blob_url:
+            form.image_blob_url &&
+            form.image_url.trim() === form.image_blob_url.trim()
+              ? form.image_blob_url.trim()
+              : undefined,
           auto_renew: form.auto_renew,
           confirm: true,
         }),
@@ -591,6 +547,7 @@ export function MarketplaceContent({ isSuperAdmin }: { isSuperAdmin: boolean }) 
         contact_phone: form.contact_phone,
         contact_whatsapp: form.contact_whatsapp,
         image_url: "",
+        image_blob_url: "",
         auto_renew: false,
       });
       await load();
@@ -752,13 +709,13 @@ export function MarketplaceContent({ isSuperAdmin }: { isSuperAdmin: boolean }) 
             />
           </div>
           <div className="md:col-span-2">
-            <label className="block text-xs text-gray-500 mb-1">رابط صورة (URL)</label>
-            <input
-              value={form.image_url}
-              onChange={(e) => setForm((f) => ({ ...f, image_url: e.target.value }))}
-              className="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 px-3 py-2 text-sm"
-              dir="ltr"
-              placeholder="https://..."
+            <MarketplaceImageField
+              imageUrl={form.image_url}
+              imageBlobUrl={form.image_blob_url}
+              onChange={({ imageUrl, imageBlobUrl }) =>
+                setForm((f) => ({ ...f, image_url: imageUrl, image_blob_url: imageBlobUrl }))
+              }
+              inputClass="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 px-3 py-2 text-sm"
             />
           </div>
           <label className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300 md:col-span-2">
