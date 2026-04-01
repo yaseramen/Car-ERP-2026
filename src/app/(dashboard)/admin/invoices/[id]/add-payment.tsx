@@ -9,11 +9,19 @@ interface AddPaymentProps {
   total: number;
   paidAmount: number;
   status: string;
+  /** يُقترح في «المحول منه» لفودافون/إنستاباي إن وُجد هاتف عميل/مورد على الفاتورة */
+  defaultReferenceFrom?: string | null;
 }
 
 type PaymentMethod = { id: string; name: string; type?: string };
 
-export function AddPayment({ invoiceId, total, paidAmount, status }: AddPaymentProps) {
+export function AddPayment({
+  invoiceId,
+  total,
+  paidAmount,
+  status,
+  defaultReferenceFrom,
+}: AddPaymentProps) {
   const router = useRouter();
   const [paymentMethods, setPaymentMethods] = useState<PaymentMethod[]>([]);
   const [amount, setAmount] = useState("");
@@ -47,6 +55,13 @@ export function AddPayment({ invoiceId, total, paidAmount, status }: AddPaymentP
       setAmount(remaining.toFixed(2));
     }
   }, [paymentMethodId, paymentMethods, remaining]);
+
+  const suggestedFrom = (defaultReferenceFrom ?? "").trim();
+
+  useEffect(() => {
+    if (!isDigitalWallet || !suggestedFrom) return;
+    setReferenceFrom((prev) => (prev.trim() ? prev : suggestedFrom));
+  }, [isDigitalWallet, suggestedFrom, paymentMethodId]);
 
   useEffect(() => {
     const handleOnline = () => router.refresh();
@@ -196,6 +211,11 @@ export function AddPayment({ invoiceId, total, paidAmount, status }: AddPaymentP
                 className={inputClass}
                 placeholder="رقم العميل أو المرسل"
               />
+              {suggestedFrom && referenceFrom.trim() === suggestedFrom && (
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                  مُعبأ تلقائياً من هاتف العميل/المورد على الفاتورة — يمكنك تعديله إن كان الدفع من رقم آخر.
+                </p>
+              )}
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">

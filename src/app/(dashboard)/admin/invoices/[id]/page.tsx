@@ -469,6 +469,7 @@ export default async function InvoiceDetailPage({
             total={data.total}
             paidAmount={data.paid_amount}
             status={data.status}
+            defaultReferenceFrom={data.customer_phone || data.supplier_phone || null}
           />
         </div>
         {/* الشاشة: قائمة تفاعلية. الطباعة: ملخص نصي فقط (بدون أزرار/تعليمات) لتجنب صفحة ثانية فارغة */}
