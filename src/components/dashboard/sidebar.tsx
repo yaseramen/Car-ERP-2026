@@ -222,15 +222,12 @@ export function Sidebar({
       <div className="p-6 border-b border-gray-100 dark:border-gray-700 flex items-center justify-between gap-2 shrink-0 z-10 bg-white dark:bg-gray-900">
         <div className="min-w-0 flex-1 relative isolate overflow-hidden rounded-lg min-h-[4.5rem]">
           {logoUrl && (
-            <div
-              className="pointer-events-none absolute inset-0 z-0 flex items-center justify-center"
-              aria-hidden
-            >
+            <div className="pointer-events-none absolute inset-0 z-0 overflow-hidden rounded-[inherit]" aria-hidden>
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src={logoUrl}
                 alt=""
-                className="h-28 w-28 sm:h-32 sm:w-32 object-contain opacity-[0.22] dark:opacity-[0.28]"
+                className="h-full w-full object-cover object-center opacity-[0.22] dark:opacity-[0.28]"
                 onError={() => setLogoUrl(null)}
               />
             </div>
