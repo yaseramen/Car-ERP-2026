@@ -82,7 +82,6 @@ export default function HomePage() {
   return (
     <div className="light-section relative min-h-screen text-gray-900 antialiased" dir="rtl">
       <MarketingPageBackdrop />
-      <div className="relative z-10 bg-white/0">
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(JSON_LD) }}
@@ -127,9 +126,11 @@ export default function HomePage() {
         </p>
       </MarketingHeroSection>
 
+      {/* من هنا فصاعداً خلفية صلبة حتى لا تظهر صورة الترويج خلف النصوص */}
+      <div className="relative z-10 bg-white">
       {/* مقدمة */}
       <section className={`py-10 sm:py-12 md:py-14 bg-gray-50 ${SECTION_X}`}>
-        <div className="max-w-3xl sm:max-w-4xl mx-auto">
+        <div className="max-w-3xl sm:max-w-4xl mx-auto rounded-2xl border border-gray-100 bg-white px-5 py-6 sm:px-7 sm:py-8 shadow-sm">
           <h2 className="text-xl sm:text-2xl md:text-3xl font-bold text-gray-900 mb-5 md:mb-6 text-center text-pretty">
             برنامج إدارة مراكز الصيانة ومحلات قطع الغيار
           </h2>
@@ -147,7 +148,7 @@ export default function HomePage() {
       </section>
 
       {/* المميزات */}
-      <section className={`py-12 sm:py-16 md:py-20 ${SECTION_X}`}>
+      <section className={`py-12 sm:py-16 md:py-20 bg-white ${SECTION_X}`}>
         <div className="max-w-5xl xl:max-w-6xl mx-auto">
           <h2 className="text-xl sm:text-2xl md:text-3xl font-bold text-gray-900 mb-8 md:mb-10 text-center text-pretty px-1">
             مميزات برنامج إدارة مراكز الصيانة وقطع الغيار
@@ -167,8 +168,8 @@ export default function HomePage() {
       </section>
 
       {/* لمن هذا البرنامج */}
-      <section className={`marketing-emerald-tint py-10 sm:py-12 md:py-14 bg-emerald-50/50 ${SECTION_X}`}>
-        <div className="max-w-3xl sm:max-w-4xl mx-auto">
+      <section className={`marketing-emerald-tint py-10 sm:py-12 md:py-14 bg-emerald-50 ${SECTION_X}`}>
+        <div className="max-w-3xl sm:max-w-4xl mx-auto rounded-2xl border border-emerald-100/80 bg-white px-5 py-6 sm:px-8 sm:py-8 shadow-sm">
           <h2 className="text-xl sm:text-2xl md:text-3xl font-bold text-gray-900 mb-5 md:mb-6 text-center text-pretty">
             لمن هذا البرنامج؟
           </h2>
@@ -196,26 +197,26 @@ export default function HomePage() {
       </section>
 
       {/* روابط إضافية */}
-      <section className={`py-8 md:py-10 border-t border-gray-100 ${SECTION_X}`}>
-        <div className="max-w-2xl mx-auto flex flex-wrap justify-center gap-5 sm:gap-6 md:gap-8 text-emerald-600 text-sm sm:text-base">
-          <Link href="/market" className="hover:text-sky-800 font-medium text-sky-700">
+      <section className={`py-8 md:py-10 border-t border-gray-200 bg-gray-50 ${SECTION_X}`}>
+        <div className="max-w-2xl mx-auto flex flex-wrap justify-center gap-5 sm:gap-6 md:gap-8 rounded-2xl border border-gray-200 bg-white px-4 py-5 sm:px-6 text-sm sm:text-base shadow-sm">
+          <Link href="/market" className="font-medium text-sky-800 hover:text-sky-950 hover:underline underline-offset-2">
             سوق EFCT (عروض المورّدين)
           </Link>
-          <Link href="/how-it-works" className="hover:text-emerald-700 font-medium">
+          <Link href="/how-it-works" className="font-medium text-emerald-800 hover:text-emerald-950 hover:underline underline-offset-2">
             كيف يعمل البرنامج
           </Link>
-          <Link href="/faq" className="hover:text-emerald-700 font-medium">
+          <Link href="/faq" className="font-medium text-emerald-800 hover:text-emerald-950 hover:underline underline-offset-2">
             الأسئلة الشائعة
           </Link>
-          <Link href="/terms" className="hover:text-emerald-700 font-medium">
+          <Link href="/terms" className="font-medium text-emerald-800 hover:text-emerald-950 hover:underline underline-offset-2">
             سياسة الاستخدام
           </Link>
         </div>
       </section>
 
       {/* CTA */}
-      <section className={`py-12 sm:py-16 md:py-20 ${SECTION_X}`}>
-        <div className="max-w-2xl mx-auto text-center">
+      <section className={`py-12 sm:py-16 md:py-20 bg-white ${SECTION_X}`}>
+        <div className="max-w-2xl mx-auto text-center rounded-2xl border border-gray-200 bg-gray-50 px-5 py-8 sm:px-8 sm:py-10 shadow-sm">
           <h2 className="text-xl sm:text-2xl md:text-3xl font-bold text-gray-900 mb-4 md:mb-5 text-pretty">
             ابدأ إدارة مركزك أو محلّك اليوم
           </h2>
@@ -233,7 +234,7 @@ export default function HomePage() {
       </section>
 
       {/* Footer */}
-      <footer className={`py-8 md:py-10 border-t border-gray-200 text-center text-sm sm:text-base text-gray-600 ${SECTION_X}`}>
+      <footer className={`py-8 md:py-10 border-t border-gray-200 bg-white text-center text-sm sm:text-base text-gray-600 ${SECTION_X}`}>
         <p className="mb-2">EFCT — إدارة مراكز الصيانة ومحلات قطع الغيار</p>
         <p>
           <Link href="/market" className="text-sky-700 hover:text-sky-900">

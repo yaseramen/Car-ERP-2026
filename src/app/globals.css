@@ -167,7 +167,8 @@ html.dark .light-section .marketing-hero {
   background: linear-gradient(to bottom, #ecfdf5, #ffffff) !important;
 }
 html.dark .light-section .marketing-emerald-tint {
-  background-color: rgba(236, 253, 245, 0.5) !important;
+  /* مطابق لـ bg-emerald-50 صلبة حتى لا تظهر الخلفية الترويجية خلف النص */
+  background-color: #ecfdf5 !important;
 }
 
 /* إجبار جميع نصوص gray على اللون الفاتح في الوضع الليلي */
