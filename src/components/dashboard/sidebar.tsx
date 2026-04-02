@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { signOut } from "next-auth/react";
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { useNotifications } from "@/components/notifications/notifications-provider";
 
 /** معرّف ثابت لكل بند — يُستخدم في تخزين الإخفاء المحلي */
@@ -49,6 +49,8 @@ export function Sidebar({ role = "super_admin", businessType, companyName: initi
   const [canNotify, setCanNotify] = useState(false);
   const [companyName, setCompanyName] = useState<string | null>(initialCompanyName ?? null);
   const [hiddenNavIds, setHiddenNavIds] = useState<Set<string>>(new Set());
+  const [customizeOpen, setCustomizeOpen] = useState(false);
+  const customizePanelRef = useRef<HTMLDivElement>(null);
   const notifications = useNotifications();
 
   useEffect(() => {
@@ -159,6 +161,22 @@ export function Sidebar({ role = "super_admin", businessType, companyName: initi
 
   const pathname = usePathname();
 
+  useEffect(() => {
+    setCustomizeOpen(false);
+  }, [pathname]);
+
+  useEffect(() => {
+    if (!customizeOpen) return;
+    function onPointerDown(e: PointerEvent) {
+      const el = customizePanelRef.current;
+      if (el && !el.contains(e.target as Node)) {
+        setCustomizeOpen(false);
+      }
+    }
+    document.addEventListener("pointerdown", onPointerDown);
+    return () => document.removeEventListener("pointerdown", onPointerDown);
+  }, [customizeOpen]);
+
   const handleNav = () => {
     onNavigate?.();
     onClose?.();
@@ -218,15 +236,28 @@ export function Sidebar({ role = "super_admin", businessType, companyName: initi
         </nav>
 
         {customizableNavItems.length > 0 && (
-          <div className="px-4 pb-2 shrink-0 border-t border-gray-100 dark:border-gray-800 pt-2">
-            <details className="group">
-              <summary className="text-xs text-gray-500 dark:text-gray-400 cursor-pointer hover:text-gray-700 dark:hover:text-gray-300 py-1.5 list-none flex items-center gap-1 [&::-webkit-details-marker]:hidden">
-                <span className="text-[10px] opacity-70 group-open:rotate-90 transition-transform inline-block">▸</span>
-                تخصيص القائمة
-              </summary>
-              <div className="mt-2 max-h-48 overflow-y-auto rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50/80 dark:bg-gray-800/50 p-2 space-y-1.5">
+          <div
+            ref={customizePanelRef}
+            className="px-4 pb-2 shrink-0 border-t border-gray-100 dark:border-gray-800 pt-2"
+          >
+            <button
+              type="button"
+              onClick={() => setCustomizeOpen((o) => !o)}
+              className="w-full text-right text-xs text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 py-1.5 flex items-center gap-1"
+              aria-expanded={customizeOpen}
+            >
+              <span
+                className={`text-[10px] opacity-70 transition-transform inline-block ${customizeOpen ? "rotate-90" : ""}`}
+                aria-hidden
+              >
+                ▸
+              </span>
+              تخصيص القائمة
+            </button>
+            {customizeOpen && (
+              <div className="mt-2 max-h-48 overflow-y-auto rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50/80 dark:bg-gray-800/50 p-2 space-y-1.5 shadow-lg">
                 <p className="text-[10px] text-gray-500 dark:text-gray-400 leading-snug px-0.5 mb-1">
-                  أخفِ ما لا تحتاجه من البنود المتاحة لصلاحياتك فقط. يُحفظ على هذا الجهاز.
+                  أخفِ ما لا تحتاجه من البنود المتاحة لصلاحياتك فقط. يُحفظ على هذا الجهاز. اضغط خارج القائمة للإغلاق.
                 </p>
                 {customizableNavItems.map((item) => {
                   const visible = !hiddenNavIds.has(item.navId);
@@ -255,7 +286,7 @@ export function Sidebar({ role = "super_admin", businessType, companyName: initi
                   </button>
                 )}
               </div>
-            </details>
+            )}
           </div>
         )}
 
