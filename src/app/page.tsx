@@ -88,10 +88,10 @@ export default function HomePage() {
         dangerouslySetInnerHTML={{ __html: JSON.stringify(JSON_LD) }}
       />
       <MarketingHeroSection>
-        <h1 className="text-4xl sm:text-5xl md:text-[2.75rem] lg:text-6xl font-extrabold mb-4 md:mb-5 tracking-tight text-pretty drop-shadow-sm">
+        <h1 className="text-4xl sm:text-5xl md:text-[2.75rem] lg:text-6xl font-extrabold mb-4 md:mb-5 tracking-tight text-pretty text-emerald-700 dark:text-emerald-400">
           EFCT
         </h1>
-        <p className="text-lg sm:text-xl md:text-[1.35rem] lg:text-2xl mb-3 md:mb-4 font-medium leading-snug text-pretty drop-shadow-sm">
+        <p className="text-lg sm:text-xl md:text-[1.35rem] lg:text-2xl mb-3 md:mb-4 font-medium leading-snug text-pretty">
           منصة متكاملة لإدارة <strong className="font-bold">مراكز خدمة السيارات</strong> و{" "}
           <strong className="font-bold">محلات بيع قطع الغيار</strong>
         </p>
@@ -108,19 +108,19 @@ export default function HomePage() {
           </Link>
           <Link
             href="/register"
-            className="inline-flex items-center justify-center min-h-[48px] px-8 py-3.5 md:py-4 text-base md:text-lg border-2 border-emerald-700 text-emerald-800 bg-white/70 hover:bg-white active:bg-emerald-50/90 backdrop-blur-sm font-medium rounded-xl transition-colors touch-manipulation"
+            className="inline-flex items-center justify-center min-h-[48px] px-8 py-3.5 md:py-4 text-base md:text-lg border-2 border-emerald-700 text-emerald-800 dark:text-emerald-300 dark:border-emerald-500 bg-emerald-50/90 hover:bg-emerald-100 active:bg-emerald-100/90 dark:bg-emerald-950/50 dark:hover:bg-emerald-950 font-medium rounded-xl transition-colors touch-manipulation"
           >
             تسجيل شركة جديدة
           </Link>
           <Link
             href="/market"
-            className="inline-flex items-center justify-center min-h-[48px] px-8 py-3.5 md:py-4 text-base md:text-lg border-2 border-sky-600 text-sky-900 bg-sky-50/90 hover:bg-sky-100 active:bg-sky-200/80 backdrop-blur-sm font-medium rounded-xl transition-colors touch-manipulation"
+            className="inline-flex items-center justify-center min-h-[48px] px-8 py-3.5 md:py-4 text-base md:text-lg border-2 border-sky-600 text-sky-900 dark:text-sky-200 dark:border-sky-500 bg-sky-50 hover:bg-sky-100 active:bg-sky-100/90 dark:bg-sky-950/60 dark:hover:bg-sky-950 font-medium rounded-xl transition-colors touch-manipulation"
           >
             سوق EFCT — عروض المورّدين
           </Link>
         </div>
         <p className="hero-subtext mt-4 text-sm max-w-xl mx-auto">
-          <Link href="/market" className="text-sky-800 underline underline-offset-2 hover:text-sky-950 font-medium">
+          <Link href="/market" className="text-sky-700 dark:text-sky-300 underline underline-offset-2 hover:text-sky-900 dark:hover:text-sky-100 font-medium">
             تصفّح السوق العام
           </Link>
           {" "}بدون تسجيل: إعلانات قطع الغيار ومستلزمات الورشة، للتواصل المباشر مع المورّد.
