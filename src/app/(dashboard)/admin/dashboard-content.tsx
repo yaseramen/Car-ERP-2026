@@ -67,7 +67,13 @@ type PlatformRevenueData = {
   note?: string;
 };
 
-export function DashboardContent({ isSuperAdmin = false }: { isSuperAdmin?: boolean }) {
+export function DashboardContent({
+  isSuperAdmin = false,
+  isTenantOwner = false,
+}: {
+  isSuperAdmin?: boolean;
+  isTenantOwner?: boolean;
+}) {
   const [data, setData] = useState<Summary | null>(null);
   const [loading, setLoading] = useState(true);
   const [lastBackup, setLastBackup] = useState<string | null>(null);
@@ -650,13 +656,17 @@ export function DashboardContent({ isSuperAdmin = false }: { isSuperAdmin?: bool
           <h3 className="font-medium text-gray-900 dark:text-gray-100">الورشة</h3>
           <p className="text-sm text-gray-500 dark:text-gray-400 mt-2">أوامر الإصلاح والصيانة</p>
         </Link>
-        <Link
-          href="/admin/wallets"
-          className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-sm border border-gray-100 dark:border-gray-700 hover:border-emerald-200 dark:hover:border-emerald-600 transition block"
-        >
-          <h3 className="font-medium text-gray-900 dark:text-gray-100">المحافظ</h3>
-          <p className="text-sm text-gray-500 dark:text-gray-400 mt-2">شحن محافظ الشركات</p>
-        </Link>
+        {(isSuperAdmin || isTenantOwner) && (
+          <Link
+            href="/admin/wallets"
+            className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-sm border border-gray-100 dark:border-gray-700 hover:border-emerald-200 dark:hover:border-emerald-600 transition block"
+          >
+            <h3 className="font-medium text-gray-900 dark:text-gray-100">المحافظ</h3>
+            <p className="text-sm text-gray-500 dark:text-gray-400 mt-2">
+              {isSuperAdmin ? "شحن محافظ الشركات" : "رصيد محفظتك وسجل العمليات"}
+            </p>
+          </Link>
+        )}
       </div>
     </div>
   );

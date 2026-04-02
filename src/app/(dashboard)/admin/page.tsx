@@ -35,7 +35,10 @@ export default async function AdminDashboardPage() {
         </p>
       </div>
 
-      <DashboardContent isSuperAdmin={session.user.role === "super_admin"} />
+      <DashboardContent
+        isSuperAdmin={session.user.role === "super_admin"}
+        isTenantOwner={session.user.role === "tenant_owner"}
+      />
     </div>
   );
 }

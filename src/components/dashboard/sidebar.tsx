@@ -32,7 +32,7 @@ const navItems: {
   { href: "/admin/treasuries", label: "الخزائن", module: "treasuries" },
   { href: "/admin/marketplace", label: "السوق (إدارة)", module: "marketplace", superAdminOnly: true },
   { href: "/admin/help", label: "الدليل وما الجديد", module: "dashboard", superAdminOnly: true },
-  { href: "/admin/wallets", label: "المحافظ", module: "wallets", superAdminOnly: true },
+  { href: "/admin/wallets", label: "المحافظ", module: "wallets", ownerOrAdmin: true },
   { href: "/admin/super/password-reset", label: "أكواد المالكين", module: "wallets", superAdminOnly: true },
   { href: "/admin/team", label: "المستخدمون", ownerOrAdmin: true },
   { href: "/admin/settings", label: "إعدادات الشركة", ownerOrAdmin: true },

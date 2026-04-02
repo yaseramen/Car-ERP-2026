@@ -28,7 +28,17 @@ interface Transaction {
   created_at: string;
 }
 
-export function WalletsContent() {
+const WALLET_TX_TYPE_LABELS: Record<string, string> = {
+  credit: "شحن رصيد",
+  debit: "خصم يدوي",
+  digital_service: "خدمة رقمية",
+  obd_search: "بحث OBD",
+  assistant_company: "مساعد ذكاء (شركة)",
+  assistant_obd_global: "مساعد ذكاء (OBD)",
+  marketplace_ad: "إعلان السوق",
+};
+
+export function WalletsContent({ readOnly = false }: { readOnly?: boolean }) {
   const [companies, setCompanies] = useState<Company[]>([]);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(true);
@@ -142,18 +152,18 @@ export function WalletsContent() {
   useEffect(() => {
     fetchCompanies();
     fetchTransactions();
-    fetchFeeSettings();
-  }, []);
+    if (!readOnly) fetchFeeSettings();
+  }, [readOnly]);
 
   useEffect(() => {
     const handleOnline = () => {
       fetchCompanies();
       fetchTransactions();
-      fetchFeeSettings();
+      if (!readOnly) fetchFeeSettings();
     };
     window.addEventListener("alameen-online", handleOnline);
     return () => window.removeEventListener("alameen-online", handleOnline);
-  }, []);
+  }, [readOnly]);
 
   async function handleWalletAction(e: React.FormEvent) {
     e.preventDefault();
@@ -350,6 +360,75 @@ export function WalletsContent() {
     return (
       <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 p-12 text-center">
         <p className="text-gray-500 dark:text-gray-400">جاري التحميل...</p>
+      </div>
+    );
+  }
+
+  if (readOnly) {
+    const mine = companies[0];
+    return (
+      <div className="space-y-6">
+        <div className="rounded-xl border border-emerald-200 dark:border-emerald-800 bg-emerald-50/80 dark:bg-emerald-950/30 px-4 py-4 text-sm text-emerald-900 dark:text-emerald-100">
+          <strong>محفظة الاستخدام:</strong> تُخصم منها تلقائياً رسوم الخدمات الرقمية، وبحث OBD، وإعلانات السوق عند الاشتراك. شحن الرصيد يتم عبر إدارة المنصة فقط.
+        </div>
+
+        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 p-6">
+          <h2 className="font-medium text-gray-900 dark:text-gray-100 mb-2">رصيد المحفظة</h2>
+          {!mine ? (
+            <p className="text-amber-600 dark:text-amber-400">تعذر تحميل بيانات المحفظة. حاول تحديث الصفحة أو التواصل مع الدعم.</p>
+          ) : (
+            <>
+              <p className="text-3xl font-bold text-emerald-600 dark:text-emerald-400 tabular-nums">
+                {mine.balance.toFixed(2)} <span className="text-lg font-semibold text-gray-600 dark:text-gray-400">ج.م</span>
+              </p>
+              <p className="text-sm text-gray-500 dark:text-gray-400 mt-2">{mine.name}</p>
+            </>
+          )}
+        </div>
+
+        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden">
+          <div className="p-4 border-b border-gray-100 dark:border-gray-700">
+            <h2 className="font-medium text-gray-900 dark:text-gray-100">سجل العمليات</h2>
+            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">آخر العمليات على محفظة شركتك</p>
+          </div>
+          <div className="overflow-x-auto">
+            {transactions.length === 0 ? (
+              <div className="p-8 text-center text-gray-500 dark:text-gray-400">لا توجد عمليات مسجلة بعد</div>
+            ) : (
+              <table className="w-full">
+                <thead>
+                  <tr className="bg-gray-50 dark:bg-gray-700/50">
+                    <th className="text-right px-4 py-3 text-sm font-medium text-gray-600 dark:text-gray-300">التاريخ</th>
+                    <th className="text-right px-4 py-3 text-sm font-medium text-gray-600 dark:text-gray-300">النوع</th>
+                    <th className="text-right px-4 py-3 text-sm font-medium text-gray-600 dark:text-gray-300">المبلغ</th>
+                    <th className="text-right px-4 py-3 text-sm font-medium text-gray-600 dark:text-gray-300">الوصف</th>
+                    <th className="text-right px-4 py-3 text-sm font-medium text-gray-600 dark:text-gray-300">بواسطة</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {transactions.map((tx) => {
+                    const isCredit = tx.type === "credit";
+                    const typeLabel = WALLET_TX_TYPE_LABELS[tx.type] ?? tx.type;
+                    return (
+                      <tr key={tx.id} className="border-b border-gray-50 dark:border-gray-700">
+                        <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-300">
+                          {new Date(tx.created_at).toLocaleString("ar-EG")}
+                        </td>
+                        <td className="px-4 py-3 text-sm text-gray-800 dark:text-gray-200">{typeLabel}</td>
+                        <td className={`px-4 py-3 text-sm font-medium ${isCredit ? "text-emerald-600 dark:text-emerald-400" : "text-amber-600 dark:text-amber-400"}`}>
+                          {isCredit ? "+" : "-"}
+                          {tx.amount.toFixed(2)} ج.م
+                        </td>
+                        <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-400">{tx.description || "—"}</td>
+                        <td className="px-4 py-3 text-sm text-gray-500 dark:text-gray-400">{tx.performed_by_name || "—"}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            )}
+          </div>
+        </div>
       </div>
     );
   }

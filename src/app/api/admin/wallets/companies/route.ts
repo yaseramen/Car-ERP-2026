@@ -6,11 +6,22 @@ import { normalizeBusinessType } from "@/lib/business-types";
 
 export async function GET() {
   const session = await auth();
-  if (!session?.user || session.user.role !== "super_admin") {
+  if (!session?.user) {
+    return NextResponse.json({ error: "غير مصرح" }, { status: 401 });
+  }
+
+  const role = session.user.role;
+  if (role !== "super_admin" && role !== "tenant_owner") {
     return NextResponse.json({ error: "غير مصرح" }, { status: 401 });
   }
 
   try {
+    const isOwner = role === "tenant_owner";
+    const companyId = session.user.companyId ?? null;
+    if (isOwner && !companyId) {
+      return NextResponse.json({ error: "لا توجد شركة مرتبطة بالحساب" }, { status: 400 });
+    }
+
     const result = await db.execute({
       sql: `SELECT c.id, c.name, c.phone, c.address, c.is_active,
             COALESCE(c.business_type, 'both') as business_type,
@@ -21,7 +32,9 @@ export async function GET() {
             FROM companies c
             LEFT JOIN company_wallets cw ON c.id = cw.company_id
             WHERE c.id NOT IN ('company-system', 'company-demo')
+            ${isOwner ? "AND c.id = ?" : ""}
             ORDER BY c.is_active DESC, c.name`,
+      args: isOwner ? [companyId] : [],
     });
 
     const companies = result.rows.map((row) => ({
