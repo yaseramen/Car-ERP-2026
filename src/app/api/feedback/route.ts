@@ -16,7 +16,13 @@ export async function POST(req: Request) {
     }
 
     const body = await req.json();
-    const { type, subject, message } = body as { type?: string; subject?: string; message?: string };
+    const { type, subject, message, screenshot_url, page_path } = body as {
+      type?: string;
+      subject?: string;
+      message?: string;
+      screenshot_url?: string | null;
+      page_path?: string | null;
+    };
 
     if (!subject?.trim() || !message?.trim()) {
       return NextResponse.json({ error: "الموضوع والملاحظة مطلوبان" }, { status: 400 });
@@ -26,10 +32,16 @@ export async function POST(req: Request) {
     const mappedType =
       rawType === "bug" ? "bug" : rawType === "suggestion" ? "feature" : "feedback";
 
+    const shot =
+      typeof screenshot_url === "string" && screenshot_url.startsWith("http") ? screenshot_url.slice(0, 2000) : null;
+    const pathStr =
+      typeof page_path === "string" ? page_path.trim().slice(0, 500) : null;
+
     const id = crypto.randomUUID();
     await db.execute({
-      sql: `INSERT INTO user_feedback (id, user_id, company_id, type, title, message, status, created_at, updated_at)
-            VALUES (?, ?, ?, ?, ?, ?, 'pending', datetime('now'), datetime('now'))`,
+      sql: `INSERT INTO user_feedback (id, user_id, company_id, type, title, message, status, created_at, updated_at,
+            screenshot_url, page_path)
+            VALUES (?, ?, ?, ?, ?, ?, 'pending', datetime('now'), datetime('now'), ?, ?)`,
       args: [
         id,
         session.user.id,
@@ -37,6 +49,8 @@ export async function POST(req: Request) {
         mappedType,
         String(subject).trim().slice(0, 200),
         String(message).trim().slice(0, 2000),
+        shot,
+        pathStr || null,
       ],
     });
 

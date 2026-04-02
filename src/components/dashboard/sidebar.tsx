@@ -38,6 +38,7 @@ const navItems: NavItem[] = [
   { navId: "marketplace-super", href: "/admin/marketplace", label: "السوق (إدارة)", module: "marketplace", superAdminOnly: true },
   { navId: "wallets", href: "/admin/wallets", label: "المحافظ", module: "wallets", ownerOrAdmin: true },
   { navId: "password-reset-codes", href: "/admin/super/password-reset", label: "أكواد المالكين", module: "wallets", superAdminOnly: true },
+  { navId: "super-feedback-inbox", href: "/admin/super/feedback-inbox", label: "صندوق ملاحظات المطور", module: "dashboard", superAdminOnly: true },
   { navId: "team", href: "/admin/team", label: "المستخدمون", ownerOrAdmin: true },
   { navId: "settings", href: "/admin/settings", label: "إعدادات الشركة", ownerOrAdmin: true },
   { navId: "help", href: "/admin/help", label: "الدليل وما الجديد", module: "dashboard" },

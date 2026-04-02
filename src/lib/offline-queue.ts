@@ -140,7 +140,16 @@ export type QueuedOp =
         expiry_date?: string | null;
       };
     }
-  | { type: "submit_feedback"; data: { type: string; subject: string; message: string } }
+  | {
+      type: "submit_feedback";
+      data: {
+        type: string;
+        subject: string;
+        message: string;
+        screenshot_url?: string | null;
+        page_path?: string | null;
+      };
+    }
   | {
       type: "stock_transfer";
       data: {

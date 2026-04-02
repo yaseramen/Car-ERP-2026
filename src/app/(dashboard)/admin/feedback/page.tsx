@@ -14,7 +14,7 @@ export default async function FeedbackPage() {
       <p className="text-gray-500 dark:text-gray-400 mb-6">
         أرسل ملاحظاتك، اقتراحاتك للتطوير، أو أبلغ عن خطأ معين. المطور سيراجعها ويتعامل معها.
       </p>
-      <FeedbackContent isSuperAdmin={session.user.role === "super_admin"} />
+      <FeedbackContent />
     </div>
   );
 }
