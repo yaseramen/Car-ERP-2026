@@ -95,10 +95,12 @@ export async function POST(
           : "";
     const refToRaw = typeof reference_to === "string" ? reference_to.trim() : "";
 
-    const useDigitalWallet =
+    /** بيع/صيانة: محفظة استلام (إلى). شراء: محفظة دفع (من). */
+    const useInboundDigitalWallet =
       isDigitalMethodType(methodType) && (invType === "sale" || invType === "maintenance");
+    const useOutboundDigitalWallet = isDigitalMethodType(methodType) && invType === "purchase";
 
-    if (useDigitalWallet) {
+    if (useInboundDigitalWallet) {
       if (!refToRaw) {
         return NextResponse.json(
           { error: "أدخل رقم المحفظة أو الحساب المحول إليه (محفظة إلكترونية / إنستاباي)" },
@@ -110,6 +112,33 @@ export async function POST(
         paymentWalletId = w.id;
       } catch (e) {
         const msg = e instanceof Error ? e.message : "رقم المحفظة غير صالح";
+        return NextResponse.json({ error: msg }, { status: 400 });
+      }
+    }
+
+    if (useOutboundDigitalWallet) {
+      if (!refFromRaw) {
+        return NextResponse.json(
+          { error: "اختر محفظة الشركة أو أدخل رقم الحساب المحوّل منه (دفع للمورد)" },
+          { status: 400 }
+        );
+      }
+      try {
+        const w = await getOrCreatePaymentWallet(companyId, methodType, refFromRaw);
+        paymentWalletId = w.id;
+        const balRow = await db.execute({
+          sql: "SELECT balance FROM payment_wallets WHERE id = ? AND company_id = ?",
+          args: [paymentWalletId, companyId],
+        });
+        const pwBal = Number(balRow.rows[0]?.balance ?? 0);
+        if (pwBal < amt) {
+          return NextResponse.json(
+            { error: `رصيد محفظة الدفع غير كافٍ (متاح: ${pwBal.toFixed(2)} ج.م)` },
+            { status: 400 }
+          );
+        }
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : "رقم محفظة الدفع غير صالح";
         return NextResponse.json({ error: msg }, { status: 400 });
       }
     }
@@ -127,7 +156,7 @@ export async function POST(
     await ensureTreasuries(companyId);
 
     if (invType === "sale" && distributionTreasuryId) {
-      if (useDigitalWallet && paymentWalletId) {
+      if (useInboundDigitalWallet && paymentWalletId) {
         await db.execute({
           sql: "UPDATE payment_wallets SET balance = balance + ?, updated_at = datetime('now') WHERE id = ? AND company_id = ?",
           args: [amt, paymentWalletId, companyId],
@@ -157,7 +186,7 @@ export async function POST(
         });
       }
     } else if (invType === "sale" || invType === "maintenance") {
-      if (useDigitalWallet && paymentWalletId) {
+      if (useInboundDigitalWallet && paymentWalletId) {
         await db.execute({
           sql: "UPDATE payment_wallets SET balance = balance + ?, updated_at = datetime('now') WHERE id = ? AND company_id = ?",
           args: [amt, paymentWalletId, companyId],
@@ -190,27 +219,47 @@ export async function POST(
         }
       }
     } else if (invType === "purchase") {
-      treasuryId = await getTreasuryIdByType(companyId, "main");
-      if (treasuryId) {
-        const treasury = await db.execute({
-          sql: "SELECT balance FROM treasuries WHERE id = ? AND company_id = ?",
-          args: [treasuryId, companyId],
-        });
-        const balance = Number(treasury.rows[0]?.balance ?? 0);
-        if (balance < amt) {
-          return NextResponse.json({
-            error: `رصيد الخزينة الرئيسية غير كافٍ (متاح: ${balance.toFixed(2)} ج.م)`,
-          }, { status: 400 });
-        }
+      if (useOutboundDigitalWallet && paymentWalletId) {
         await db.execute({
-          sql: "UPDATE treasuries SET balance = balance - ?, updated_at = datetime('now') WHERE id = ?",
-          args: [amt, treasuryId],
+          sql: "UPDATE payment_wallets SET balance = balance - ?, updated_at = datetime('now') WHERE id = ? AND company_id = ?",
+          args: [amt, paymentWalletId, companyId],
         });
         await db.execute({
-          sql: `INSERT INTO treasury_transactions (id, treasury_id, amount, type, description, reference_type, reference_id, payment_method_id, performed_by)
+          sql: `INSERT INTO payment_wallet_transactions (id, payment_wallet_id, amount, type, description, reference_type, reference_id, payment_method_id, performed_by)
                 VALUES (?, ?, ?, 'out', ?, 'invoice', ?, ?, ?)`,
-          args: [randomUUID(), treasuryId, -amt, `دفعة فاتورة شراء ${invNum}`, invoiceId, payment_method_id, session.user.id],
+          args: [
+            randomUUID(),
+            paymentWalletId,
+            -amt,
+            `دفعة شراء ${invNum}${refToRaw ? ` → ${refToRaw}` : ""}`,
+            invoiceId,
+            payment_method_id,
+            session.user.id,
+          ],
         });
+      } else {
+        treasuryId = await getTreasuryIdByType(companyId, "main");
+        if (treasuryId) {
+          const treasury = await db.execute({
+            sql: "SELECT balance FROM treasuries WHERE id = ? AND company_id = ?",
+            args: [treasuryId, companyId],
+          });
+          const balance = Number(treasury.rows[0]?.balance ?? 0);
+          if (balance < amt) {
+            return NextResponse.json({
+              error: `رصيد الخزينة الرئيسية غير كافٍ (متاح: ${balance.toFixed(2)} ج.م)`,
+            }, { status: 400 });
+          }
+          await db.execute({
+            sql: "UPDATE treasuries SET balance = balance - ?, updated_at = datetime('now') WHERE id = ?",
+            args: [amt, treasuryId],
+          });
+          await db.execute({
+            sql: `INSERT INTO treasury_transactions (id, treasury_id, amount, type, description, reference_type, reference_id, payment_method_id, performed_by)
+                VALUES (?, ?, ?, 'out', ?, 'invoice', ?, ?, ?)`,
+            args: [randomUUID(), treasuryId, -amt, `دفعة فاتورة شراء ${invNum}`, invoiceId, payment_method_id, session.user.id],
+          });
+        }
       }
     }
 

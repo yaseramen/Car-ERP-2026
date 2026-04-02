@@ -469,6 +469,7 @@ export default async function InvoiceDetailPage({
             total={data.total}
             paidAmount={data.paid_amount}
             status={data.status}
+            invoiceType={data.type}
             defaultReferenceFrom={data.customer_phone || data.supplier_phone || null}
           />
         </div>

@@ -10,8 +10,9 @@ interface AddPaymentProps {
   total: number;
   paidAmount: number;
   status: string;
-  /** يُقترح في «المحول منه» للمحفظة الإلكترونية/إنستاباي إن وُجد هاتف عميل/مورد على الفاتورة */
+  /** sale/maintenance: يُقترح لحقل «من» (عميل). purchase: يُقترح لحقل «إلى» (مورد) */
   defaultReferenceFrom?: string | null;
+  invoiceType?: "sale" | "maintenance" | "purchase" | string;
 }
 
 type PaymentMethod = { id: string; name: string; type?: string };
@@ -22,6 +23,7 @@ export function AddPayment({
   paidAmount,
   status,
   defaultReferenceFrom,
+  invoiceType = "sale",
 }: AddPaymentProps) {
   const router = useRouter();
   const [paymentMethods, setPaymentMethods] = useState<PaymentMethod[]>([]);
@@ -59,10 +61,16 @@ export function AddPayment({
 
   const suggestedFrom = (defaultReferenceFrom ?? "").trim();
 
+  const isPurchase = invoiceType === "purchase";
+
   useEffect(() => {
     if (!isDigitalWallet || !suggestedFrom) return;
-    setReferenceFrom((prev) => (prev.trim() ? prev : suggestedFrom));
-  }, [isDigitalWallet, suggestedFrom, paymentMethodId]);
+    if (isPurchase) {
+      setReferenceTo((prev) => (prev.trim() ? prev : suggestedFrom));
+    } else {
+      setReferenceFrom((prev) => (prev.trim() ? prev : suggestedFrom));
+    }
+  }, [isDigitalWallet, suggestedFrom, paymentMethodId, isPurchase]);
 
   useEffect(() => {
     const handleOnline = () => router.refresh();
@@ -74,9 +82,16 @@ export function AddPayment({
     e.preventDefault();
     if (!amount || Number(amount) <= 0 || !paymentMethodId) return;
 
-    if (isDigitalWallet && !referenceTo.trim()) {
-      alert("أدخل رقم المحفظة أو الحساب المحول إليه");
-      return;
+    if (isDigitalWallet) {
+      if (isPurchase) {
+        if (!referenceFrom.trim()) {
+          alert("اختر محفظة الشركة أو أدخل رقم الحساب المحوّل منه");
+          return;
+        }
+      } else if (!referenceTo.trim()) {
+        alert("أدخل رقم المحفظة أو الحساب المحول إليه");
+        return;
+      }
     }
 
     const payload = {
@@ -89,7 +104,7 @@ export function AddPayment({
             ? undefined
             : (isCredit ? paymentDate : referenceNumber) || undefined,
       reference_from: isDigitalWallet ? referenceFrom.trim() || undefined : undefined,
-      reference_to: isDigitalWallet ? referenceTo.trim() : undefined,
+      reference_to: isDigitalWallet ? referenceTo.trim() || undefined : undefined,
       notes: notes || undefined,
     };
 
@@ -202,6 +217,7 @@ export function AddPayment({
         {showRefField && isDigitalWallet && (
           <DigitalWalletPaymentFields
             paymentChannel={methodType as "vodafone_cash" | "instapay"}
+            variant={isPurchase ? "outbound" : "inbound"}
             referenceFrom={referenceFrom}
             referenceTo={referenceTo}
             onReferenceFromChange={setReferenceFrom}

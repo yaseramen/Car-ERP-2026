@@ -16,20 +16,24 @@ function normPhone(s: string): string {
 
 type Props = {
   paymentChannel: "vodafone_cash" | "instapay";
+  /** افتراضي: دفعة واردة (بيع/صيانة) — من عميل إلى محفظة الشركة. outbound: دفعة صادرة (شراء) — من محفظة الشركة إلى مورد */
+  variant?: "inbound" | "outbound";
   referenceFrom: string;
   referenceTo: string;
   onReferenceFromChange: (v: string) => void;
   onReferenceToChange: (v: string) => void;
+  /** inbound: يُقترح لحقل «من» (عميل). outbound: يُقترح لحقل «إلى» (مورد) */
   defaultReferenceFromHint?: string | null;
   inputClass: string;
 };
 
 /**
- * «المحول منه»: رقم المرسل/العميل فقط (يدوي أو مُقترح من الفاتورة) — ليست محفظة استلام الشركة.
- * «المحول إليه»: محافظ استلام الشركة المسجّلة لنفس القناة أو رقم جديد.
+ * inbound: من العميل (مرجع) → إلى محفظة استلام الشركة.
+ * outbound (شراء): من محفظة الشركة * → إلى رقم المورد (مرجع اختياري).
  */
 export function DigitalWalletPaymentFields({
   paymentChannel,
+  variant = "inbound",
   referenceFrom,
   referenceTo,
   onReferenceFromChange,
@@ -88,7 +92,82 @@ export function DigitalWalletPaymentFields({
     return hit ? hit.phone_digits : "__other__";
   }, [referenceTo, wallets]);
 
+  const fromPick = useMemo(() => {
+    const t = normPhone(referenceFrom);
+    if (!t) return "";
+    const hit = wallets.find((w) => normPhone(w.phone_digits) === t);
+    return hit ? hit.phone_digits : "__other__";
+  }, [referenceFrom, wallets]);
+
   const hint = (defaultReferenceFromHint ?? "").trim();
+
+  if (variant === "outbound") {
+    return (
+      <>
+        <div>
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+            محفظة الشركة أو الحساب المحوّل منه *
+          </label>
+          {wallets.length > 0 && (
+            <select
+              value={fromPick === "__other__" && referenceFrom.trim() ? "__other__" : fromPick}
+              onChange={(e) => {
+                const v = e.target.value;
+                if (v === "" || v === "__other__") onReferenceFromChange("");
+                else onReferenceFromChange(v);
+              }}
+              className={`${inputClass} mb-2`}
+            >
+              <option value="">— اختر محفظة الدفع (من خزائن الشركة) —</option>
+              {wallets.map((w) => (
+                <option key={`pf-${w.id}`} value={w.phone_digits}>
+                  {w.name} — {w.phone_digits} (رصيد {w.balance.toFixed(2)} ج.م)
+                </option>
+              ))}
+              <option value="__other__">رقم آخر تدفعه منه…</option>
+            </select>
+          )}
+          <input
+            type="text"
+            value={referenceFrom}
+            onChange={(e) => onReferenceFromChange(e.target.value)}
+            required
+            className={inputClass}
+            placeholder={
+              wallets.length > 0
+                ? "أو اكتب رقم المحفظة التي تدفع منها"
+                : "رقم محفظة الشركة (يُنشأ سجل إن لزم)"
+            }
+          />
+          <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 leading-relaxed">
+            يُخصم المبلغ من رصيد هذه المحفظة. القائمة من «الخزائن» لنفس القناة (إنستاباي / محفظة إلكترونية).
+          </p>
+          {loadErr && <p className="text-xs text-amber-600 dark:text-amber-400 mt-1">{loadErr}</p>}
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+            رقم المورد أو الحساب المحوّل إليه <span className="text-gray-400 font-normal">(اختياري)</span>
+          </label>
+          <input
+            type="text"
+            value={referenceTo}
+            onChange={(e) => onReferenceToChange(e.target.value)}
+            className={inputClass}
+            placeholder="هاتف أو حساب المورد المستلم"
+          />
+          <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 leading-relaxed">
+            للمرجع فقط (من استلم المبلغ). لا يُستخدم لاختيار خزينة في البرنامج.
+          </p>
+          {hint && referenceTo.trim() === hint && (
+            <p className="text-xs text-emerald-600 dark:text-emerald-400 mt-1">
+              مُقترح من هاتف المورد على الفاتورة — يمكنك تعديله.
+            </p>
+          )}
+        </div>
+      </>
+    );
+  }
 
   return (
     <>
