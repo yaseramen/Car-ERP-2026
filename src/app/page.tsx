@@ -57,6 +57,10 @@ const FEATURES = [
     title: "OBD وتشخيص الأعطال",
     desc: "بحث عن أكواد الأعطال وشرحها بالعربية، تحليل تقارير التشخيص، دعم قرارات الفنيين.",
   },
+  {
+    title: "سوق EFCT",
+    desc: "صفحة عامة لعرض إعلانات المورّدين (قطع غيار ومستلزمات ورشة) مع أسعار تواصل وصور — المنصة وسيط عرض فقط، والبيع يتم مباشرة بين الطرفين.",
+  },
 ];
 
 const JSON_LD = {
@@ -110,7 +114,19 @@ export default function HomePage() {
             >
               تسجيل شركة جديدة
             </Link>
+            <Link
+              href="/market"
+              className="inline-flex items-center justify-center min-h-[48px] px-8 py-3.5 md:py-4 text-base md:text-lg border-2 border-sky-600 text-sky-900 bg-sky-50/90 hover:bg-sky-100 active:bg-sky-200/80 backdrop-blur-sm font-medium rounded-xl transition-colors touch-manipulation"
+            >
+              سوق EFCT — عروض المورّدين
+            </Link>
           </div>
+          <p className="mt-4 text-sm text-gray-700 max-w-xl mx-auto">
+            <Link href="/market" className="text-sky-800 underline underline-offset-2 hover:text-sky-950 font-medium">
+              تصفّح السوق العام
+            </Link>
+            {" "}بدون تسجيل: إعلانات قطع الغيار ومستلزمات الورشة، للتواصل المباشر مع المورّد.
+          </p>
         </div>
       </section>
 
@@ -185,6 +201,9 @@ export default function HomePage() {
       {/* روابط إضافية */}
       <section className={`py-8 md:py-10 border-t border-gray-100 ${SECTION_X}`}>
         <div className="max-w-2xl mx-auto flex flex-wrap justify-center gap-5 sm:gap-6 md:gap-8 text-emerald-600 text-sm sm:text-base">
+          <Link href="/market" className="hover:text-sky-800 font-medium text-sky-700">
+            سوق EFCT (عروض المورّدين)
+          </Link>
           <Link href="/how-it-works" className="hover:text-emerald-700 font-medium">
             كيف يعمل البرنامج
           </Link>
@@ -220,6 +239,10 @@ export default function HomePage() {
       <footer className={`py-8 md:py-10 border-t border-gray-200 text-center text-sm sm:text-base text-gray-600 ${SECTION_X}`}>
         <p className="mb-2">EFCT — إدارة مراكز الصيانة ومحلات قطع الغيار</p>
         <p>
+          <Link href="/market" className="text-sky-700 hover:text-sky-900">
+            سوق EFCT
+          </Link>
+          {" · "}
           <Link href="/how-it-works" className="text-emerald-600 hover:text-emerald-700">
             كيف يعمل
           </Link>

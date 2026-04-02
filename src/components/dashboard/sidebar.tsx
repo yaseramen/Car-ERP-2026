@@ -17,6 +17,7 @@ const navItems: {
   supplierOnly?: boolean;
 }[] = [
   { href: "/admin", label: "الرئيسية", module: "dashboard" },
+  { href: "/market", label: "سوق EFCT (عام)" },
   { href: "/admin/inventory", label: "المخزن", module: "inventory" },
   { href: "/admin/inventory/price-list", label: "عرض أسعار", module: "inventory" },
   { href: "/admin/marketplace", label: "السوق والإعلانات", module: "marketplace", supplierOnly: true },
