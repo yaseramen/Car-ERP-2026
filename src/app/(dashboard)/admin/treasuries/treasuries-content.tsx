@@ -371,7 +371,8 @@ export function TreasuriesContent() {
   const [transferDesc, setTransferDesc] = useState("");
   const [saving, setSaving] = useState(false);
   const [expenseIncomeModal, setExpenseIncomeModal] = useState<"expense" | "income" | null>(null);
-  const [sweepingWalletId, setSweepingWalletId] = useState<string | null>(null);
+  /** تسليم: محفظة دفع أو خزينة مبيعات/ورشة */
+  const [sweepingId, setSweepingId] = useState<string | null>(null);
 
   async function fetchTreasuries() {
     try {
@@ -493,7 +494,7 @@ export function TreasuriesContent() {
   async function handleSweepPaymentWalletToMain(walletId: string, balance: number) {
     if (balance <= 0) return;
     if (!confirm(`تسليم ${balance.toFixed(2)} ج.م من هذه المحفظة إلى الخزينة الرئيسية (نقد)؟`)) return;
-    setSweepingWalletId(walletId);
+    setSweepingId(walletId);
     try {
       const res = await fetch(`/api/admin/treasuries/payment-wallets/${walletId}/sweep-to-main`, {
         method: "POST",
@@ -509,7 +510,31 @@ export function TreasuriesContent() {
     } catch {
       alert("حدث خطأ");
     } finally {
-      setSweepingWalletId(null);
+      setSweepingId(null);
+    }
+  }
+
+  async function handleSweepCoreTreasuryToMain(treasuryId: string, balance: number, type: string) {
+    if (balance <= 0) return;
+    const label = type === "sales" ? "خزينة المبيعات" : "خزينة الورشة";
+    if (!confirm(`تسليم ${balance.toFixed(2)} ج.م من ${label} إلى الخزينة الرئيسية؟`)) return;
+    setSweepingId(treasuryId);
+    try {
+      const res = await fetch(`/api/admin/treasuries/${treasuryId}/sweep-to-main`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({}),
+      });
+      const d = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        alert(d.error || "فشل التسليم");
+        return;
+      }
+      await fetchTreasuries();
+    } catch {
+      alert("حدث خطأ");
+    } finally {
+      setSweepingId(null);
     }
   }
 
@@ -546,10 +571,23 @@ export function TreasuriesContent() {
                   e.stopPropagation();
                   void handleSweepPaymentWalletToMain(t.id, t.balance);
                 }}
-                disabled={t.balance <= 0 || sweepingWalletId === t.id}
+                disabled={t.balance <= 0 || sweepingId === t.id}
                 className="mt-4 w-full px-3 py-2 text-sm font-medium rounded-lg border border-amber-300 dark:border-amber-700 text-amber-800 dark:text-amber-200 bg-amber-50 dark:bg-amber-950/40 hover:bg-amber-100 dark:hover:bg-amber-900/50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               >
-                {sweepingWalletId === t.id ? "جاري التسليم…" : "تسليم للخزينة الرئيسية"}
+                {sweepingId === t.id ? "جاري التسليم…" : "تسليم للخزينة الرئيسية"}
+              </button>
+            )}
+            {!t.is_payment_wallet && (t.type === "sales" || t.type === "workshop") && (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  void handleSweepCoreTreasuryToMain(t.id, t.balance, t.type);
+                }}
+                disabled={t.balance <= 0 || sweepingId === t.id}
+                className="mt-4 w-full px-3 py-2 text-sm font-medium rounded-lg border border-amber-300 dark:border-amber-700 text-amber-800 dark:text-amber-200 bg-amber-50 dark:bg-amber-950/40 hover:bg-amber-100 dark:hover:bg-amber-900/50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              >
+                {sweepingId === t.id ? "جاري التسليم…" : "تسليم للخزينة الرئيسية"}
               </button>
             )}
           </div>
