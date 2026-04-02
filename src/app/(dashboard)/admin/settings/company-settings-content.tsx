@@ -138,16 +138,9 @@ export function CompanySettingsContent() {
           <p className="text-xs text-gray-500 dark:text-gray-400 mb-2 leading-relaxed">
             يظهر بجانب اسم الشركة في القائمة الجانبية (شعار مصغّر). في الفاتورة: معاينة على الشاشة وعلامة مائية عند الطباعة. يُفضّل شعار بخلفية شفافة.
           </p>
-          <p className="text-xs text-amber-800 dark:text-amber-200/90 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 rounded-lg px-2 py-1.5 mb-2 leading-relaxed">
-            <strong>رفع الملف من الجهاز</strong> يحتاج متغير البيئة{" "}
-            <code className="text-[11px] bg-white/80 dark:bg-black/20 px-1 rounded">BLOB_READ_WRITE_TOKEN</code>{" "}
-            في Vercel (تخزين Blob). إن ظهرت رسالة خطأ عند الرفع: ضع أدناه{" "}
-            <strong>رابط https مباشر</strong> لملف الصورة (مثلاً من GitHub: زر Raw على ملف PNG في{" "}
-            <code className="text-[11px]">public/</code>) ثم اضغط «حفظ التغييرات».
-          </p>
           <div className="mb-2">
             <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">
-              رابط الشعار (https) — بديل عند تعطيل الرفع
+              رابط الشعار (https) — اختياري إن رغبت برابط مباشر لملف الصورة
             </label>
             <input
               type="url"
