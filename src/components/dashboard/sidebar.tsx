@@ -3,10 +3,14 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { signOut } from "next-auth/react";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useNotifications } from "@/components/notifications/notifications-provider";
 
-const navItems: {
+/** معرّف ثابت لكل بند — يُستخدم في تخزين الإخفاء المحلي */
+const SIDEBAR_HIDDEN_KEY = "alameen-sidebar-hidden";
+
+type NavItem = {
+  navId: string;
   href: string;
   label: string;
   module?: string;
@@ -15,33 +19,36 @@ const navItems: {
   salesOnly?: boolean;
   serviceOnly?: boolean;
   supplierOnly?: boolean;
-}[] = [
-  { href: "/admin", label: "الرئيسية", module: "dashboard" },
-  { href: "/admin/help", label: "الدليل وما الجديد", module: "dashboard" },
-  { href: "/admin/inventory", label: "المخزن", module: "inventory" },
-  { href: "/admin/inventory/price-list", label: "عرض أسعار", module: "inventory" },
-  { href: "/admin/marketplace", label: "السوق والإعلانات", module: "marketplace", supplierOnly: true },
-  { href: "/admin/workshop", label: "الورشة", module: "workshop", serviceOnly: true },
-  { href: "/admin/obd", label: "OBD", module: "obd", serviceOnly: true },
-  { href: "/admin/cashier", label: "الكاشير", module: "cashier", salesOnly: true },
-  { href: "/admin/purchases", label: "فواتير الشراء", module: "purchases", salesOnly: true },
-  { href: "/admin/invoices", label: "الفواتير", module: "invoices" },
-  { href: "/admin/customers", label: "العملاء", module: "customers" },
-  { href: "/admin/suppliers", label: "الموردون", module: "suppliers" },
-  { href: "/admin/reports", label: "التقارير", module: "reports" },
-  { href: "/admin/treasuries", label: "الخزائن", module: "treasuries" },
-  { href: "/admin/marketplace", label: "السوق (إدارة)", module: "marketplace", superAdminOnly: true },
-  { href: "/admin/wallets", label: "المحافظ", module: "wallets", ownerOrAdmin: true },
-  { href: "/admin/super/password-reset", label: "أكواد المالكين", module: "wallets", superAdminOnly: true },
-  { href: "/admin/team", label: "المستخدمون", ownerOrAdmin: true },
-  { href: "/admin/settings", label: "إعدادات الشركة", ownerOrAdmin: true },
-  { href: "/admin/account/password", label: "تغيير كلمة المرور", ownerOrAdmin: true },
+};
+
+const navItems: NavItem[] = [
+  { navId: "home", href: "/admin", label: "الرئيسية", module: "dashboard" },
+  { navId: "help", href: "/admin/help", label: "الدليل وما الجديد", module: "dashboard" },
+  { navId: "inventory", href: "/admin/inventory", label: "المخزن", module: "inventory" },
+  { navId: "price-list", href: "/admin/inventory/price-list", label: "عرض أسعار", module: "inventory" },
+  { navId: "marketplace-supplier", href: "/admin/marketplace", label: "السوق والإعلانات", module: "marketplace", supplierOnly: true },
+  { navId: "workshop", href: "/admin/workshop", label: "الورشة", module: "workshop", serviceOnly: true },
+  { navId: "obd", href: "/admin/obd", label: "OBD", module: "obd", serviceOnly: true },
+  { navId: "cashier", href: "/admin/cashier", label: "الكاشير", module: "cashier", salesOnly: true },
+  { navId: "purchases", href: "/admin/purchases", label: "فواتير الشراء", module: "purchases", salesOnly: true },
+  { navId: "invoices", href: "/admin/invoices", label: "الفواتير", module: "invoices" },
+  { navId: "customers", href: "/admin/customers", label: "العملاء", module: "customers" },
+  { navId: "suppliers", href: "/admin/suppliers", label: "الموردون", module: "suppliers" },
+  { navId: "reports", href: "/admin/reports", label: "التقارير", module: "reports" },
+  { navId: "treasuries", href: "/admin/treasuries", label: "الخزائن", module: "treasuries" },
+  { navId: "marketplace-super", href: "/admin/marketplace", label: "السوق (إدارة)", module: "marketplace", superAdminOnly: true },
+  { navId: "wallets", href: "/admin/wallets", label: "المحافظ", module: "wallets", ownerOrAdmin: true },
+  { navId: "password-reset-codes", href: "/admin/super/password-reset", label: "أكواد المالكين", module: "wallets", superAdminOnly: true },
+  { navId: "team", href: "/admin/team", label: "المستخدمون", ownerOrAdmin: true },
+  { navId: "settings", href: "/admin/settings", label: "إعدادات الشركة", ownerOrAdmin: true },
+  { navId: "account-password", href: "/admin/account/password", label: "تغيير كلمة المرور", ownerOrAdmin: true },
 ];
 
 export function Sidebar({ role = "super_admin", businessType, companyName: initialCompanyName, onNavigate, onClose }: { role?: string; businessType?: string | null; companyName?: string | null; onNavigate?: () => void; onClose?: () => void }) {
   const [perms, setPerms] = useState<Record<string, { read: boolean }> | null>(null);
   const [canNotify, setCanNotify] = useState(false);
   const [companyName, setCompanyName] = useState<string | null>(initialCompanyName ?? null);
+  const [hiddenNavIds, setHiddenNavIds] = useState<Set<string>>(new Set());
   const notifications = useNotifications();
 
   useEffect(() => {
@@ -82,23 +89,74 @@ export function Sidebar({ role = "super_admin", businessType, companyName: initi
     }
   }, [role]);
 
-  const items = navItems.filter((item) => {
-    if (item.superAdminOnly && role !== "super_admin") return false;
-    if (item.ownerOrAdmin && role === "employee") return false;
-    if (item.supplierOnly) {
-      if (role === "super_admin") return false;
-      if (businessType !== "supplier") return false;
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(SIDEBAR_HIDDEN_KEY);
+      if (raw) {
+        const arr = JSON.parse(raw) as unknown;
+        if (Array.isArray(arr)) {
+          setHiddenNavIds(new Set(arr.filter((x): x is string => typeof x === "string")));
+        }
+      }
+    } catch {
+      setHiddenNavIds(new Set());
     }
-    if (role === "super_admin") return true;
-    if (businessType === "sales_only" && item.serviceOnly) return false;
-    if (businessType === "service_only" && item.salesOnly) return false;
-    /** مورّد = مثل محل القطع: مبيعات ومخزن، بدون ورشة/OBD */
-    if (businessType === "supplier" && item.serviceOnly) return false;
-    if (role === "employee" && item.module && perms) {
-      return perms[item.module]?.read === true;
+  }, []);
+
+  const allowedItems = useMemo(() => {
+    return navItems.filter((item) => {
+      if (item.superAdminOnly && role !== "super_admin") return false;
+      if (item.ownerOrAdmin && role === "employee") return false;
+      if (item.supplierOnly) {
+        if (role === "super_admin") return false;
+        if (businessType !== "supplier") return false;
+      }
+      if (role === "super_admin") return true;
+      if (businessType === "sales_only" && item.serviceOnly) return false;
+      if (businessType === "service_only" && item.salesOnly) return false;
+      if (businessType === "supplier" && item.serviceOnly) return false;
+      if (role === "employee" && item.module && perms) {
+        return perms[item.module]?.read === true;
+      }
+      return true;
+    });
+  }, [role, businessType, perms]);
+
+  /** الرئيسية تبقى ظاهرة دائماً حتى لا يُحبس المستخدم بدون تنقّل */
+  const items = useMemo(
+    () =>
+      allowedItems.filter((item) => item.navId === "home" || !hiddenNavIds.has(item.navId)),
+    [allowedItems, hiddenNavIds]
+  );
+
+  const customizableNavItems = useMemo(
+    () => allowedItems.filter((item) => item.navId !== "home"),
+    [allowedItems]
+  );
+
+  function persistHidden(next: Set<string>) {
+    try {
+      localStorage.setItem(SIDEBAR_HIDDEN_KEY, JSON.stringify([...next]));
+    } catch {
+      /* ignore */
     }
-    return true;
-  });
+  }
+
+  function toggleNavVisibility(navId: string, visible: boolean) {
+    setHiddenNavIds((prev) => {
+      const next = new Set(prev);
+      if (visible) next.delete(navId);
+      else next.add(navId);
+      persistHidden(next);
+      return next;
+    });
+  }
+
+  function showAllNavItems() {
+    setHiddenNavIds(new Set());
+    persistHidden(new Set());
+  }
+
   const pathname = usePathname();
 
   const handleNav = () => {
@@ -137,11 +195,11 @@ export function Sidebar({ role = "super_admin", businessType, companyName: initi
         )}
       </div>
 
-      <div className="flex-1 min-h-0 overflow-y-auto">
-        <nav className="p-4 space-y-1">
+      <div className="flex-1 min-h-0 overflow-y-auto flex flex-col">
+        <nav className="p-4 space-y-1 flex-1 min-h-0">
           {items.map((item) => {
           const isActive = pathname === item.href || (item.href !== "/admin" && pathname.startsWith(item.href));
-          const navKey = `${item.href}-${item.superAdminOnly ? "sa" : ""}-${item.supplierOnly ? "sup" : ""}-${item.label}`;
+          const navKey = `${item.navId}-${item.href}-${item.superAdminOnly ? "sa" : ""}-${item.supplierOnly ? "sup" : ""}`;
           return (
             <Link
               key={navKey}
@@ -158,6 +216,48 @@ export function Sidebar({ role = "super_admin", businessType, companyName: initi
           );
         })}
         </nav>
+
+        {customizableNavItems.length > 0 && (
+          <div className="px-4 pb-2 shrink-0 border-t border-gray-100 dark:border-gray-800 pt-2">
+            <details className="group">
+              <summary className="text-xs text-gray-500 dark:text-gray-400 cursor-pointer hover:text-gray-700 dark:hover:text-gray-300 py-1.5 list-none flex items-center gap-1 [&::-webkit-details-marker]:hidden">
+                <span className="text-[10px] opacity-70 group-open:rotate-90 transition-transform inline-block">▸</span>
+                تخصيص القائمة
+              </summary>
+              <div className="mt-2 max-h-48 overflow-y-auto rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50/80 dark:bg-gray-800/50 p-2 space-y-1.5">
+                <p className="text-[10px] text-gray-500 dark:text-gray-400 leading-snug px-0.5 mb-1">
+                  أخفِ ما لا تحتاجه من البنود المتاحة لصلاحياتك فقط. يُحفظ على هذا الجهاز.
+                </p>
+                {customizableNavItems.map((item) => {
+                  const visible = !hiddenNavIds.has(item.navId);
+                  return (
+                    <label
+                      key={item.navId}
+                      className="flex items-center gap-2 cursor-pointer text-xs text-gray-700 dark:text-gray-300 py-0.5"
+                    >
+                      <input
+                        type="checkbox"
+                        checked={visible}
+                        onChange={(e) => toggleNavVisibility(item.navId, e.target.checked)}
+                        className="rounded border-gray-300 dark:border-gray-600 text-emerald-600 focus:ring-emerald-500"
+                      />
+                      <span className="truncate">{item.label}</span>
+                    </label>
+                  );
+                })}
+                {hiddenNavIds.size > 0 && (
+                  <button
+                    type="button"
+                    onClick={showAllNavItems}
+                    className="w-full mt-1 text-[11px] text-emerald-600 dark:text-emerald-400 hover:underline"
+                  >
+                    إظهار كل البنود
+                  </button>
+                )}
+              </div>
+            </details>
+          </div>
+        )}
 
         <div className="p-4 border-t border-gray-100 dark:border-gray-700 space-y-2">
         {notifications && canNotify && (
