@@ -231,38 +231,25 @@ export function Sidebar({
                 src={logoUrl}
                 alt=""
                 className="h-28 w-28 sm:h-32 sm:w-32 object-contain opacity-[0.22] dark:opacity-[0.28]"
+                onError={() => setLogoUrl(null)}
               />
             </div>
           )}
           <div className="relative z-[1] min-w-0">
             {logoUrl ? (
-              <div className="flex items-start gap-3 min-w-0">
-                <div
-                  className="shrink-0 w-12 h-12 rounded-lg border border-gray-200 dark:border-gray-600 bg-white/90 dark:bg-gray-800/90 backdrop-blur-[2px] flex items-center justify-center overflow-hidden"
-                  aria-hidden
-                >
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={logoUrl}
-                    alt=""
-                    className="max-h-full max-w-full object-contain p-0.5"
-                    onError={() => setLogoUrl(null)}
-                  />
-                </div>
-                <div className="min-w-0 flex-1">
-                  <h2 className="font-bold text-gray-900 dark:text-gray-100 truncate text-base leading-tight drop-shadow-[0_1px_0_rgba(255,255,255,0.85)] dark:drop-shadow-[0_1px_0_rgba(0,0,0,0.4)]">
-                    {companyName || (role === "super_admin" ? "EFCT" : "الشركة")}
-                  </h2>
-                  <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-0.5 leading-snug">
-                    {role === "super_admin"
-                      ? "لوحة Super Admin"
-                      : role === "employee"
-                        ? "لوحة الموظف"
-                        : businessType === "supplier"
-                          ? "لوحة المورّد"
-                          : "لوحة المالك"}
-                  </p>
-                </div>
+              <div className="min-w-0">
+                <h2 className="font-bold text-gray-900 dark:text-gray-100 truncate text-base leading-tight drop-shadow-[0_1px_0_rgba(255,255,255,0.85)] dark:drop-shadow-[0_1px_0_rgba(0,0,0,0.4)]">
+                  {companyName || (role === "super_admin" ? "EFCT" : "الشركة")}
+                </h2>
+                <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-0.5 leading-snug">
+                  {role === "super_admin"
+                    ? "لوحة Super Admin"
+                    : role === "employee"
+                      ? "لوحة الموظف"
+                      : businessType === "supplier"
+                        ? "لوحة المورّد"
+                        : "لوحة المالك"}
+                </p>
               </div>
             ) : (
               <>
