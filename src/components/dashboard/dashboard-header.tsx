@@ -49,11 +49,10 @@ export function DashboardHeader({ onMenuClick }: { onMenuClick?: () => void }) {
         <AlertsBadge />
         <Link
           href="/market"
-          className="p-2 rounded-lg text-sky-600 dark:text-sky-400 hover:bg-sky-50 dark:hover:bg-sky-950/40 transition-colors"
-          title="سوق EFCT — عروض المورّدين (صفحة عامة)"
-          aria-label="سوق EFCT"
+          className="flex items-center gap-1.5 px-2 py-1.5 sm:px-2.5 rounded-lg text-sky-700 dark:text-sky-300 hover:bg-sky-50 dark:hover:bg-sky-950/50 border border-sky-200/80 dark:border-sky-800/80 transition-colors shrink-0"
+          title="سوق EFCT — عروض المورّدين (صفحة عامة، بدون تسجيل دخول)"
         >
-          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
+          <svg className="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
             <path
               strokeLinecap="round"
               strokeLinejoin="round"
@@ -61,6 +60,7 @@ export function DashboardHeader({ onMenuClick }: { onMenuClick?: () => void }) {
               d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9zm8 4v3m-4-3v3"
             />
           </svg>
+          <span className="text-xs sm:text-sm font-semibold whitespace-nowrap leading-none">سوق EFCT</span>
         </Link>
         <button
           type="button"
