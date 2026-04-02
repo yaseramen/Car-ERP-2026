@@ -4,7 +4,7 @@ import { put } from "@vercel/blob";
 import { getCompanyId } from "@/lib/company";
 import { canAccess } from "@/lib/permissions";
 import { randomUUID } from "crypto";
-import sharp from "sharp";
+import { bufferToCompressedWebp } from "@/lib/compress-image-webp";
 
 const MAX_UPLOAD_BYTES = 8 * 1024 * 1024;
 
@@ -64,11 +64,7 @@ export async function POST(request: Request) {
   const buf = Buffer.from(await file.arrayBuffer());
   let webp: Buffer;
   try {
-    webp = await sharp(buf)
-      .rotate()
-      .resize({ width: 1200, height: 1200, fit: "inside", withoutEnlargement: true })
-      .webp({ quality: 82 })
-      .toBuffer();
+    webp = await bufferToCompressedWebp(buf, "marketplace");
   } catch {
     return NextResponse.json({ error: "تعذر معالجة الصورة — استخدم JPEG أو PNG" }, { status: 400 });
   }

@@ -3,7 +3,7 @@ import { auth } from "@/auth";
 import { put } from "@vercel/blob";
 import { getCompanyId } from "@/lib/company";
 import { randomUUID } from "crypto";
-import sharp from "sharp";
+import { bufferToCompressedWebp } from "@/lib/compress-image-webp";
 
 const MAX_BYTES = 3 * 1024 * 1024;
 
@@ -44,11 +44,7 @@ export async function POST(request: Request) {
   const buf = Buffer.from(await file.arrayBuffer());
   let webp: Buffer;
   try {
-    webp = await sharp(buf)
-      .rotate()
-      .resize({ width: 1600, height: 1600, fit: "inside", withoutEnlargement: true })
-      .webp({ quality: 82 })
-      .toBuffer();
+    webp = await bufferToCompressedWebp(buf, "screenshot");
   } catch {
     return NextResponse.json({ error: "تعذر معالجة الصورة" }, { status: 400 });
   }
