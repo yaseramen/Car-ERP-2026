@@ -36,8 +36,8 @@ export default function ResetPasswordPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4 bg-gray-50 dark:bg-gray-900" dir="rtl">
-      <div className="w-full max-w-md bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-100 dark:border-gray-700 p-8">
+    <div className="flex items-center justify-center p-4 py-10" dir="rtl">
+      <div className="w-full max-w-md bg-white/95 dark:bg-gray-800/95 backdrop-blur-sm rounded-xl shadow-lg border border-gray-100 dark:border-gray-700 p-8">
         <h1 className="text-xl font-bold text-gray-900 dark:text-gray-100 mb-2">استعادة كلمة مرور مالك الشركة</h1>
         <p className="text-sm text-gray-500 dark:text-gray-400 mb-6">
           أدخل البريد المسجل كمالك، والكود الذي أرسله لك المسؤول، وكلمة المرور الجديدة.

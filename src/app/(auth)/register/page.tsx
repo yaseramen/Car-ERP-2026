@@ -53,7 +53,7 @@ export default function RegisterPage() {
 
   if (success) {
     return (
-      <div className="w-full max-w-md mx-auto p-8 bg-white rounded-2xl shadow-lg border border-gray-100">
+      <div className="w-full max-w-md mx-auto p-8 bg-white/95 dark:bg-gray-800/95 backdrop-blur-sm rounded-2xl shadow-lg border border-gray-100 dark:border-gray-700">
         <div className="text-center">
           <h1 className="text-2xl font-bold text-emerald-600 mb-4">تم إنشاء الحساب بنجاح</h1>
           <p className="text-gray-600 mb-6">يمكنك الآن تسجيل الدخول للوصول إلى لوحة التحكم.</p>
@@ -69,7 +69,7 @@ export default function RegisterPage() {
   }
 
   return (
-    <div className="w-full max-w-md mx-auto p-8 bg-white rounded-2xl shadow-lg border border-gray-100">
+    <div className="w-full max-w-md mx-auto p-8 bg-white/95 dark:bg-gray-800/95 backdrop-blur-sm rounded-2xl shadow-lg border border-gray-100 dark:border-gray-700">
       <div className="text-center mb-8">
         <h1 className="text-2xl font-bold text-gray-900">EFCT</h1>
         <p className="text-gray-500 mt-2">تسجيل شركة جديدة</p>

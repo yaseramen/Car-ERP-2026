@@ -5,7 +5,6 @@ import Link from "next/link";
 import { signIn } from "next-auth/react";
 import { useSearchParams } from "next/navigation";
 import { getErrorMessage } from "@/lib/error-messages";
-import { LoginHeroWatermark } from "@/components/auth/login-hero-watermark";
 
 function LoginForm() {
   const [email, setEmail] = useState("");
@@ -122,7 +121,6 @@ function LoginForm() {
 export default function LoginPage() {
   return (
     <div className="relative w-full min-h-[100dvh] flex items-center justify-center px-4 py-10">
-      <LoginHeroWatermark />
       <Suspense
         fallback={
           <div className="relative z-10 w-full max-w-md mx-auto p-8 bg-white/95 dark:bg-gray-800/95 backdrop-blur-sm rounded-2xl shadow-lg border border-gray-100 dark:border-gray-700 animate-pulse">

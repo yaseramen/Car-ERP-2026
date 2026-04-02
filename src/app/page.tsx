@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { MarketingHeroSection } from "@/components/marketing/marketing-hero-section";
+import { MarketingPageBackdrop } from "@/components/marketing/marketing-page-backdrop";
 
 export const metadata: Metadata = {
   title: "EFCT | إدارة مراكز الصيانة ومحلات قطع غيار السيارات",
@@ -79,7 +80,9 @@ const SECTION_X = "px-4 sm:px-6 md:px-10 lg:px-12";
 
 export default function HomePage() {
   return (
-    <div className="light-section min-h-screen bg-white text-gray-900 antialiased" dir="rtl">
+    <div className="light-section relative min-h-screen text-gray-900 antialiased" dir="rtl">
+      <MarketingPageBackdrop />
+      <div className="relative z-10 bg-white/0">
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(JSON_LD) }}
@@ -250,6 +253,7 @@ export default function HomePage() {
           </Link>
         </p>
       </footer>
+      </div>
     </div>
   );
 }
