@@ -64,7 +64,9 @@ export function Sidebar({
   const [perms, setPerms] = useState<Record<string, { read: boolean }> | null>(null);
   const [canNotify, setCanNotify] = useState(false);
   const [companyName, setCompanyName] = useState<string | null>(initialCompanyName ?? null);
-  const [logoUrl, setLogoUrl] = useState<string | null>(initialLogoUrl ?? null);
+  const [logoUrl, setLogoUrl] = useState<string | null>(() =>
+    initialLogoUrl?.trim() ? initialLogoUrl.trim() : null
+  );
   const [hiddenNavIds, setHiddenNavIds] = useState<Set<string>>(new Set());
   const [customizeOpen, setCustomizeOpen] = useState(false);
   const customizePanelRef = useRef<HTMLDivElement>(null);
@@ -79,16 +81,16 @@ export function Sidebar({
   }, [initialCompanyName]);
 
   useEffect(() => {
-    setLogoUrl(initialLogoUrl ?? null);
+    setLogoUrl(initialLogoUrl?.trim() ? initialLogoUrl.trim() : null);
   }, [initialLogoUrl]);
 
+  /** يحدّث الشعار بعد الحفظ ويتفادى بيانات RSC القديمة؛ للسوبر أدمن يعيد company-system */
   useEffect(() => {
-    if (role === "super_admin") return;
-    fetch("/api/admin/me/company-branding")
+    fetch("/api/admin/me/company-branding", { credentials: "same-origin" })
       .then((r) => r.json())
       .then((d) => {
-        if (d.logo_url) setLogoUrl(String(d.logo_url));
-        if (d.name) setCompanyName(String(d.name));
+        if (d.logo_url && String(d.logo_url).trim()) setLogoUrl(String(d.logo_url).trim());
+        if (d.name && String(d.name).trim()) setCompanyName(String(d.name).trim());
       })
       .catch(() => {});
   }, [role]);
@@ -218,14 +220,17 @@ export function Sidebar({
   return (
     <aside className="flex h-full min-h-0 w-full max-h-full flex-col overflow-hidden bg-white dark:bg-gray-900 lg:min-h-screen">
       <div className="p-6 border-b border-gray-100 dark:border-gray-700 flex items-center justify-between gap-2 shrink-0 z-10 bg-white dark:bg-gray-900">
-        <div className="min-w-0 flex-1 relative isolate overflow-hidden rounded-lg">
+        <div className="min-w-0 flex-1 relative isolate overflow-hidden rounded-lg min-h-[4.5rem]">
           {logoUrl && (
-            <div className="pointer-events-none absolute inset-0 z-0" aria-hidden>
+            <div
+              className="pointer-events-none absolute inset-0 z-0 flex items-center justify-center"
+              aria-hidden
+            >
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src={logoUrl}
                 alt=""
-                className="absolute end-0 top-1/2 h-[7.5rem] w-[7.5rem] sm:h-32 sm:w-32 -translate-y-1/2 object-contain opacity-[0.07] dark:opacity-[0.11]"
+                className="h-28 w-28 sm:h-32 sm:w-32 object-contain opacity-[0.22] dark:opacity-[0.28]"
               />
             </div>
           )}

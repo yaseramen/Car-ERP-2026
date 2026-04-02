@@ -1,5 +1,8 @@
 import { auth } from "@/auth";
 import { redirect } from "next/navigation";
+
+/** شعار الشركة يتغيّر من الإعدادات — لا نخزّن التخطيط ليُحدَّث فوراً بعد الحفظ */
+export const dynamic = "force-dynamic";
 import { db } from "@/lib/db/client";
 import { AdminLayoutClient } from "@/components/dashboard/admin-layout-client";
 import { NotificationsProvider } from "@/components/notifications/notifications-provider";
