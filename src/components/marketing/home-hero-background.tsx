@@ -1,42 +1,24 @@
-"use client";
-
-import Image from "next/image";
-import { useState } from "react";
-
-const HERO_PATH = "/marketing/hero-home.webp";
+import { HERO_SVG_FALLBACK_PATH, HERO_WEBP_PATH } from "@/lib/marketing-hero-assets";
 
 /**
- * خلفية كاملة لقسم الـ Hero فقط — Next/Image مع طبقة فوق الصورة لقراءة النص.
- * ضع الملف: public/marketing/hero-home.webp (مُصدَّر WebP).
+ * خلفية قسم الـ Hero: WebP إن وُجد، وإلا SVG مدمج (بدون طلب فاشل).
+ * طبقة فوق الصورة أخف حتى تُرى الخلفية خلف النصوص.
  */
 export function HomeHeroBackground() {
-  const [failed, setFailed] = useState(false);
-
   return (
     <div className="pointer-events-none absolute inset-0 z-0 overflow-hidden" aria-hidden>
-      {!failed && (
-        <Image
-          src={HERO_PATH}
+      <picture className="absolute inset-0 block h-full w-full">
+        <source srcSet={HERO_WEBP_PATH} type="image/webp" />
+        <img
+          src={HERO_SVG_FALLBACK_PATH}
           alt=""
-          fill
-          className="object-cover object-center"
-          sizes="100vw"
-          priority
+          className="h-full w-full object-cover object-center"
+          decoding="async"
           fetchPriority="high"
-          quality={75}
-          onError={() => setFailed(true)}
         />
-      )}
-      {/* طبقة فوق الصورة: بدون صورة تظهر تدرجاً هادئاً فقط */}
-      <div
-        className={
-          failed
-            ? "absolute inset-0 bg-gradient-to-b from-emerald-100/95 via-white to-emerald-50/90"
-            : "absolute inset-0 bg-gradient-to-b from-white/90 via-emerald-50/82 to-white/95"
-        }
-      />
-      {/* تعتيم خفيف أسفل القسم لتمييز الانتقال للمحتوى التالي */}
-      <div className="absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-white to-transparent" />
+      </picture>
+      <div className="absolute inset-0 bg-gradient-to-b from-white/50 via-emerald-50/35 to-white/65" />
+      <div className="absolute inset-x-0 bottom-0 h-28 bg-gradient-to-t from-white via-white/70 to-transparent" />
     </div>
   );
 }
