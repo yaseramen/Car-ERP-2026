@@ -17,11 +17,11 @@ const navItems: {
   supplierOnly?: boolean;
 }[] = [
   { href: "/admin", label: "الرئيسية", module: "dashboard" },
+  { href: "/admin/help", label: "الدليل وما الجديد", module: "dashboard" },
   { href: "/market", label: "سوق EFCT (عام)" },
   { href: "/admin/inventory", label: "المخزن", module: "inventory" },
   { href: "/admin/inventory/price-list", label: "عرض أسعار", module: "inventory" },
   { href: "/admin/marketplace", label: "السوق والإعلانات", module: "marketplace", supplierOnly: true },
-  { href: "/admin/help", label: "الدليل وما الجديد", module: "dashboard", supplierOnly: true },
   { href: "/admin/workshop", label: "الورشة", module: "workshop", serviceOnly: true },
   { href: "/admin/obd", label: "OBD", module: "obd", serviceOnly: true },
   { href: "/admin/cashier", label: "الكاشير", module: "cashier", salesOnly: true },
@@ -32,7 +32,6 @@ const navItems: {
   { href: "/admin/reports", label: "التقارير", module: "reports" },
   { href: "/admin/treasuries", label: "الخزائن", module: "treasuries" },
   { href: "/admin/marketplace", label: "السوق (إدارة)", module: "marketplace", superAdminOnly: true },
-  { href: "/admin/help", label: "الدليل وما الجديد", module: "dashboard", superAdminOnly: true },
   { href: "/admin/wallets", label: "المحافظ", module: "wallets", ownerOrAdmin: true },
   { href: "/admin/super/password-reset", label: "أكواد المالكين", module: "wallets", superAdminOnly: true },
   { href: "/admin/team", label: "المستخدمون", ownerOrAdmin: true },
