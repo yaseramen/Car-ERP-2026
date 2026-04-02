@@ -571,7 +571,7 @@ export function TreasuriesContent() {
                   e.stopPropagation();
                   void handleSweepPaymentWalletToMain(t.id, t.balance);
                 }}
-                disabled={t.balance <= 0 || sweepingId === t.id}
+                disabled={t.balance <= 0 || sweepingId !== null}
                 className="mt-4 w-full px-3 py-2 text-sm font-medium rounded-lg border border-amber-300 dark:border-amber-700 text-amber-800 dark:text-amber-200 bg-amber-50 dark:bg-amber-950/40 hover:bg-amber-100 dark:hover:bg-amber-900/50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               >
                 {sweepingId === t.id ? "جاري التسليم…" : "تسليم للخزينة الرئيسية"}
@@ -584,7 +584,7 @@ export function TreasuriesContent() {
                   e.stopPropagation();
                   void handleSweepCoreTreasuryToMain(t.id, t.balance, t.type);
                 }}
-                disabled={t.balance <= 0 || sweepingId === t.id}
+                disabled={t.balance <= 0 || sweepingId !== null}
                 className="mt-4 w-full px-3 py-2 text-sm font-medium rounded-lg border border-amber-300 dark:border-amber-700 text-amber-800 dark:text-amber-200 bg-amber-50 dark:bg-amber-950/40 hover:bg-amber-100 dark:hover:bg-amber-900/50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               >
                 {sweepingId === t.id ? "جاري التسليم…" : "تسليم للخزينة الرئيسية"}
