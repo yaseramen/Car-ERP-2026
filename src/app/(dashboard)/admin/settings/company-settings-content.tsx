@@ -6,7 +6,8 @@ export function CompanySettingsContent() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [logoUploading, setLogoUploading] = useState(false);
-  const [logoUrl, setLogoUrl] = useState<string | null>(null);
+  /** رابط الشعار الحالي أو المُدخل يدوياً (https فقط) */
+  const [logoLinkInput, setLogoLinkInput] = useState("");
   const fileRef = useRef<HTMLInputElement>(null);
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
   const [form, setForm] = useState({
@@ -23,6 +24,9 @@ export function CompanySettingsContent() {
     );
   }
 
+  const previewLogoSrc =
+    logoLinkInput.trim().startsWith("https://") ? logoLinkInput.trim() : null;
+
   useEffect(() => {
     fetch("/api/admin/company")
       .then((r) => r.json())
@@ -37,7 +41,7 @@ export function CompanySettingsContent() {
             tax_number: d.tax_number ?? "",
             commercial_registration: d.commercial_registration ?? "",
           });
-          setLogoUrl(d.logo_url?.trim() ? String(d.logo_url) : null);
+          setLogoLinkInput(d.logo_url?.trim() ? String(d.logo_url) : "");
         }
       })
       .catch(() => setMessage({ type: "error", text: "فشل تحميل البيانات" }))
@@ -51,14 +55,17 @@ export function CompanySettingsContent() {
     const res = await fetch("/api/admin/company", {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(form),
+      body: JSON.stringify({
+        ...form,
+        logo_url: logoLinkInput.trim() || null,
+      }),
     });
     const data = await res.json();
     if (!res.ok) {
       setMessage({ type: "error", text: data.error || "فشل التحديث" });
     } else {
       setMessage({ type: "success", text: data.message || "تم الحفظ بنجاح" });
-      emitBranding(form.name, logoUrl);
+      emitBranding(form.name, logoLinkInput.trim() || null);
     }
     setSaving(false);
   };
@@ -80,7 +87,7 @@ export function CompanySettingsContent() {
         return;
       }
       const url = data.logo_url as string;
-      setLogoUrl(url);
+      setLogoLinkInput(url);
       setMessage({ type: "success", text: "تم حفظ شعار الشركة — يظهر في القائمة الجانبية وطباعة الفاتورة." });
       emitBranding(form.name, url);
     } catch {
@@ -101,7 +108,7 @@ export function CompanySettingsContent() {
         setMessage({ type: "error", text: data.error || "فشل الإزالة" });
         return;
       }
-      setLogoUrl(null);
+      setLogoLinkInput("");
       setMessage({ type: "success", text: "تمت إزالة الشعار." });
       emitBranding(form.name, null);
     } catch {
@@ -129,12 +136,38 @@ export function CompanySettingsContent() {
         <div>
           <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">شعار الشركة</label>
           <p className="text-xs text-gray-500 dark:text-gray-400 mb-2 leading-relaxed">
-            يظهر بجانب اسم الشركة في القائمة الجانبية (شعار مصغّر فقط). في الفاتورة: معاينة صغيرة على الشاشة، وعند الطباعة علامة مائية خفيفة خلف النصوص كختم. يُفضّل شعار بخلفية شفافة. يتطلب التخزين السحابي على الخادم.
+            يظهر بجانب اسم الشركة في القائمة الجانبية (شعار مصغّر). في الفاتورة: معاينة على الشاشة وعلامة مائية عند الطباعة. يُفضّل شعار بخلفية شفافة.
           </p>
-          {logoUrl && (
+          <p className="text-xs text-amber-800 dark:text-amber-200/90 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 rounded-lg px-2 py-1.5 mb-2 leading-relaxed">
+            <strong>رفع الملف من الجهاز</strong> يحتاج متغير البيئة{" "}
+            <code className="text-[11px] bg-white/80 dark:bg-black/20 px-1 rounded">BLOB_READ_WRITE_TOKEN</code>{" "}
+            في Vercel (تخزين Blob). إن ظهرت رسالة خطأ عند الرفع: ضع أدناه{" "}
+            <strong>رابط https مباشر</strong> لملف الصورة (مثلاً من GitHub: زر Raw على ملف PNG في{" "}
+            <code className="text-[11px]">public/</code>) ثم اضغط «حفظ التغييرات».
+          </p>
+          <div className="mb-2">
+            <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">
+              رابط الشعار (https) — بديل عند تعطيل الرفع
+            </label>
+            <input
+              type="url"
+              inputMode="url"
+              dir="ltr"
+              value={logoLinkInput}
+              onChange={(e) => setLogoLinkInput(e.target.value)}
+              placeholder="https://..."
+              className="w-full px-3 py-2 text-sm rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 placeholder-gray-400"
+            />
+          </div>
+          {previewLogoSrc && (
             <div className="mb-3 flex items-center gap-3">
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={logoUrl} alt="" className="h-16 w-16 object-contain rounded-lg border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-900 p-1" />
+              <img
+                src={previewLogoSrc}
+                alt=""
+                className="h-16 w-16 object-contain rounded-lg border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-900 p-1"
+                onError={() => setMessage({ type: "error", text: "تعذر تحميل معاينة الرابط — تحقق أن الرابط يفتح صورة مباشرة." })}
+              />
             </div>
           )}
           <input
@@ -154,9 +187,9 @@ export function CompanySettingsContent() {
               onClick={() => fileRef.current?.click()}
               className="px-4 py-2 text-sm bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white rounded-lg"
             >
-              {logoUploading ? "جاري الرفع..." : logoUrl ? "تغيير الشعار" : "رفع شعار"}
+              {logoUploading ? "جاري الرفع..." : previewLogoSrc ? "تغيير الملف" : "رفع ملف من الجهاز"}
             </button>
-            {logoUrl && (
+            {previewLogoSrc && (
               <button
                 type="button"
                 disabled={logoUploading}

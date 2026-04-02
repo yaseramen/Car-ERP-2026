@@ -5,6 +5,25 @@ import { getCompanyId } from "@/lib/company";
 
 const ALLOWED_ROLES = ["super_admin", "tenant_owner"] as const;
 
+/** لم يُرسل الحقل */
+const LOGO_OMIT = Symbol("omit");
+function parseLogoUrlField(input: unknown): string | null | typeof LOGO_OMIT | { error: string } {
+  if (input === undefined) return LOGO_OMIT;
+  if (input === null) return null;
+  if (typeof input !== "string") return { error: "رابط الشعار غير صالح" };
+  const t = input.trim();
+  if (!t) return null;
+  if (t.length > 2000) return { error: "الرابط طويل جداً" };
+  const lower = t.toLowerCase();
+  if (!lower.startsWith("https://")) {
+    return { error: "يجب أن يبدأ الرابط بـ https:// (رابط مباشر لملف الصورة)" };
+  }
+  if (lower.startsWith("javascript:") || lower.startsWith("data:")) {
+    return { error: "رابط غير مسموح" };
+  }
+  return t;
+}
+
 export async function GET() {
   const session = await auth();
   const companyId = getCompanyId(session);
@@ -47,10 +66,21 @@ export async function PATCH(request: Request) {
   }
 
   const body = await request.json();
-  const { name, phone, address, tax_number, commercial_registration } = body;
+  const { name, phone, address, tax_number, commercial_registration, logo_url: logoUrlRaw } = body;
 
   const updates: string[] = [];
   const args: (string | number | null)[] = [];
+
+  if ("logo_url" in body) {
+    const parsed = parseLogoUrlField(logoUrlRaw);
+    if (typeof parsed === "object" && parsed !== null && "error" in parsed) {
+      return NextResponse.json({ error: parsed.error }, { status: 400 });
+    }
+    if (parsed !== LOGO_OMIT) {
+      updates.push("logo_url = ?");
+      args.push(parsed);
+    }
+  }
 
   if (typeof name === "string" && name.trim()) {
     updates.push("name = ?");
@@ -76,6 +106,7 @@ export async function PATCH(request: Request) {
   if (updates.length === 0) {
     return NextResponse.json({ error: "لا توجد بيانات للتحديث" }, { status: 400 });
   }
+
 
   updates.push("updated_at = datetime('now')");
   args.push(companyId);
