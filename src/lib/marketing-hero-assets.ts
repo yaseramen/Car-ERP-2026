@@ -1,15 +1,18 @@
 /** مسار الخلفية الافتراضية المدمجة (SVG — يظهر حتى قبل رفع صورة الترويج) */
 export const HERO_SVG_FALLBACK_PATH = "/marketing/hero-home.svg";
 
-/** اسم الملف الموصى به لصورة البانر الترويجية (ارفعها من GitHub → public/marketing/) */
+/** أسماء ملفات شائعة لصورة البانر (public/marketing/) */
 export const HERO_PROMO_WEBP_PATH = "/marketing/efct-promo-hero.webp";
 export const HERO_PROMO_JPG_PATH = "/marketing/efct-promo-hero.jpg";
+/** اسم الملف الذي رفعه المستخدم من GitHub */
+export const HERO_PROMO_PNG_AR = "/marketing/البرنامج.png";
 
 /**
  * مصادر الصورة بالترتيب:
  * 1) NEXT_PUBLIC_MARKETING_HERO_URL
- * 2) efct-promo-hero.webp / .jpg (بعد رفع الملف منك)
- * 3) SVG المدمج
+ * 2) efct-promo-hero.webp / .jpg
+ * 3) البرنامج.png (رفع من GitHub)
+ * 4) SVG المدمج
  */
 export function buildMarketingHeroSrcList(): string[] {
   const list: string[] = [];
@@ -30,6 +33,7 @@ export function buildMarketingHeroSrcList(): string[] {
   }
   if (!list.includes(HERO_PROMO_WEBP_PATH)) list.push(HERO_PROMO_WEBP_PATH);
   if (!list.includes(HERO_PROMO_JPG_PATH)) list.push(HERO_PROMO_JPG_PATH);
+  if (!list.includes(HERO_PROMO_PNG_AR)) list.push(HERO_PROMO_PNG_AR);
   list.push(HERO_SVG_FALLBACK_PATH);
   return list;
 }

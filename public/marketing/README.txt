@@ -5,8 +5,8 @@
 2) ارفع الملف إلى GitHub بدون برنامج:
    - افتح المستودع على GitHub → مجلد public → marketing
    - Add file → Upload files
-   - اسحب الملف وسمّه بالضبط: efct-promo-hero.webp
-   - Commit إلى الفرع main
+   - ثم اضغط الزر الأخضر «Commit changes» لإتمام الرفع
+   - الاسم المدعوم: efct-promo-hero.webp أو efct-promo-hero.jpg أو البرنامج.png
 
 3) بعد النشر على Vercel ستظهر تلقائياً كخلفية ملء الشاشة للصفحة الرئيسية ولصفحات تسجيل الدخول والتسجيل.
 
