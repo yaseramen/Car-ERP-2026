@@ -1,23 +1,31 @@
 import { auth } from "@/auth";
 import { NextResponse } from "next/server";
 
+function isDashboardUserRole(role: string | undefined): boolean {
+  return role === "super_admin" || role === "tenant_owner" || role === "employee";
+}
+
 export default auth((req) => {
   const { nextUrl } = req;
   const isLoggedIn = !!req.auth?.user;
   const path = nextUrl.pathname;
+  const role = req.auth?.user?.role;
 
   // صفحات عامة - مسارات Next-Auth
   if (path.startsWith("/api/auth")) {
     return NextResponse.next();
   }
 
-  /** سوق عام (عرض إعلانات فقط) */
-  if (path.startsWith("/api/marketplace")) {
+  /** Cron داخلي — يحمى بـ CRON_SECRET في المسار نفسه */
+  if (path.startsWith("/api/cron/")) {
     return NextResponse.next();
   }
 
-  /** Cron داخلي — يحمى بـ CRON_SECRET في المسار نفسه */
-  if (path.startsWith("/api/cron/")) {
+  /** سوق EFCT — للمستخدمين المسجّلين في النظام فقط (B2B) */
+  if (path.startsWith("/api/marketplace")) {
+    if (!isLoggedIn || !isDashboardUserRole(role)) {
+      return NextResponse.json({ error: "يجب تسجيل الدخول لعرض السوق" }, { status: 401 });
+    }
     return NextResponse.next();
   }
 
@@ -30,11 +38,10 @@ export default auth((req) => {
     "/faq",
     "/terms",
     "/manifest.webmanifest",
-    "/market",
   ];
   if (publicPaths.includes(path)) {
     if (path === "/login" || path === "/register") {
-      if (isLoggedIn && ["super_admin", "tenant_owner", "employee"].includes(req.auth?.user?.role ?? "")) {
+      if (isLoggedIn && isDashboardUserRole(role)) {
         return NextResponse.redirect(new URL("/admin", nextUrl));
       }
     }
@@ -46,17 +53,28 @@ export default auth((req) => {
     if (!isLoggedIn) {
       return NextResponse.redirect(new URL("/login", nextUrl));
     }
-    const role = req.auth?.user?.role;
-    if (role !== "super_admin" && role !== "tenant_owner" && role !== "employee") {
+    if (!isDashboardUserRole(role)) {
       return NextResponse.redirect(new URL("/", nextUrl));
+    }
+    return NextResponse.next();
+  }
+
+  // سوق EFCT — نفس صلاحية لوحة التحكم (شركة مسجّلة أو موظف)
+  if (path === "/market" || path.startsWith("/market/")) {
+    if (!isLoggedIn) {
+      const loginUrl = new URL("/login", nextUrl);
+      loginUrl.searchParams.set("callbackUrl", path);
+      return NextResponse.redirect(loginUrl);
+    }
+    if (!isDashboardUserRole(role)) {
+      return NextResponse.redirect(new URL("/login", nextUrl));
     }
     return NextResponse.next();
   }
 
   // الصفحة الرئيسية - صفحة ترحيبية عامة (لا تتطلب تسجيل دخول)
   if (path === "/") {
-    const role = req.auth?.user?.role;
-    if (isLoggedIn && ["super_admin", "tenant_owner", "employee"].includes(role ?? "")) {
+    if (isLoggedIn && isDashboardUserRole(role)) {
       return NextResponse.redirect(new URL("/admin", nextUrl));
     }
     return NextResponse.next();

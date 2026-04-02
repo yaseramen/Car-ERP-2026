@@ -120,14 +120,14 @@ export function MarketPageChrome({
               </p>
             )}
             <p className="text-sm text-gray-700 dark:text-gray-300 mt-0.5 leading-relaxed">
-              عرض إعلانات فقط — البيع والشراء مباشرة مع المورّد. المنصة لا تتدخل في المعاملات.
+              للشركات والمستخدمين المسجّلين — عرض إعلانات فقط؛ البيع والشراء مباشرة مع المورّد. المنصة لا تتدخل في المعاملات.
             </p>
           </div>
           <Link
-            href="/login"
+            href="/admin"
             className="text-sm font-medium text-emerald-700 dark:text-emerald-400 hover:underline"
           >
-            دخول النظام
+            لوحة التحكم
           </Link>
         </div>
       </header>

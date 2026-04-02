@@ -1,9 +1,18 @@
 import { NextResponse } from "next/server";
+import { auth } from "@/auth";
 import { db } from "@/lib/db/client";
 import type { MarketplaceCategory } from "@/lib/marketplace";
 
-/** سوق عام — قراءة فقط، إعلانات نشطة فقط */
+function canAccessMarket(role: string | undefined): boolean {
+  return role === "super_admin" || role === "tenant_owner" || role === "employee";
+}
+
+/** سوق B2B — قراءة فقط للمستخدمين المسجّلين؛ إعلانات نشطة فقط */
 export async function GET(request: Request) {
+  const session = await auth();
+  if (!session?.user || !canAccessMarket(session.user.role)) {
+    return NextResponse.json({ error: "يجب تسجيل الدخول لعرض السوق" }, { status: 401 });
+  }
   const { searchParams } = new URL(request.url);
   const cat = searchParams.get("category")?.trim() as MarketplaceCategory | undefined;
   if (cat && cat !== "parts" && cat !== "workshop") {

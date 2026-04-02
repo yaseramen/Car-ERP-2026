@@ -4,7 +4,8 @@ import { MarketPageChrome, type ListingMeta } from "./market-client-badges";
 
 export const metadata: Metadata = {
   title: "سوق EFCT | عروض موردين",
-  description: "عرض إعلانات قطع غيار ومستلزمات ورشة — للتواصل المباشر مع المورّد. المنصة وسيط عرض فقط.",
+  description:
+    "للمستخدمين المسجّلين في EFCT: عرض إعلانات قطع غيار ومستلزمات ورشة — للتواصل مع المورّد. المنصة وسيط عرض فقط.",
 };
 
 /** شروط ظهور الإعلان للجميع (متطابقة مع قائمة العروض) */

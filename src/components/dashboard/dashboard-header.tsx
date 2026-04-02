@@ -50,7 +50,7 @@ export function DashboardHeader({ onMenuClick }: { onMenuClick?: () => void }) {
         <Link
           href="/market"
           className="flex items-center gap-1.5 px-2 py-1.5 sm:px-2.5 rounded-lg text-sky-700 dark:text-sky-300 hover:bg-sky-50 dark:hover:bg-sky-950/50 border border-sky-200/80 dark:border-sky-800/80 transition-colors shrink-0"
-          title="سوق EFCT — عروض المورّدين (صفحة عامة، بدون تسجيل دخول)"
+            title="سوق EFCT — عروض المورّدين (للمستخدمين المسجّلين)"
         >
           <svg className="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
             <path

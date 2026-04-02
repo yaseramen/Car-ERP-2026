@@ -60,7 +60,7 @@ const FEATURES = [
   },
   {
     title: "سوق EFCT",
-    desc: "صفحة عامة لعرض إعلانات المورّدين (قطع غيار ومستلزمات ورشة) مع أسعار تواصل وصور — المنصة وسيط عرض فقط، والبيع يتم مباشرة بين الطرفين.",
+    desc: "للمستخدمين المسجّلين فقط: عرض إعلانات المورّدين (قطع غيار ومستلزمات ورشة) مع أسعار إرشادية وصور — المنصة وسيط عرض فقط، والبيع يتم مباشرة بين الطرفين.",
   },
 ];
 
@@ -119,10 +119,17 @@ export default function HomePage() {
           </Link>
         </div>
         <p className="hero-subtext mt-4 text-sm max-w-xl mx-auto">
-          <Link href="/market" className="text-sky-700 dark:text-sky-300 underline underline-offset-2 hover:text-sky-900 dark:hover:text-sky-100 font-medium">
-            تصفّح السوق العام
+          بعد{" "}
+          <Link href="/login" className="text-sky-700 dark:text-sky-300 underline underline-offset-2 hover:text-sky-900 dark:hover:text-sky-100 font-medium">
+            تسجيل الدخول
           </Link>
-          {" "}بدون تسجيل: إعلانات قطع الغيار ومستلزمات الورشة، للتواصل المباشر مع المورّد.
+          {" "}
+          يمكنك{" "}
+          <Link href="/market" className="text-sky-700 dark:text-sky-300 underline underline-offset-2 hover:text-sky-900 dark:hover:text-sky-100 font-medium">
+            تصفّح سوق EFCT
+          </Link>
+          {" "}
+          — إعلانات المورّدين للشركات المسجّلة فقط.
         </p>
       </MarketingHeroSection>
 
