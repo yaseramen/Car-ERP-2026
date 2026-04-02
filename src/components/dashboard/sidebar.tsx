@@ -184,7 +184,7 @@ export function Sidebar({ role = "super_admin", businessType, companyName: initi
 
   return (
     <aside className="w-64 h-screen max-h-[100dvh] lg:min-h-screen lg:max-h-none bg-white dark:bg-gray-900 border-l border-gray-200 dark:border-gray-700 flex flex-col shrink-0 overflow-hidden">
-      <div className="p-6 border-b border-gray-100 dark:border-gray-700 flex items-center justify-between gap-2 shrink-0">
+      <div className="p-6 border-b border-gray-100 dark:border-gray-700 flex items-center justify-between gap-2 shrink-0 z-10 bg-white dark:bg-gray-900">
         <div>
           <h2 className="font-bold text-gray-900 dark:text-gray-100">
             {companyName && role !== "super_admin" ? companyName : "EFCT"}
@@ -213,9 +213,9 @@ export function Sidebar({ role = "super_admin", businessType, companyName: initi
         )}
       </div>
 
-      <div className="flex-1 min-h-0 overflow-y-auto flex flex-col">
-        <nav className="p-4 space-y-1 flex-1 min-h-0">
-          {items.map((item) => {
+      {/* روابط التنقّل فقط — تمرير منفصل حتى لا تتداخل مع أسفل الشريط */}
+      <nav className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden p-4 space-y-1">
+        {items.map((item) => {
           const isActive = pathname === item.href || (item.href !== "/admin" && pathname.startsWith(item.href));
           const navKey = `${item.navId}-${item.href}-${item.superAdminOnly ? "sa" : ""}-${item.supplierOnly ? "sup" : ""}`;
           return (
@@ -233,13 +233,12 @@ export function Sidebar({ role = "super_admin", businessType, companyName: initi
             </Link>
           );
         })}
-        </nav>
+      </nav>
 
+      {/* ثابت أسفل الشريط: تخصيص → إشعارات → خروج (لا يختلط مع الروابط) */}
+      <div className="shrink-0 border-t border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 z-20 shadow-[0_-4px_12px_rgba(0,0,0,0.06)] dark:shadow-[0_-4px_12px_rgba(0,0,0,0.25)]">
         {customizableNavItems.length > 0 && (
-          <div
-            ref={customizePanelRef}
-            className="px-4 pb-2 shrink-0 border-t border-gray-100 dark:border-gray-800 pt-2"
-          >
+          <div ref={customizePanelRef} className="px-4 pt-2 pb-1">
             <button
               type="button"
               onClick={() => setCustomizeOpen((o) => !o)}
@@ -255,7 +254,7 @@ export function Sidebar({ role = "super_admin", businessType, companyName: initi
               تخصيص القائمة
             </button>
             {customizeOpen && (
-              <div className="mt-2 max-h-48 overflow-y-auto rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50/80 dark:bg-gray-800/50 p-2 space-y-1.5 shadow-lg">
+              <div className="mb-2 max-h-40 overflow-y-auto rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 p-2 space-y-1.5 shadow-lg">
                 <p className="text-[10px] text-gray-500 dark:text-gray-400 leading-snug px-0.5 mb-1">
                   أخفِ ما لا تحتاجه من البنود المتاحة لصلاحياتك فقط. يُحفظ على هذا الجهاز. اضغط خارج القائمة للإغلاق.
                 </p>
@@ -290,28 +289,29 @@ export function Sidebar({ role = "super_admin", businessType, companyName: initi
           </div>
         )}
 
-        <div className="p-4 border-t border-gray-100 dark:border-gray-700 space-y-2">
-        {notifications && canNotify && (
+        <div className="p-4 pt-2 space-y-2">
+          {notifications && canNotify && (
+            <button
+              type="button"
+              onClick={() => notifications.requestPermission()}
+              className={`w-full flex items-center justify-center gap-2 px-4 py-2.5 text-sm rounded-lg transition ${
+                notifications.permission === "granted"
+                  ? "text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-900/30"
+                  : "text-gray-600 dark:text-gray-400 hover:text-violet-600 dark:hover:text-violet-400 hover:bg-violet-50 dark:hover:bg-violet-900/20"
+              }`}
+              title={notifications.permission === "granted" ? "الإشعارات مفعّلة" : "تفعيل الإشعارات"}
+            >
+              <span>{notifications.permission === "granted" ? "🔔" : "🔕"}</span>
+              <span>{notifications.permission === "granted" ? "الإشعارات مفعّلة" : "تفعيل الإشعارات"}</span>
+            </button>
+          )}
           <button
             type="button"
-            onClick={() => notifications.requestPermission()}
-            className={`w-full flex items-center justify-center gap-2 px-4 py-2.5 text-sm rounded-lg transition ${
-              notifications.permission === "granted"
-                ? "text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-900/30"
-                : "text-gray-600 dark:text-gray-400 hover:text-violet-600 dark:hover:text-violet-400 hover:bg-violet-50 dark:hover:bg-violet-900/20"
-            }`}
-            title={notifications.permission === "granted" ? "الإشعارات مفعّلة" : "تفعيل الإشعارات"}
+            onClick={() => signOut({ callbackUrl: "/login" })}
+            className="w-full flex items-center justify-center gap-2 px-4 py-2.5 text-sm text-gray-600 dark:text-gray-400 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition border border-transparent hover:border-red-200 dark:hover:border-red-900/40"
           >
-            <span>{notifications.permission === "granted" ? "🔔" : "🔕"}</span>
-            <span>{notifications.permission === "granted" ? "الإشعارات مفعّلة" : "تفعيل الإشعارات"}</span>
+            تسجيل الخروج
           </button>
-        )}
-        <button
-          onClick={() => signOut({ callbackUrl: "/login" })}
-          className="w-full flex items-center justify-center gap-2 px-4 py-2.5 text-sm text-gray-600 dark:text-gray-400 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition"
-        >
-          تسجيل الخروج
-        </button>
         </div>
       </div>
     </aside>

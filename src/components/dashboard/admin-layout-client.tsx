@@ -47,9 +47,9 @@ export function AdminLayoutClient({
         <aside
           className={`
             fixed lg:relative inset-y-0 right-0 z-50 lg:z-auto
-            w-72 lg:w-64 min-h-screen
+            w-72 lg:w-64 min-h-0 h-[100dvh] lg:h-full lg:max-h-full
             bg-white dark:bg-gray-900 border-l border-gray-200 dark:border-gray-700
-            flex flex-col
+            flex flex-col overflow-hidden
             transform transition-transform duration-200 ease-out
             lg:transform-none
             ${sidebarOpen ? "translate-x-0" : "translate-x-full lg:translate-x-0"}
