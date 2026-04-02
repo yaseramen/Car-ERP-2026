@@ -1,23 +1,17 @@
 "use client";
 
-import { useMemo, useState, useEffect } from "react";
+import { useMemo, useState } from "react";
 import { buildMarketingHeroSrcList, HERO_SVG_FALLBACK_PATH } from "@/lib/marketing-hero-assets";
 
 type Props = {
   className?: string;
-  onRasterLoaded?: (isRaster: boolean) => void;
 };
 
-/** يجرّب مصادر الصورة بالترتيب حتى ينجح تحميل واحد */
-export function HeroPhotoStack({ className = "", onRasterLoaded }: Props) {
+/** رابط بيئة اختياري ثم SVG المدمج — بدون طلب ملفات غير موجودة */
+export function HeroPhotoStack({ className = "" }: Props) {
   const candidates = useMemo(() => buildMarketingHeroSrcList(), []);
   const [index, setIndex] = useState(0);
   const src = candidates[index] ?? HERO_SVG_FALLBACK_PATH;
-
-  useEffect(() => {
-    const isSvg = src.includes(".svg");
-    onRasterLoaded?.(!isSvg);
-  }, [src, onRasterLoaded]);
 
   return (
     <img

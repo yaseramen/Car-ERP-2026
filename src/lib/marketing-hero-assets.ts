@@ -1,11 +1,10 @@
-/** مسارات محلية بالترتيب — ضع صورة الترويج هنا باسم hero-main.webp أو hero-main.jpg */
-export const HERO_LOCAL_PHOTO_PATHS = ["/marketing/hero-main.webp", "/marketing/hero-main.jpg", "/marketing/hero-home.webp"] as const;
-
+/** مسار الخلفية الافتراضية المدمجة (SVG داكن — لا يحتاج رفع ملف) */
 export const HERO_SVG_FALLBACK_PATH = "/marketing/hero-home.svg";
 
 /**
- * قائمة مصادر الصورة: رابط البيئة (اختياري) ثم ملفات محلية ثم SVG.
- * يُبنى على العميل لقراءة NEXT_PUBLIC_* في المتصفح.
+ * مصادر الصورة بالترتيب:
+ * 1) NEXT_PUBLIC_MARKETING_HERO_URL إن وُجد (صورة فوتوغرافية من CDN/Blob)
+ * 2) SVG المدمج فقط — لا نطلب hero-main.webp تلقائياً لتجنب 404 في المتصفح
  */
 export function buildMarketingHeroSrcList(): string[] {
   const list: string[] = [];
@@ -24,9 +23,9 @@ export function buildMarketingHeroSrcList(): string[] {
       /* ignore */
     }
   }
-  for (const p of HERO_LOCAL_PHOTO_PATHS) {
-    if (!list.includes(p)) list.push(p);
-  }
-  if (!list.includes(HERO_SVG_FALLBACK_PATH)) list.push(HERO_SVG_FALLBACK_PATH);
+  list.push(HERO_SVG_FALLBACK_PATH);
   return list;
 }
+
+/** الخلفية الافتراضية داكنة — نص الهيرو يبقى فاتحاً */
+export const HERO_DEFAULT_IS_DARK = true;

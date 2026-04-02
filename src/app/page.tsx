@@ -85,16 +85,16 @@ export default function HomePage() {
         dangerouslySetInnerHTML={{ __html: JSON.stringify(JSON_LD) }}
       />
       <MarketingHeroSection>
-        <h1 className="text-4xl sm:text-5xl md:text-[2.75rem] lg:text-6xl font-extrabold text-emerald-950 mb-4 md:mb-5 tracking-tight text-pretty drop-shadow-sm">
+        <h1 className="text-4xl sm:text-5xl md:text-[2.75rem] lg:text-6xl font-extrabold mb-4 md:mb-5 tracking-tight text-pretty drop-shadow-sm">
           EFCT
         </h1>
-        <p className="text-lg sm:text-xl md:text-[1.35rem] lg:text-2xl text-gray-900 mb-3 md:mb-4 font-medium leading-snug text-pretty drop-shadow-sm">
+        <p className="text-lg sm:text-xl md:text-[1.35rem] lg:text-2xl mb-3 md:mb-4 font-medium leading-snug text-pretty drop-shadow-sm">
           منصة متكاملة لإدارة <strong className="font-bold">مراكز خدمة السيارات</strong> و{" "}
           <strong className="font-bold">محلات بيع قطع الغيار</strong>
         </p>
-        <p className="hero-subtext text-base sm:text-base md:text-[1.05rem] lg:text-lg text-gray-800 mb-8 md:mb-10 max-w-2xl md:max-w-3xl mx-auto leading-relaxed text-pretty">
-          أفضل <strong className="font-semibold text-gray-950">برامج ادارة مراكز الصيانة</strong> و{" "}
-          <strong className="font-semibold text-gray-950">ادارة محلات قطع غيار السيارات</strong> — مخزون، فواتير، ورشة، كاشير، عملاء، موردين، تقارير
+        <p className="hero-subtext text-base sm:text-base md:text-[1.05rem] lg:text-lg mb-8 md:mb-10 max-w-2xl md:max-w-3xl mx-auto leading-relaxed text-pretty">
+          أفضل <strong className="font-semibold">برامج ادارة مراكز الصيانة</strong> و{" "}
+          <strong className="font-semibold">ادارة محلات قطع غيار السيارات</strong> — مخزون، فواتير، ورشة، كاشير، عملاء، موردين، تقارير
         </p>
         <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 justify-center max-w-md sm:max-w-none mx-auto">
           <Link
@@ -116,7 +116,7 @@ export default function HomePage() {
             سوق EFCT — عروض المورّدين
           </Link>
         </div>
-        <p className="hero-subtext mt-4 text-sm text-gray-700 max-w-xl mx-auto">
+        <p className="hero-subtext mt-4 text-sm max-w-xl mx-auto">
           <Link href="/market" className="text-sky-800 underline underline-offset-2 hover:text-sky-950 font-medium">
             تصفّح السوق العام
           </Link>

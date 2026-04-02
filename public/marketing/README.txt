@@ -1,13 +1,10 @@
-خلفية الصفحة الرئيسية (/ ) وصفحة تسجيل الدخول (/login):
+خلفية الصفحة الرئيسية (/) وصفحة تسجيل الدخول (/login):
 
-أ) الصورة الترويجية الداكنة (مثل لقطة EFCT/AIVERCE):
-   - الأفضل: ارفعها كـ WebP مضغوط (عرض ~1600px) ثم إما:
-     • ضع الملف: public/marketing/hero-main.webp
-     • أو public/marketing/hero-main.jpg
-   - أو في Vercel → Environment: NEXT_PUBLIC_MARKETING_HERO_URL=https://...رابط...webp
+• الافتراضي (مدمج في Git): public/marketing/hero-home.svg — خلفية داكنة بتصميم تقني (OBD/واجهة) خفيفة جداً.
 
-ب) بدون صورة: يُستخدم public/marketing/hero-home.svg (مدمج، خفيف).
+• لاستبدالها بصورة فوتوغرافية حقيقية (اختياري):
+  في Vercel → Environment Variables أضف:
+  NEXT_PUBLIC_MARKETING_HERO_URL=https://رابط-صورتك.webp
+  (مثلاً بعد رفع الملف من لوحة Vercel → Storage → Blob)
 
-ج) اسم قديم ما زال مدعوماً: hero-home.webp إن وُجد.
-
-الترتيب: رابط البيئة → hero-main.webp → hero-main.jpg → hero-home.webp → hero-home.svg
+لا حاجة لرفع ملفات يدوياً إن رضيت بالخلفية المدمجة.
