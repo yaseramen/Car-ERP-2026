@@ -30,12 +30,23 @@ export default async function AdminLayout({
     return <ChargeRequiredBlock />;
   }
 
+  let companyLogoUrl: string | null = null;
+  if (session.user.companyId) {
+    const br = await db.execute({
+      sql: "SELECT logo_url FROM companies WHERE id = ?",
+      args: [session.user.companyId],
+    });
+    const u = br.rows[0]?.logo_url;
+    companyLogoUrl = u ? String(u) : null;
+  }
+
   return (
     <NotificationsProvider>
       <AdminLayoutClient
         role={session.user.role ?? "employee"}
         businessType={session.user.companyBusinessType ?? null}
         companyName={session.user.companyName ?? null}
+        companyLogoUrl={companyLogoUrl}
       >
         {children}
       </AdminLayoutClient>

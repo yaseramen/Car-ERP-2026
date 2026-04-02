@@ -14,11 +14,13 @@ export function AdminLayoutClient({
   role,
   businessType,
   companyName,
+  companyLogoUrl,
 }: {
   children: React.ReactNode;
   role: string;
   businessType: string | null;
   companyName: string | null;
+  companyLogoUrl: string | null;
 }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const pathname = usePathname();
@@ -59,6 +61,7 @@ export function AdminLayoutClient({
             role={role}
             businessType={businessType}
             companyName={companyName}
+            companyLogoUrl={companyLogoUrl}
             onNavigate={() => setSidebarOpen(false)}
             onClose={() => setSidebarOpen(false)}
           />

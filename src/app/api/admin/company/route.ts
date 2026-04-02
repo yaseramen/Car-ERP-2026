@@ -13,7 +13,7 @@ export async function GET() {
   }
 
   const result = await db.execute({
-    sql: `SELECT id, name, phone, address, tax_number, commercial_registration,
+    sql: `SELECT id, name, phone, address, tax_number, commercial_registration, logo_url,
                  COALESCE(business_type, 'both') as business_type,
                  COALESCE(marketplace_enabled, 1) as marketplace_enabled,
                  COALESCE(ads_globally_disabled, 0) as ads_globally_disabled
@@ -32,6 +32,7 @@ export async function GET() {
     address: row.address ?? "",
     tax_number: row.tax_number ?? "",
     commercial_registration: row.commercial_registration ?? "",
+    logo_url: row.logo_url ? String(row.logo_url) : "",
     business_type: String(row.business_type ?? "both"),
     marketplace_enabled: Number(row.marketplace_enabled ?? 1) === 1,
     ads_globally_disabled: Number(row.ads_globally_disabled ?? 0) === 1,

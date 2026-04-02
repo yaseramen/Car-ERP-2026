@@ -45,10 +45,25 @@ const navItems: NavItem[] = [
   { navId: "account-password", href: "/admin/account/password", label: "تغيير كلمة المرور", ownerOrAdmin: true },
 ];
 
-export function Sidebar({ role = "super_admin", businessType, companyName: initialCompanyName, onNavigate, onClose }: { role?: string; businessType?: string | null; companyName?: string | null; onNavigate?: () => void; onClose?: () => void }) {
+export function Sidebar({
+  role = "super_admin",
+  businessType,
+  companyName: initialCompanyName,
+  companyLogoUrl: initialLogoUrl,
+  onNavigate,
+  onClose,
+}: {
+  role?: string;
+  businessType?: string | null;
+  companyName?: string | null;
+  companyLogoUrl?: string | null;
+  onNavigate?: () => void;
+  onClose?: () => void;
+}) {
   const [perms, setPerms] = useState<Record<string, { read: boolean }> | null>(null);
   const [canNotify, setCanNotify] = useState(false);
   const [companyName, setCompanyName] = useState<string | null>(initialCompanyName ?? null);
+  const [logoUrl, setLogoUrl] = useState<string | null>(initialLogoUrl ?? null);
   const [hiddenNavIds, setHiddenNavIds] = useState<Set<string>>(new Set());
   const [customizeOpen, setCustomizeOpen] = useState(false);
   const customizePanelRef = useRef<HTMLDivElement>(null);
@@ -63,6 +78,21 @@ export function Sidebar({ role = "super_admin", businessType, companyName: initi
   }, [initialCompanyName]);
 
   useEffect(() => {
+    setLogoUrl(initialLogoUrl ?? null);
+  }, [initialLogoUrl]);
+
+  useEffect(() => {
+    if (role === "super_admin") return;
+    fetch("/api/admin/me/company-branding")
+      .then((r) => r.json())
+      .then((d) => {
+        if (d.logo_url) setLogoUrl(String(d.logo_url));
+        if (d.name) setCompanyName(String(d.name));
+      })
+      .catch(() => {});
+  }, [role]);
+
+  useEffect(() => {
     const fetchName = () => {
       if (role !== "super_admin") {
         fetch("/api/admin/me/company-name")
@@ -73,9 +103,10 @@ export function Sidebar({ role = "super_admin", businessType, companyName: initi
     };
     fetchName();
     const handler = (e: Event) => {
-      const d = (e as CustomEvent<{ name: string }>)?.detail;
+      const d = (e as CustomEvent<{ name?: string; logo_url?: string | null }>)?.detail;
       if (d?.name) setCompanyName(d.name);
-      else fetchName();
+      if (d && "logo_url" in d) setLogoUrl(d.logo_url ?? null);
+      if (!d?.name) fetchName();
     };
     window.addEventListener("alameen-company-updated", handler);
     return () => window.removeEventListener("alameen-company-updated", handler);
@@ -186,19 +217,48 @@ export function Sidebar({ role = "super_admin", businessType, companyName: initi
   return (
     <aside className="flex h-full min-h-0 w-full max-h-full flex-col overflow-hidden bg-white dark:bg-gray-900 lg:min-h-screen">
       <div className="p-6 border-b border-gray-100 dark:border-gray-700 flex items-center justify-between gap-2 shrink-0 z-10 bg-white dark:bg-gray-900">
-        <div>
-          <h2 className="font-bold text-gray-900 dark:text-gray-100">
-            {companyName && role !== "super_admin" ? companyName : "EFCT"}
-          </h2>
-          <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-            {role === "super_admin"
-              ? "لوحة Super Admin"
-              : role === "employee"
-                ? "لوحة الموظف"
-                : businessType === "supplier"
-                  ? "لوحة المورّد"
-                  : "لوحة المالك"}
-          </p>
+        <div className="min-w-0 flex-1">
+          {logoUrl && role !== "super_admin" ? (
+            <div
+              className="relative overflow-hidden rounded-xl border border-gray-200 dark:border-gray-600 bg-gray-100 dark:bg-gray-800 mb-2"
+              style={{ minHeight: "4.5rem" }}
+            >
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={logoUrl}
+                alt=""
+                className="absolute inset-0 h-full w-full object-cover object-center opacity-35 dark:opacity-25"
+                onError={() => setLogoUrl(null)}
+              />
+              <div className="relative z-[1] px-3 py-2.5 bg-white/80 dark:bg-gray-900/75 backdrop-blur-[2px]">
+                <h2 className="font-bold text-gray-900 dark:text-gray-100 truncate text-base leading-tight">
+                  {companyName || "الشركة"}
+                </h2>
+                <p className="text-[11px] text-gray-600 dark:text-gray-400 mt-0.5 leading-snug">
+                  {role === "employee"
+                    ? "لوحة الموظف"
+                    : businessType === "supplier"
+                      ? "لوحة المورّد"
+                      : "لوحة المالك"}
+                </p>
+              </div>
+            </div>
+          ) : (
+            <>
+              <h2 className="font-bold text-gray-900 dark:text-gray-100">
+                {companyName && role !== "super_admin" ? companyName : "EFCT"}
+              </h2>
+              <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                {role === "super_admin"
+                  ? "لوحة Super Admin"
+                  : role === "employee"
+                    ? "لوحة الموظف"
+                    : businessType === "supplier"
+                      ? "لوحة المورّد"
+                      : "لوحة المالك"}
+              </p>
+            </>
+          )}
         </div>
         {onClose && (
           <button

@@ -31,6 +31,7 @@ export default async function InvoiceDetailPage({
     const invResult = await db.execute({
       sql: `SELECT inv.*,
             comp.name as company_name, comp.phone as company_phone, comp.address as company_address,
+            comp.logo_url as company_logo_url,
             comp.tax_number as company_tax_number, comp.commercial_registration as company_commercial_registration,
             c.name as customer_name, c.phone as customer_phone,
             s.name as supplier_name, s.phone as supplier_phone,
@@ -69,6 +70,7 @@ export default async function InvoiceDetailPage({
       company_address: row.company_address ? String(row.company_address) : null,
       company_tax_number: row.company_tax_number ? String(row.company_tax_number) : null,
       company_commercial_registration: row.company_commercial_registration ? String(row.company_commercial_registration) : null,
+      company_logo_url: row.company_logo_url ? String(row.company_logo_url) : null,
       customer_name: row.customer_name ? String(row.customer_name) : null,
       customer_phone: row.customer_phone ? String(row.customer_phone) : null,
       supplier_id: row.supplier_id ? String(row.supplier_id) : null,
@@ -224,6 +226,16 @@ export default async function InvoiceDetailPage({
       )}
       {data.company_name && (
         <div className="mb-6 p-4 bg-gray-50 dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 invoice-print-compact">
+          {data.company_logo_url && (
+            <div className="mb-4 flex justify-center print:justify-center invoice-print-logo-wrap">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={data.company_logo_url}
+                alt=""
+                className="max-h-20 max-w-[200px] w-auto object-contain object-center"
+              />
+            </div>
+          )}
           <h2 className="font-bold text-gray-900 dark:text-gray-100 mb-3 text-lg">بيانات الشركة</h2>
           <dl className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm">
             <div>
