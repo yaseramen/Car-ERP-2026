@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { HomeHeroBackground } from "@/components/marketing/home-hero-background";
+import { MarketingHeroSection } from "@/components/marketing/marketing-hero-section";
 
 export const metadata: Metadata = {
   title: "EFCT | إدارة مراكز الصيانة ومحلات قطع غيار السيارات",
@@ -84,51 +84,45 @@ export default function HomePage() {
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(JSON_LD) }}
       />
-      {/* Hero — الصورة خلفية كاملة للقسم فقط (Next/Image)، لا تُحمَّل خارج الصفحة الرئيسية */}
-      <section
-        className={`marketing-hero relative isolate overflow-hidden min-h-[min(88vh,42rem)] sm:min-h-[min(90vh,46rem)] md:min-h-[min(85vh,44rem)] flex flex-col justify-center py-14 sm:py-20 md:py-20 lg:py-24 ${SECTION_X}`}
-      >
-        <HomeHeroBackground />
-        <div className="relative z-10 max-w-3xl sm:max-w-4xl md:max-w-5xl mx-auto text-center">
-          <h1 className="text-4xl sm:text-5xl md:text-[2.75rem] lg:text-6xl font-extrabold text-emerald-950 mb-4 md:mb-5 tracking-tight text-pretty drop-shadow-sm">
-            EFCT
-          </h1>
-          <p className="text-lg sm:text-xl md:text-[1.35rem] lg:text-2xl text-gray-900 mb-3 md:mb-4 font-medium leading-snug text-pretty drop-shadow-sm">
-            منصة متكاملة لإدارة <strong className="font-bold">مراكز خدمة السيارات</strong> و{" "}
-            <strong className="font-bold">محلات بيع قطع الغيار</strong>
-          </p>
-          <p className="text-base sm:text-base md:text-[1.05rem] lg:text-lg text-gray-800 mb-8 md:mb-10 max-w-2xl md:max-w-3xl mx-auto leading-relaxed text-pretty">
-            أفضل <strong className="font-semibold text-gray-950">برامج ادارة مراكز الصيانة</strong> و{" "}
-            <strong className="font-semibold text-gray-950">ادارة محلات قطع غيار السيارات</strong> — مخزون، فواتير، ورشة، كاشير، عملاء، موردين، تقارير
-          </p>
-          <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 justify-center max-w-md sm:max-w-none mx-auto">
-            <Link
-              href="/login"
-              className="inline-flex items-center justify-center min-h-[48px] px-8 py-3.5 md:py-4 text-base md:text-lg bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white font-medium rounded-xl transition-colors shadow-lg shadow-emerald-900/20 touch-manipulation"
-            >
-              دخول للنظام
-            </Link>
-            <Link
-              href="/register"
-              className="inline-flex items-center justify-center min-h-[48px] px-8 py-3.5 md:py-4 text-base md:text-lg border-2 border-emerald-700 text-emerald-800 bg-white/70 hover:bg-white active:bg-emerald-50/90 backdrop-blur-sm font-medium rounded-xl transition-colors touch-manipulation"
-            >
-              تسجيل شركة جديدة
-            </Link>
-            <Link
-              href="/market"
-              className="inline-flex items-center justify-center min-h-[48px] px-8 py-3.5 md:py-4 text-base md:text-lg border-2 border-sky-600 text-sky-900 bg-sky-50/90 hover:bg-sky-100 active:bg-sky-200/80 backdrop-blur-sm font-medium rounded-xl transition-colors touch-manipulation"
-            >
-              سوق EFCT — عروض المورّدين
-            </Link>
-          </div>
-          <p className="mt-4 text-sm text-gray-700 max-w-xl mx-auto">
-            <Link href="/market" className="text-sky-800 underline underline-offset-2 hover:text-sky-950 font-medium">
-              تصفّح السوق العام
-            </Link>
-            {" "}بدون تسجيل: إعلانات قطع الغيار ومستلزمات الورشة، للتواصل المباشر مع المورّد.
-          </p>
+      <MarketingHeroSection>
+        <h1 className="text-4xl sm:text-5xl md:text-[2.75rem] lg:text-6xl font-extrabold text-emerald-950 mb-4 md:mb-5 tracking-tight text-pretty drop-shadow-sm">
+          EFCT
+        </h1>
+        <p className="text-lg sm:text-xl md:text-[1.35rem] lg:text-2xl text-gray-900 mb-3 md:mb-4 font-medium leading-snug text-pretty drop-shadow-sm">
+          منصة متكاملة لإدارة <strong className="font-bold">مراكز خدمة السيارات</strong> و{" "}
+          <strong className="font-bold">محلات بيع قطع الغيار</strong>
+        </p>
+        <p className="hero-subtext text-base sm:text-base md:text-[1.05rem] lg:text-lg text-gray-800 mb-8 md:mb-10 max-w-2xl md:max-w-3xl mx-auto leading-relaxed text-pretty">
+          أفضل <strong className="font-semibold text-gray-950">برامج ادارة مراكز الصيانة</strong> و{" "}
+          <strong className="font-semibold text-gray-950">ادارة محلات قطع غيار السيارات</strong> — مخزون، فواتير، ورشة، كاشير، عملاء، موردين، تقارير
+        </p>
+        <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 justify-center max-w-md sm:max-w-none mx-auto">
+          <Link
+            href="/login"
+            className="inline-flex items-center justify-center min-h-[48px] px-8 py-3.5 md:py-4 text-base md:text-lg bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white font-medium rounded-xl transition-colors shadow-lg shadow-emerald-900/20 touch-manipulation"
+          >
+            دخول للنظام
+          </Link>
+          <Link
+            href="/register"
+            className="inline-flex items-center justify-center min-h-[48px] px-8 py-3.5 md:py-4 text-base md:text-lg border-2 border-emerald-700 text-emerald-800 bg-white/70 hover:bg-white active:bg-emerald-50/90 backdrop-blur-sm font-medium rounded-xl transition-colors touch-manipulation"
+          >
+            تسجيل شركة جديدة
+          </Link>
+          <Link
+            href="/market"
+            className="inline-flex items-center justify-center min-h-[48px] px-8 py-3.5 md:py-4 text-base md:text-lg border-2 border-sky-600 text-sky-900 bg-sky-50/90 hover:bg-sky-100 active:bg-sky-200/80 backdrop-blur-sm font-medium rounded-xl transition-colors touch-manipulation"
+          >
+            سوق EFCT — عروض المورّدين
+          </Link>
         </div>
-      </section>
+        <p className="hero-subtext mt-4 text-sm text-gray-700 max-w-xl mx-auto">
+          <Link href="/market" className="text-sky-800 underline underline-offset-2 hover:text-sky-950 font-medium">
+            تصفّح السوق العام
+          </Link>
+          {" "}بدون تسجيل: إعلانات قطع الغيار ومستلزمات الورشة، للتواصل المباشر مع المورّد.
+        </p>
+      </MarketingHeroSection>
 
       {/* مقدمة */}
       <section className={`py-10 sm:py-12 md:py-14 bg-gray-50 ${SECTION_X}`}>
