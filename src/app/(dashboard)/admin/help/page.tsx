@@ -43,6 +43,18 @@ export default async function HelpPage() {
         <p className="text-sm text-gray-600 dark:text-gray-300 mt-2 leading-relaxed">
           إن فعّلت <strong>إشعارات المتصفح</strong> من الشريط الجانبي، قد تصلك تنبيهات عند ظهور ميزات جديدة (حسب ما يضيفه فريق التطوير في النظام) — بالإضافة إلى تنبيهات المخزن والفواتير كما سبق.
         </p>
+        <div className="mt-5 rounded-xl border border-emerald-200 dark:border-emerald-800 bg-emerald-50/80 dark:bg-emerald-950/40 p-4">
+          <p className="text-sm font-semibold text-emerald-900 dark:text-emerald-200">هل واجهت مشكلة أو لديك اقتراح؟</p>
+          <p className="text-sm text-emerald-800/90 dark:text-emerald-300/90 mt-1 leading-relaxed">
+            من القائمة الجانبية افتح <strong>ملاحظات للمطور</strong> أو استخدم الرابط أدناه — يصل طلبك إلى فريق التطوير مع اسم حسابك وشركتك.
+          </p>
+          <Link
+            href="/admin/feedback"
+            className="inline-block mt-3 text-sm font-medium text-emerald-700 dark:text-emerald-400 hover:underline"
+          >
+            فتح صفحة الملاحظات والإبلاغات ←
+          </Link>
+        </div>
       </div>
 
       <section className="mb-10" aria-labelledby="guide-heading">

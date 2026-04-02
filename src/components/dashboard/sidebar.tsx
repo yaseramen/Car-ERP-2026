@@ -41,6 +41,7 @@ const navItems: NavItem[] = [
   { navId: "team", href: "/admin/team", label: "المستخدمون", ownerOrAdmin: true },
   { navId: "settings", href: "/admin/settings", label: "إعدادات الشركة", ownerOrAdmin: true },
   { navId: "help", href: "/admin/help", label: "الدليل وما الجديد", module: "dashboard" },
+  { navId: "feedback", href: "/admin/feedback", label: "ملاحظات للمطور", module: "dashboard" },
   { navId: "account-password", href: "/admin/account/password", label: "تغيير كلمة المرور", ownerOrAdmin: true },
 ];
 

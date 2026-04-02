@@ -10,7 +10,10 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "يجب تسجيل الدخول" }, { status: 401 });
     }
 
-    const companyId = getCompanyId(session) ?? "";
+    const companyId = getCompanyId(session);
+    if (!companyId) {
+      return NextResponse.json({ error: "لا يمكن تحديد الشركة. أعد تسجيل الدخول أو تواصل مع المسؤول." }, { status: 400 });
+    }
 
     const body = await req.json();
     const { type, subject, message } = body as { type?: string; subject?: string; message?: string };
@@ -19,15 +22,19 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "الموضوع والملاحظة مطلوبان" }, { status: 400 });
     }
 
+    const rawType = String(type || "other").trim();
+    const mappedType =
+      rawType === "bug" ? "bug" : rawType === "suggestion" ? "feature" : "feedback";
+
     const id = crypto.randomUUID();
     await db.execute({
-      sql: `INSERT INTO feedback (id, user_id, company_id, type, subject, message, created_at)
-            VALUES (?, ?, ?, ?, ?, ?, datetime('now'))`,
+      sql: `INSERT INTO user_feedback (id, user_id, company_id, type, title, message, status, created_at, updated_at)
+            VALUES (?, ?, ?, ?, ?, ?, 'pending', datetime('now'), datetime('now'))`,
       args: [
         id,
         session.user.id,
         companyId,
-        (type as string) || "other",
+        mappedType,
         String(subject).trim().slice(0, 200),
         String(message).trim().slice(0, 2000),
       ],
