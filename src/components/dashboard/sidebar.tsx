@@ -183,7 +183,7 @@ export function Sidebar({ role = "super_admin", businessType, companyName: initi
   };
 
   return (
-    <aside className="w-64 h-screen max-h-[100dvh] lg:min-h-screen lg:max-h-none bg-white dark:bg-gray-900 border-l border-gray-200 dark:border-gray-700 flex flex-col shrink-0 overflow-hidden">
+    <aside className="flex h-full min-h-0 w-full max-h-full flex-col overflow-hidden bg-white dark:bg-gray-900 lg:min-h-screen">
       <div className="p-6 border-b border-gray-100 dark:border-gray-700 flex items-center justify-between gap-2 shrink-0 z-10 bg-white dark:bg-gray-900">
         <div>
           <h2 className="font-bold text-gray-900 dark:text-gray-100">
@@ -236,7 +236,7 @@ export function Sidebar({ role = "super_admin", businessType, companyName: initi
       </nav>
 
       {/* ثابت أسفل الشريط: تخصيص → إشعارات → خروج (لا يختلط مع الروابط) */}
-      <div className="shrink-0 border-t border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 z-20 shadow-[0_-4px_12px_rgba(0,0,0,0.06)] dark:shadow-[0_-4px_12px_rgba(0,0,0,0.25)]">
+      <div className="shrink-0 border-t border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 z-20 shadow-[0_-4px_12px_rgba(0,0,0,0.06)] dark:shadow-[0_-4px_12px_rgba(0,0,0,0.25)] pb-[max(0.5rem,env(safe-area-inset-bottom,0px))]">
         {customizableNavItems.length > 0 && (
           <div ref={customizePanelRef} className="px-4 pt-2 pb-1">
             <button
