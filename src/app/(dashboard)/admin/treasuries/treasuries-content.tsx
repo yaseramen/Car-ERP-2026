@@ -10,6 +10,8 @@ interface Treasury {
   balance: number;
   /** محافظ استلام (محفظة إلكترونية / إنستاباي — رقم المحول إليه) */
   is_payment_wallet?: boolean;
+  payment_channel?: string;
+  phone_digits?: string;
 }
 
 interface Transaction {
@@ -369,6 +371,7 @@ export function TreasuriesContent() {
   const [transferDesc, setTransferDesc] = useState("");
   const [saving, setSaving] = useState(false);
   const [expenseIncomeModal, setExpenseIncomeModal] = useState<"expense" | "income" | null>(null);
+  const [sweepingWalletId, setSweepingWalletId] = useState<string | null>(null);
 
   async function fetchTreasuries() {
     try {
@@ -487,6 +490,29 @@ export function TreasuriesContent() {
     }
   }
 
+  async function handleSweepPaymentWalletToMain(walletId: string, balance: number) {
+    if (balance <= 0) return;
+    if (!confirm(`تسليم ${balance.toFixed(2)} ج.م من هذه المحفظة إلى الخزينة الرئيسية (نقد)؟`)) return;
+    setSweepingWalletId(walletId);
+    try {
+      const res = await fetch(`/api/admin/treasuries/payment-wallets/${walletId}/sweep-to-main`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({}),
+      });
+      const d = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        alert(d.error || "فشل التسليم");
+        return;
+      }
+      await fetchTreasuries();
+    } catch {
+      alert("حدث خطأ");
+    } finally {
+      setSweepingWalletId(null);
+    }
+  }
+
   const inputClass =
     "w-full px-4 py-2.5 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none";
 
@@ -513,6 +539,19 @@ export function TreasuriesContent() {
           >
             <h3 className="font-bold text-gray-900 dark:text-gray-100">{t.name}</h3>
             <p className="text-2xl font-bold text-emerald-600 dark:text-emerald-400 mt-2">{t.balance.toFixed(2)} ج.م</p>
+            {t.is_payment_wallet && (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  void handleSweepPaymentWalletToMain(t.id, t.balance);
+                }}
+                disabled={t.balance <= 0 || sweepingWalletId === t.id}
+                className="mt-4 w-full px-3 py-2 text-sm font-medium rounded-lg border border-amber-300 dark:border-amber-700 text-amber-800 dark:text-amber-200 bg-amber-50 dark:bg-amber-950/40 hover:bg-amber-100 dark:hover:bg-amber-900/50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              >
+                {sweepingWalletId === t.id ? "جاري التسليم…" : "تسليم للخزينة الرئيسية"}
+              </button>
+            )}
           </div>
         ))}
       </div>

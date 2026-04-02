@@ -1,5 +1,6 @@
 import { db } from "@/lib/db/client";
 import { randomUUID } from "crypto";
+import { paymentWalletDisplayName } from "@/lib/payment-wallet-display";
 
 export type PaymentWalletChannel = "vodafone_cash" | "instapay";
 
@@ -7,10 +8,6 @@ export type PaymentWalletChannel = "vodafone_cash" | "instapay";
 export function normalizeWalletPhoneDigits(raw: string): string {
   const d = raw.replace(/\D/g, "");
   return d;
-}
-
-function channelLabelAr(ch: PaymentWalletChannel): string {
-  return ch === "vodafone_cash" ? "محفظة إلكترونية" : "إنستاباي";
 }
 
 export async function getOrCreatePaymentWallet(
@@ -33,7 +30,7 @@ export async function getOrCreatePaymentWallet(
   }
 
   const id = randomUUID();
-  const name = `${channelLabelAr(channel)} — ${digits}`;
+  const name = paymentWalletDisplayName(channel, digits);
   await db.execute({
     sql: `INSERT INTO payment_wallets (id, company_id, payment_channel, phone_digits, name, balance)
           VALUES (?, ?, ?, ?, ?, 0)`,

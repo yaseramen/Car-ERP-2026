@@ -3,6 +3,7 @@ import { auth } from "@/auth";
 import { db } from "@/lib/db/client";
 import { ensureTreasuries } from "@/lib/treasuries";
 import { getCompanyId } from "@/lib/company";
+import { paymentWalletDisplayName } from "@/lib/payment-wallet-display";
 
 export async function GET() {
   const session = await auth();
@@ -43,15 +44,19 @@ export async function GET() {
         sql: "SELECT id, name, payment_channel, phone_digits, balance FROM payment_wallets WHERE company_id = ? AND is_active = 1 ORDER BY payment_channel, phone_digits",
         args: [companyId],
       });
-      wallets = pw.rows.map((r) => ({
-        id: String(r.id),
-        name: String(r.name ?? ""),
-        type: "payment_wallet",
-        balance: Number(r.balance ?? 0),
-        is_payment_wallet: true as const,
-        payment_channel: String(r.payment_channel ?? ""),
-        phone_digits: String(r.phone_digits ?? ""),
-      }));
+      wallets = pw.rows.map((r) => {
+        const ch = String(r.payment_channel ?? "");
+        const ph = String(r.phone_digits ?? "");
+        return {
+          id: String(r.id),
+          name: paymentWalletDisplayName(ch, ph, String(r.name ?? "")),
+          type: "payment_wallet",
+          balance: Number(r.balance ?? 0),
+          is_payment_wallet: true as const,
+          payment_channel: ch,
+          phone_digits: ph,
+        };
+      });
     } catch {
       wallets = [];
     }
