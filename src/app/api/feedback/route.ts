@@ -40,8 +40,8 @@ export async function POST(req: Request) {
     const id = crypto.randomUUID();
     await db.execute({
       sql: `INSERT INTO user_feedback (id, user_id, company_id, type, title, message, status, created_at, updated_at,
-            screenshot_url, page_path)
-            VALUES (?, ?, ?, ?, ?, ?, 'pending', datetime('now'), datetime('now'), ?, ?)`,
+            screenshot_url, page_path, user_reply_seen)
+            VALUES (?, ?, ?, ?, ?, ?, 'pending', datetime('now'), datetime('now'), ?, ?, 1)`,
       args: [
         id,
         session.user.id,

@@ -1,6 +1,10 @@
 "use client";
 
 import { createContext, useContext, useEffect, useRef, useCallback, useState } from "react";
+import {
+  FEEDBACK_SUPER_PENDING_BASELINE_KEY,
+  FEEDBACK_USER_UNREAD_BASELINE_KEY,
+} from "@/lib/feedback-notification-keys";
 
 type Summary = {
   lowStockCount: number;
@@ -58,6 +62,44 @@ function getSeenReleaseIds(): string[] {
   }
 }
 
+function getFeedbackSuperBaseline(): number | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const s = localStorage.getItem(FEEDBACK_SUPER_PENDING_BASELINE_KEY);
+    if (s == null) return null;
+    const n = parseInt(s, 10);
+    return Number.isFinite(n) ? n : null;
+  } catch {
+    return null;
+  }
+}
+
+function setFeedbackSuperBaseline(n: number) {
+  if (typeof window === "undefined") return;
+  try {
+    localStorage.setItem(FEEDBACK_SUPER_PENDING_BASELINE_KEY, String(n));
+  } catch {}
+}
+
+function getFeedbackUserBaseline(): number | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const s = localStorage.getItem(FEEDBACK_USER_UNREAD_BASELINE_KEY);
+    if (s == null) return null;
+    const n = parseInt(s, 10);
+    return Number.isFinite(n) ? n : null;
+  } catch {
+    return null;
+  }
+}
+
+function setFeedbackUserBaseline(n: number) {
+  if (typeof window === "undefined") return;
+  try {
+    localStorage.setItem(FEEDBACK_USER_UNREAD_BASELINE_KEY, String(n));
+  } catch {}
+}
+
 function markReleaseSeen(ids: string[]) {
   if (typeof window === "undefined" || ids.length === 0) return;
   try {
@@ -102,15 +144,73 @@ export function NotificationsProvider({ children }: { children: React.ReactNode 
   const checkAndNotify = useCallback(async () => {
     if (!("Notification" in window) || Notification.permission !== "granted") return;
     try {
-      const [summaryRes, releaseRes] = await Promise.all([
+      const [summaryRes, releaseRes, fbSuperRes, fbUserRes] = await Promise.all([
         fetch("/api/admin/reports/summary"),
         fetch("/api/admin/help/release-notifications"),
+        fetch("/api/admin/feedback/notify-summary"),
+        fetch("/api/feedback/notify-summary"),
       ]);
 
       if (releaseRes.ok) {
         const rel = await releaseRes.json();
         const list = Array.isArray(rel.notifications) ? (rel.notifications as ReleaseNotifPayload[]) : [];
         showReleaseNotifications(list);
+      }
+
+      if (fbSuperRes.ok) {
+        const fb = await fbSuperRes.json();
+        const pendingCount = Number(fb.pendingCount ?? 0);
+        if (Number.isFinite(pendingCount)) {
+          let baseline = getFeedbackSuperBaseline();
+          if (baseline === null) {
+            setFeedbackSuperBaseline(pendingCount);
+          } else {
+            if (pendingCount > baseline) {
+              const delta = pendingCount - baseline;
+              try {
+                new Notification("EFCT — ملاحظات للمطور", {
+                  body:
+                    delta === 1
+                      ? "ملاحظة جديدة بانتظار المراجعة في صندوق ملاحظات المطور."
+                      : `${delta} ملاحظات جديدة بانتظار المراجعة.`,
+                  icon: "/icon.svg",
+                  tag: "efct-feedback-super",
+                });
+              } catch {
+                /* ignore */
+              }
+              setFeedbackSuperBaseline(pendingCount);
+            } else if (pendingCount < baseline) {
+              setFeedbackSuperBaseline(pendingCount);
+            }
+          }
+        }
+      }
+
+      if (fbUserRes.ok) {
+        const fu = await fbUserRes.json();
+        const unread = Number(fu.unreadReplyCount ?? 0);
+        if (Number.isFinite(unread)) {
+          let baseline = getFeedbackUserBaseline();
+          if (baseline === null) {
+            setFeedbackUserBaseline(unread);
+          } else {
+            if (unread > baseline) {
+              try {
+                new Notification("EFCT — رد على ملاحظتك", {
+                  body: "وجدت رداً من الإدارة على إحدى ملاحظاتك. افتح «ملاحظات للمطور».",
+                  icon: "/icon.svg",
+                  tag: "efct-feedback-reply",
+                });
+              } catch {
+                /* ignore */
+              }
+              setFeedbackUserBaseline(unread);
+            } else if (unread < baseline) {
+              setFeedbackUserBaseline(unread);
+            }
+          }
+        }
       }
 
       if (!summaryRes.ok) return;

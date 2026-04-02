@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import { usePathname } from "next/navigation";
 import { addToQueue } from "@/lib/offline-queue";
+import { FEEDBACK_USER_UNREAD_BASELINE_KEY } from "@/lib/feedback-notification-keys";
 
 type MyItem = {
   id: string;
@@ -58,6 +59,26 @@ export function FeedbackContent() {
 
   useEffect(() => {
     void loadMine();
+  }, []);
+
+  /** عند فتح الصفحة: اعتبار ردود الإدارة مُطالَعة حتى لا يتكرر إشعار المتصفح */
+  useEffect(() => {
+    void (async () => {
+      try {
+        await fetch("/api/feedback/mark-replies-seen", { method: "POST" });
+        const r = await fetch("/api/feedback/notify-summary");
+        const d = await r.json();
+        if (r.ok && typeof d.unreadReplyCount === "number") {
+          try {
+            localStorage.setItem(FEEDBACK_USER_UNREAD_BASELINE_KEY, String(d.unreadReplyCount));
+          } catch {
+            /* ignore */
+          }
+        }
+      } catch {
+        /* ignore */
+      }
+    })();
   }, []);
 
   async function onPickScreenshot(file: File | null) {

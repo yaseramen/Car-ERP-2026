@@ -31,6 +31,7 @@ export async function PATCH(
                 admin_reply = ?,
                 admin_replied_at = datetime('now'),
                 admin_replied_by = ?,
+                user_reply_seen = 0,
                 updated_at = datetime('now')
               WHERE id = ?`,
         args: [newStatus, adminReply, session.user.id, id],

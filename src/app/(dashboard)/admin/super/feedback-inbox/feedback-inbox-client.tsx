@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
+import { FEEDBACK_SUPER_PENDING_BASELINE_KEY } from "@/lib/feedback-notification-keys";
 
 type Row = {
   id: string;
@@ -52,6 +53,25 @@ export default function FeedbackInboxClient() {
   useEffect(() => {
     void load();
   }, [load]);
+
+  /** عند فتح الصندوق: مزامنة خط الأساس حتى لا يُعاد تنبيه المطور لملاحظات قديمة */
+  useEffect(() => {
+    void (async () => {
+      try {
+        const r = await fetch("/api/admin/feedback/notify-summary");
+        const d = await r.json();
+        if (r.ok && typeof d.pendingCount === "number") {
+          try {
+            localStorage.setItem(FEEDBACK_SUPER_PENDING_BASELINE_KEY, String(d.pendingCount));
+          } catch {
+            /* ignore */
+          }
+        }
+      } catch {
+        /* ignore */
+      }
+    })();
+  }, []);
 
   async function saveRow(id: string) {
     const status = statusDraft[id];
