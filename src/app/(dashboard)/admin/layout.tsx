@@ -4,6 +4,7 @@ import { db } from "@/lib/db/client";
 import { AdminLayoutClient } from "@/components/dashboard/admin-layout-client";
 import { NotificationsProvider } from "@/components/notifications/notifications-provider";
 import { ChargeRequiredBlock } from "@/components/charge-required-block";
+import { SYSTEM_COMPANY_ID } from "@/lib/company";
 
 export default async function AdminLayout({
   children,
@@ -31,7 +32,17 @@ export default async function AdminLayout({
   }
 
   let companyLogoUrl: string | null = null;
-  if (session.user.companyId) {
+  /** سوبر أدمن يحرّر إعدادات شركة النظام (انظر getCompanyId) — لا نعتمد على company_id في الجلسة فقط */
+  let companyNameForHeader = session.user.companyName ?? null;
+  if (session.user.role === "super_admin") {
+    const br = await db.execute({
+      sql: "SELECT logo_url, name FROM companies WHERE id = ?",
+      args: [SYSTEM_COMPANY_ID],
+    });
+    const row = br.rows[0];
+    if (row?.logo_url) companyLogoUrl = String(row.logo_url);
+    if (row?.name) companyNameForHeader = String(row.name);
+  } else if (session.user.companyId) {
     const br = await db.execute({
       sql: "SELECT logo_url FROM companies WHERE id = ?",
       args: [session.user.companyId],
@@ -45,7 +56,7 @@ export default async function AdminLayout({
       <AdminLayoutClient
         role={session.user.role ?? "employee"}
         businessType={session.user.companyBusinessType ?? null}
-        companyName={session.user.companyName ?? null}
+        companyName={companyNameForHeader}
         companyLogoUrl={companyLogoUrl}
       >
         {children}

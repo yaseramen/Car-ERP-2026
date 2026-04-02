@@ -218,50 +218,64 @@ export function Sidebar({
   return (
     <aside className="flex h-full min-h-0 w-full max-h-full flex-col overflow-hidden bg-white dark:bg-gray-900 lg:min-h-screen">
       <div className="p-6 border-b border-gray-100 dark:border-gray-700 flex items-center justify-between gap-2 shrink-0 z-10 bg-white dark:bg-gray-900">
-        <div className="min-w-0 flex-1">
-          {logoUrl && role !== "super_admin" ? (
-            <div className="flex items-start gap-3 min-w-0">
-              <div
-                className="shrink-0 w-12 h-12 rounded-lg border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800 flex items-center justify-center overflow-hidden"
-                aria-hidden
-              >
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={logoUrl}
-                  alt=""
-                  className="max-h-full max-w-full object-contain p-0.5"
-                  onError={() => setLogoUrl(null)}
-                />
-              </div>
-              <div className="min-w-0 flex-1">
-                <h2 className="font-bold text-gray-900 dark:text-gray-100 truncate text-base leading-tight">
-                  {companyName || "الشركة"}
-                </h2>
-                <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-0.5 leading-snug">
-                  {role === "employee"
-                    ? "لوحة الموظف"
-                    : businessType === "supplier"
-                      ? "لوحة المورّد"
-                      : "لوحة المالك"}
-                </p>
-              </div>
+        <div className="min-w-0 flex-1 relative isolate overflow-hidden rounded-lg">
+          {logoUrl && (
+            <div className="pointer-events-none absolute inset-0 z-0" aria-hidden>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={logoUrl}
+                alt=""
+                className="absolute end-0 top-1/2 h-[7.5rem] w-[7.5rem] sm:h-32 sm:w-32 -translate-y-1/2 object-contain opacity-[0.07] dark:opacity-[0.11]"
+              />
             </div>
-          ) : (
-            <>
-              <h2 className="font-bold text-gray-900 dark:text-gray-100">
-                {companyName && role !== "super_admin" ? companyName : "EFCT"}
-              </h2>
-              <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                {role === "super_admin"
-                  ? "لوحة Super Admin"
-                  : role === "employee"
-                    ? "لوحة الموظف"
-                    : businessType === "supplier"
-                      ? "لوحة المورّد"
-                      : "لوحة المالك"}
-              </p>
-            </>
           )}
+          <div className="relative z-[1] min-w-0">
+            {logoUrl ? (
+              <div className="flex items-start gap-3 min-w-0">
+                <div
+                  className="shrink-0 w-12 h-12 rounded-lg border border-gray-200 dark:border-gray-600 bg-white/90 dark:bg-gray-800/90 backdrop-blur-[2px] flex items-center justify-center overflow-hidden"
+                  aria-hidden
+                >
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={logoUrl}
+                    alt=""
+                    className="max-h-full max-w-full object-contain p-0.5"
+                    onError={() => setLogoUrl(null)}
+                  />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <h2 className="font-bold text-gray-900 dark:text-gray-100 truncate text-base leading-tight drop-shadow-[0_1px_0_rgba(255,255,255,0.85)] dark:drop-shadow-[0_1px_0_rgba(0,0,0,0.4)]">
+                    {companyName || (role === "super_admin" ? "EFCT" : "الشركة")}
+                  </h2>
+                  <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-0.5 leading-snug">
+                    {role === "super_admin"
+                      ? "لوحة Super Admin"
+                      : role === "employee"
+                        ? "لوحة الموظف"
+                        : businessType === "supplier"
+                          ? "لوحة المورّد"
+                          : "لوحة المالك"}
+                  </p>
+                </div>
+              </div>
+            ) : (
+              <>
+                <h2 className="font-bold text-gray-900 dark:text-gray-100">
+                  {companyName && role !== "super_admin" ? companyName : "EFCT"}
+                </h2>
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                  {role === "super_admin"
+                    ? "لوحة Super Admin"
+                    : role === "employee"
+                      ? "لوحة الموظف"
+                      : businessType === "supplier"
+                        ? "لوحة المورّد"
+                        : "لوحة المالك"}
+                </p>
+              </>
+            )}
+          </div>
         </div>
         {onClose && (
           <button
