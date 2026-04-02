@@ -214,21 +214,8 @@ export default async function InvoiceDetailPage({
 
       <div
         id="invoice-print-area"
-        className={`relative ${likelyMultiPagePrint ? "invoice-print-long-doc" : ""} ${data.company_logo_url ? "invoice-print-has-logo-wm" : ""}`}
+        className={`relative ${likelyMultiPagePrint ? "invoice-print-long-doc" : ""}`}
       >
-      {data.company_logo_url && (
-        <div
-          className="invoice-print-watermark pointer-events-none hidden print:block fixed left-0 right-0 top-0 bottom-0 z-0 overflow-visible"
-          aria-hidden
-        >
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={data.company_logo_url}
-            alt=""
-            className="absolute left-1/2 top-[45%] w-[min(78vw,280mm)] max-w-[480px] -translate-x-1/2 -translate-y-1/2 object-contain opacity-[0.09]"
-          />
-        </div>
-      )}
       <div className="relative z-[1] invoice-print-content-layer">
       {likelyMultiPagePrint && (
         <p
@@ -240,18 +227,23 @@ export default async function InvoiceDetailPage({
       )}
       {data.company_name && (
         <div className="mb-6 p-4 bg-gray-50 dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 invoice-print-compact">
-          {data.company_logo_url && (
-            <div className="mb-3 flex justify-center print:hidden invoice-print-logo-screen-only">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={data.company_logo_url}
-                alt=""
-                className="max-h-16 max-w-[140px] w-auto object-contain object-center opacity-90"
-              />
-            </div>
-          )}
-          <h2 className="font-bold text-gray-900 dark:text-gray-100 mb-3 text-lg">بيانات الشركة</h2>
-          <dl className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm">
+          <div className="flex flex-wrap items-start gap-3">
+            {data.company_logo_url && (
+              <div
+                className="shrink-0 flex items-center justify-center invoice-print-company-logo-wrap"
+                aria-hidden
+              >
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={data.company_logo_url}
+                  alt=""
+                  className="max-h-16 max-w-[100px] sm:max-w-[120px] w-auto object-contain object-center opacity-90 invoice-print-company-logo"
+                />
+              </div>
+            )}
+            <div className="min-w-0 flex-1">
+              <h2 className="font-bold text-gray-900 dark:text-gray-100 mb-3 text-lg">بيانات الشركة</h2>
+              <dl className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm">
             <div>
               <dt className="text-gray-500 dark:text-gray-400">اسم الشركة</dt>
               <dd className="font-medium text-gray-900 dark:text-gray-100">{data.company_name}</dd>
@@ -282,7 +274,9 @@ export default async function InvoiceDetailPage({
                 <dd className="text-gray-900 dark:text-gray-100">{data.company_commercial_registration}</dd>
               </div>
             )}
-          </dl>
+              </dl>
+            </div>
+          </div>
         </div>
       )}
 

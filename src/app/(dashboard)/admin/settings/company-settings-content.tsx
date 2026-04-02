@@ -136,7 +136,7 @@ export function CompanySettingsContent() {
         <div>
           <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">شعار الشركة</label>
           <p className="text-xs text-gray-500 dark:text-gray-400 mb-2 leading-relaxed">
-            يظهر في القائمة الجانبية (مصغّر + خلفية خفيفة خلف العنوان). في الفاتورة: معاينة على الشاشة وعلامة مائية عند الطباعة. يُفضّل شعار بخلفية شفافة.
+            يظهر في القائمة الجانبية (مصغّر + خلفية خفيفة خلف العنوان). في الفاتورة: صورة صغيرة بجوار «بيانات الشركة» على الشاشة وعند الطباعة. يُفضّل شعار بخلفية شفافة.
           </p>
           <div className="mb-2">
             <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">

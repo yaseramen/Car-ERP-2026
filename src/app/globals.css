@@ -284,38 +284,13 @@ html.dark table tbody tr:hover,
     background-image: none !important;
     box-shadow: none !important;
   }
-  /* علامة مائية الشعار: لا تُلغَى خلفية الطبقة أو صورة الختم */
-  #invoice-print-area .invoice-print-watermark,
-  #invoice-print-area .invoice-print-watermark * {
-    background-color: transparent !important;
-    background-image: none !important;
-    box-shadow: none !important;
+  /* شعار الشركة بجوار بيانات الشركة — داخل التدفق (لا fixed) لتفادي أعطال معاينة الطباعة */
+  #invoice-print-area .invoice-print-company-logo-wrap {
+    align-self: flex-start;
   }
-  #invoice-print-area .invoice-print-watermark img {
-    background: transparent !important;
-    background-color: transparent !important;
-  }
-  /* خلفيات شبه شفافة حتى يظهر الختم خلف النصوص */
-  #invoice-print-area.invoice-print-has-logo-wm .invoice-print-card,
-  #invoice-print-area.invoice-print-has-logo-wm .invoice-print-compact,
-  #invoice-print-area.invoice-print-has-logo-wm .invoice-print-notes,
-  #invoice-print-area.invoice-print-has-logo-wm .invoice-print-footer {
-    background-color: rgba(255, 255, 255, 0.9) !important;
-  }
-  #invoice-print-area.invoice-print-has-logo-wm table.invoice-lines-table tbody tr,
-  #invoice-print-area.invoice-print-has-logo-wm table.invoice-lines-table thead tr {
-    background-color: rgba(243, 244, 246, 0.92) !important;
-  }
-  #invoice-print-area.invoice-print-has-logo-wm table.invoice-lines-table th,
-  #invoice-print-area.invoice-print-has-logo-wm table.invoice-lines-table td {
-    background-color: rgba(255, 255, 255, 0.88) !important;
-  }
-  #invoice-print-area.invoice-print-has-logo-wm .bg-emerald-50,
-  #invoice-print-area.invoice-print-has-logo-wm tr.bg-emerald-50 {
-    background-color: rgba(236, 253, 245, 0.92) !important;
-  }
-  #invoice-print-area.invoice-print-has-logo-wm .bg-amber-50 {
-    background-color: rgba(255, 251, 235, 0.92) !important;
+  #invoice-print-area .invoice-print-company-logo {
+    max-height: 2.5rem !important;
+    max-width: 4.5rem !important;
   }
   #invoice-print-area .invoice-print-content-layer {
     position: relative;
