@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { addToQueue } from "@/lib/offline-queue";
 import { getErrorMessage } from "@/lib/error-messages";
 import { type BusinessType } from "@/lib/business-types";
+import { WALLET_CHARGE_PHONE_ENTRIES } from "@/lib/wallet-charge-contact";
 
 interface Company {
   id: string;
@@ -369,21 +370,52 @@ export function WalletsContent({ readOnly = false }: { readOnly?: boolean }) {
     return (
       <div className="space-y-6">
         <div className="rounded-xl border border-emerald-200 dark:border-emerald-800 bg-emerald-50/80 dark:bg-emerald-950/30 px-4 py-4 text-sm text-emerald-900 dark:text-emerald-100">
-          <strong>محفظة الاستخدام:</strong> تُخصم منها تلقائياً رسوم الخدمات الرقمية، وبحث OBD، وإعلانات السوق عند الاشتراك. شحن الرصيد يتم عبر إدارة المنصة فقط.
+          <strong>محفظة الاستخدام:</strong> تُخصم منها تلقائياً رسوم الخدمات الرقمية، وبحث OBD، وإعلانات السوق عند الاشتراك. شحن الرصيد يتم عبر إدارة المنصة — استخدم أرقام التواصل بجوار الرصيد أدناه.
         </div>
 
         <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 p-6">
-          <h2 className="font-medium text-gray-900 dark:text-gray-100 mb-2">رصيد المحفظة</h2>
-          {!mine ? (
-            <p className="text-amber-600 dark:text-amber-400">تعذر تحميل بيانات المحفظة. حاول تحديث الصفحة أو التواصل مع الدعم.</p>
-          ) : (
-            <>
-              <p className="text-3xl font-bold text-emerald-600 dark:text-emerald-400 tabular-nums">
-                {mine.balance.toFixed(2)} <span className="text-lg font-semibold text-gray-600 dark:text-gray-400">ج.م</span>
-              </p>
-              <p className="text-sm text-gray-500 dark:text-gray-400 mt-2">{mine.name}</p>
-            </>
-          )}
+          <div className="flex flex-col gap-4 sm:flex-row sm:flex-wrap sm:items-start sm:justify-between">
+            <div className="min-w-0 flex-1">
+              <h2 className="font-medium text-gray-900 dark:text-gray-100 mb-2">رصيد المحفظة</h2>
+              {!mine ? (
+                <p className="text-amber-600 dark:text-amber-400">
+                  تعذر تحميل بيانات المحفظة. حاول تحديث الصفحة أو التواصل مع الدعم.
+                </p>
+              ) : (
+                <>
+                  <p className="text-3xl font-bold text-emerald-600 dark:text-emerald-400 tabular-nums">
+                    {mine.balance.toFixed(2)}{" "}
+                    <span className="text-lg font-semibold text-gray-600 dark:text-gray-400">ج.م</span>
+                  </p>
+                  <p className="text-sm text-gray-500 dark:text-gray-400 mt-2">{mine.name}</p>
+                </>
+              )}
+            </div>
+            <div className="shrink-0 rounded-lg border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-900/50 px-4 py-3 text-sm w-full sm:w-auto sm:min-w-[14rem]">
+              <p className="font-medium text-gray-900 dark:text-gray-100 mb-2">لشحن الرصيد — تواصل</p>
+              <ul className="space-y-2 text-gray-700 dark:text-gray-300">
+                {WALLET_CHARGE_PHONE_ENTRIES.map((e) => (
+                  <li key={e.display} className="flex flex-wrap items-center gap-2">
+                    <a
+                      href={e.tel}
+                      className="font-mono text-base font-semibold text-emerald-700 dark:text-emerald-400 hover:underline tabular-nums"
+                    >
+                      {e.display}
+                    </a>
+                    <span className="text-gray-400 dark:text-gray-500">|</span>
+                    <a
+                      href={e.wa}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-xs text-gray-600 dark:text-gray-400 hover:text-emerald-600 dark:hover:text-emerald-400"
+                    >
+                      واتساب
+                    </a>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </div>
         </div>
 
         <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden">

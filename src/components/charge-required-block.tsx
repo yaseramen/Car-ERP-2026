@@ -1,7 +1,7 @@
 "use client";
 
 import { signOut } from "next-auth/react";
-import { WALLET_CHARGE_MESSAGE } from "@/lib/wallet-charge-contact";
+import { WALLET_CHARGE_MESSAGE, WALLET_CHARGE_PHONE_ENTRIES } from "@/lib/wallet-charge-contact";
 
 export function ChargeRequiredBlock() {
   return (
@@ -17,10 +17,15 @@ export function ChargeRequiredBlock() {
         <p className="text-sm text-gray-500 dark:text-gray-500">
           {WALLET_CHARGE_MESSAGE}
         </p>
-        <p className="text-lg font-medium text-emerald-600 dark:text-emerald-400">
-          <a href="tel:01009376052" className="hover:underline">01009376052</a>
-          {" · "}
-          <a href="tel:01556660502" className="hover:underline">01556660502</a>
+        <p className="text-lg font-medium text-emerald-600 dark:text-emerald-400 flex flex-wrap items-center justify-center gap-x-2 gap-y-1">
+          {WALLET_CHARGE_PHONE_ENTRIES.map((e, i) => (
+            <span key={e.display}>
+              {i > 0 ? <span className="text-gray-400 dark:text-gray-500 mx-1">·</span> : null}
+              <a href={e.tel} className="hover:underline">
+                {e.display}
+              </a>
+            </span>
+          ))}
         </p>
         <button
           type="button"
