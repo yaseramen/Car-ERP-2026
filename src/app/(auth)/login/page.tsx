@@ -5,6 +5,7 @@ import Link from "next/link";
 import { signIn } from "next-auth/react";
 import { useSearchParams } from "next/navigation";
 import { getErrorMessage } from "@/lib/error-messages";
+import { LoginHeroWatermark } from "@/components/auth/login-hero-watermark";
 
 function LoginForm() {
   const [email, setEmail] = useState("");
@@ -47,7 +48,7 @@ function LoginForm() {
   }
 
   return (
-    <div className="w-full max-w-md mx-auto p-8 bg-white rounded-2xl shadow-lg border border-gray-100">
+    <div className="w-full max-w-md mx-auto p-8 bg-white/95 dark:bg-gray-800/95 backdrop-blur-sm rounded-2xl shadow-lg border border-gray-100 dark:border-gray-700">
       <div className="text-center mb-8">
         <h1 className="text-2xl font-bold text-gray-900">EFCT</h1>
         <p className="text-gray-500 mt-2">تسجيل الدخول</p>
@@ -120,14 +121,21 @@ function LoginForm() {
 
 export default function LoginPage() {
   return (
-    <Suspense fallback={
-      <div className="w-full max-w-md mx-auto p-8 bg-white rounded-2xl shadow-lg animate-pulse">
-        <div className="h-8 bg-gray-200 rounded mb-6" />
-        <div className="h-12 bg-gray-200 rounded mb-4" />
-        <div className="h-12 bg-gray-200 rounded" />
-      </div>
-    }>
-      <LoginForm />
-    </Suspense>
+    <div className="relative w-full min-h-[100dvh] flex items-center justify-center px-4 py-10">
+      <LoginHeroWatermark />
+      <Suspense
+        fallback={
+          <div className="relative z-10 w-full max-w-md mx-auto p-8 bg-white/95 dark:bg-gray-800/95 backdrop-blur-sm rounded-2xl shadow-lg border border-gray-100 dark:border-gray-700 animate-pulse">
+            <div className="h-8 bg-gray-200 dark:bg-gray-600 rounded mb-6" />
+            <div className="h-12 bg-gray-200 dark:bg-gray-600 rounded mb-4" />
+            <div className="h-12 bg-gray-200 dark:bg-gray-600 rounded" />
+          </div>
+        }
+      >
+        <div className="relative z-10 w-full flex justify-center">
+          <LoginForm />
+        </div>
+      </Suspense>
+    </div>
   );
 }
