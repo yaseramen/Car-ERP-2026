@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { useTheme } from "@/components/theme/theme-provider";
 import { AlertsBadge } from "./alerts-badge";
 
@@ -44,8 +45,23 @@ export function DashboardHeader({ onMenuClick }: { onMenuClick?: () => void }) {
           </button>
         )}
       </div>
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-1 sm:gap-2">
         <AlertsBadge />
+        <Link
+          href="/market"
+          className="p-2 rounded-lg text-sky-600 dark:text-sky-400 hover:bg-sky-50 dark:hover:bg-sky-950/40 transition-colors"
+          title="سوق EFCT — عروض المورّدين (صفحة عامة)"
+          aria-label="سوق EFCT"
+        >
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9zm8 4v3m-4-3v3"
+            />
+          </svg>
+        </Link>
         <button
           type="button"
           onClick={handleUpdate}
