@@ -23,7 +23,6 @@ type NavItem = {
 
 const navItems: NavItem[] = [
   { navId: "home", href: "/admin", label: "الرئيسية", module: "dashboard" },
-  { navId: "help", href: "/admin/help", label: "الدليل وما الجديد", module: "dashboard" },
   { navId: "inventory", href: "/admin/inventory", label: "المخزن", module: "inventory" },
   { navId: "price-list", href: "/admin/inventory/price-list", label: "عرض أسعار", module: "inventory" },
   { navId: "marketplace-supplier", href: "/admin/marketplace", label: "السوق والإعلانات", module: "marketplace", supplierOnly: true },
@@ -41,6 +40,7 @@ const navItems: NavItem[] = [
   { navId: "password-reset-codes", href: "/admin/super/password-reset", label: "أكواد المالكين", module: "wallets", superAdminOnly: true },
   { navId: "team", href: "/admin/team", label: "المستخدمون", ownerOrAdmin: true },
   { navId: "settings", href: "/admin/settings", label: "إعدادات الشركة", ownerOrAdmin: true },
+  { navId: "help", href: "/admin/help", label: "الدليل وما الجديد", module: "dashboard" },
   { navId: "account-password", href: "/admin/account/password", label: "تغيير كلمة المرور", ownerOrAdmin: true },
 ];
 
