@@ -25,7 +25,8 @@ type Props = {
 };
 
 /**
- * اختيار محافظ الاستلام (نفس قناة الدفع) أو إدخال يدوي لـ «من» و«إلى».
+ * «المحول منه»: رقم المرسل/العميل فقط (يدوي أو مُقترح من الفاتورة) — ليست محفظة استلام الشركة.
+ * «المحول إليه»: محافظ استلام الشركة المسجّلة لنفس القناة أو رقم جديد.
  */
 export function DigitalWalletPaymentFields({
   paymentChannel,
@@ -80,13 +81,6 @@ export function DigitalWalletPaymentFields({
     };
   }, [paymentChannel]);
 
-  const fromPick = useMemo(() => {
-    const t = normPhone(referenceFrom);
-    if (!t) return "";
-    const hit = wallets.find((w) => normPhone(w.phone_digits) === t);
-    return hit ? hit.phone_digits : "__other__";
-  }, [referenceFrom, wallets]);
-
   const toPick = useMemo(() => {
     const t = normPhone(referenceTo);
     if (!t) return "";
@@ -102,38 +96,21 @@ export function DigitalWalletPaymentFields({
         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
           رقم الهاتف أو الحساب المحول منه <span className="text-gray-400 font-normal">(اختياري)</span>
         </label>
-        {wallets.length > 0 && (
-          <select
-            value={fromPick === "__other__" && referenceFrom.trim() ? "__other__" : fromPick}
-            onChange={(e) => {
-              const v = e.target.value;
-              if (v === "" || v === "__other__") onReferenceFromChange("");
-              else onReferenceFromChange(v);
-            }}
-            className={`${inputClass} mb-2`}
-          >
-            <option value="">— من محفظة استلام مسجّلة (نفس القناة) أو اكتب يدوياً —</option>
-            {wallets.map((w) => (
-              <option key={`f-${w.id}`} value={w.phone_digits}>
-                {w.name} — {w.phone_digits}
-              </option>
-            ))}
-            <option value="__other__">رقم آخر (يدوي)…</option>
-          </select>
-        )}
         <input
           type="text"
           value={referenceFrom}
           onChange={(e) => onReferenceFromChange(e.target.value)}
           className={inputClass}
-          placeholder="رقم العميل أو المرسل"
+          placeholder="رقم هاتف أو حساب العميل الذي حوّل منه"
         />
+        <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 leading-relaxed">
+          يُسجَّل كمرجع فقط (من دفع العميل). محافظ استلام الشركة تُختار في الحقل أدناه «المحول إليه».
+        </p>
         {hint && referenceFrom.trim() === hint && (
-          <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-            مُقترح من بيانات العميل/المورد على الفاتورة.
+          <p className="text-xs text-emerald-600 dark:text-emerald-400 mt-1">
+            مُقترح تلقائياً من هاتف العميل على الفاتورة — يمكنك تعديله.
           </p>
         )}
-        {loadErr && <p className="text-xs text-amber-600 dark:text-amber-400 mt-1">{loadErr}</p>}
       </div>
 
       <div>
@@ -174,6 +151,7 @@ export function DigitalWalletPaymentFields({
         <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 leading-relaxed">
           القائمة من «الخزائن» — محافظ الاستلام المطابقة لطريقة الدفع. اخترها لتفادي أخطاء الرقم.
         </p>
+        {loadErr && <p className="text-xs text-amber-600 dark:text-amber-400 mt-1">{loadErr}</p>}
       </div>
     </>
   );
