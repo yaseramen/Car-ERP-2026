@@ -214,8 +214,22 @@ export default async function InvoiceDetailPage({
 
       <div
         id="invoice-print-area"
-        className={likelyMultiPagePrint ? "invoice-print-long-doc" : undefined}
+        className={`relative ${likelyMultiPagePrint ? "invoice-print-long-doc" : ""} ${data.company_logo_url ? "invoice-print-has-logo-wm" : ""}`}
       >
+      {data.company_logo_url && (
+        <div
+          className="invoice-print-watermark pointer-events-none hidden print:block fixed left-0 right-0 top-0 bottom-0 z-0 overflow-visible"
+          aria-hidden
+        >
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={data.company_logo_url}
+            alt=""
+            className="absolute left-1/2 top-[45%] w-[min(78vw,280mm)] max-w-[480px] -translate-x-1/2 -translate-y-1/2 object-contain opacity-[0.09]"
+          />
+        </div>
+      )}
+      <div className="relative z-[1] invoice-print-content-layer">
       {likelyMultiPagePrint && (
         <p
           className="hidden print:block text-center text-[10px] text-gray-500 mb-1 invoice-print-continuation-banner"
@@ -227,12 +241,12 @@ export default async function InvoiceDetailPage({
       {data.company_name && (
         <div className="mb-6 p-4 bg-gray-50 dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 invoice-print-compact">
           {data.company_logo_url && (
-            <div className="mb-4 flex justify-center print:justify-center invoice-print-logo-wrap">
+            <div className="mb-3 flex justify-center print:hidden invoice-print-logo-screen-only">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src={data.company_logo_url}
                 alt=""
-                className="max-h-20 max-w-[200px] w-auto object-contain object-center"
+                className="max-h-16 max-w-[140px] w-auto object-contain object-center opacity-90"
               />
             </div>
           )}
@@ -539,6 +553,7 @@ export default async function InvoiceDetailPage({
           </div>
         </div>
       )}
+      </div>
       </div>
     </div>
     );

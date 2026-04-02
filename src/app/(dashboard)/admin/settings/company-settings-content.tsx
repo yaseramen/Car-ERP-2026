@@ -129,7 +129,7 @@ export function CompanySettingsContent() {
         <div>
           <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">شعار الشركة</label>
           <p className="text-xs text-gray-500 dark:text-gray-400 mb-2 leading-relaxed">
-            يظهر خلف اسم الشركة في القائمة الجانبية، ويُطبَع أعلى بيانات الشركة في الفاتورة. يُفضّل صورة مربعة أو شعار بخلفية شفافة. يتطلب إعداد التخزين السحابي على الخادم.
+            يظهر بجانب اسم الشركة في القائمة الجانبية (شعار مصغّر فقط). في الفاتورة: معاينة صغيرة على الشاشة، وعند الطباعة علامة مائية خفيفة خلف النصوص كختم. يُفضّل شعار بخلفية شفافة. يتطلب التخزين السحابي على الخادم.
           </p>
           {logoUrl && (
             <div className="mb-3 flex items-center gap-3">

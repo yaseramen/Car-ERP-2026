@@ -220,22 +220,24 @@ export function Sidebar({
       <div className="p-6 border-b border-gray-100 dark:border-gray-700 flex items-center justify-between gap-2 shrink-0 z-10 bg-white dark:bg-gray-900">
         <div className="min-w-0 flex-1">
           {logoUrl && role !== "super_admin" ? (
-            <div
-              className="relative overflow-hidden rounded-xl border border-gray-200 dark:border-gray-600 bg-gray-100 dark:bg-gray-800 mb-2"
-              style={{ minHeight: "4.5rem" }}
-            >
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={logoUrl}
-                alt=""
-                className="absolute inset-0 h-full w-full object-cover object-center opacity-35 dark:opacity-25"
-                onError={() => setLogoUrl(null)}
-              />
-              <div className="relative z-[1] px-3 py-2.5 bg-white/80 dark:bg-gray-900/75 backdrop-blur-[2px]">
+            <div className="flex items-start gap-3 min-w-0">
+              <div
+                className="shrink-0 w-12 h-12 rounded-lg border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800 flex items-center justify-center overflow-hidden"
+                aria-hidden
+              >
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={logoUrl}
+                  alt=""
+                  className="max-h-full max-w-full object-contain p-0.5"
+                  onError={() => setLogoUrl(null)}
+                />
+              </div>
+              <div className="min-w-0 flex-1">
                 <h2 className="font-bold text-gray-900 dark:text-gray-100 truncate text-base leading-tight">
                   {companyName || "الشركة"}
                 </h2>
-                <p className="text-[11px] text-gray-600 dark:text-gray-400 mt-0.5 leading-snug">
+                <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-0.5 leading-snug">
                   {role === "employee"
                     ? "لوحة الموظف"
                     : businessType === "supplier"
