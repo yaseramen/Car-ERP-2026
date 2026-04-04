@@ -21,7 +21,7 @@ export default async function WalletsPage() {
         <p className="text-gray-500 dark:text-gray-400 mt-1">
           {isSuper
             ? `شحن محافظ الشركات — للتواصل: ${WALLET_CHARGE_PHONES_DISPLAY}`
-            : `عرض رصيد محفظة شركتك وسجل الشحن والخصومات. لشحن الرصيد: ${WALLET_CHARGE_PHONES_DISPLAY} (أو من البطاقة بجوار الرصيد).`}
+            : `عرض رصيد محفظة شركتك وطلب شحن بالإيصال وسجل العمليات. لشحن الرصيد: ${WALLET_CHARGE_PHONES_DISPLAY} أو أرسل طلباً من قسم «طلب شحن بالإيصال».`}
         </p>
       </div>
 

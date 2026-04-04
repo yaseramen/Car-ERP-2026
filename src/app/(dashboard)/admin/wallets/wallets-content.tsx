@@ -5,6 +5,7 @@ import { addToQueue } from "@/lib/offline-queue";
 import { getErrorMessage } from "@/lib/error-messages";
 import { type BusinessType } from "@/lib/business-types";
 import { WALLET_CHARGE_PHONE_ENTRIES } from "@/lib/wallet-charge-contact";
+import { WALLET_TOPUP_MIN_AMOUNT } from "@/lib/wallet-topup-constants";
 
 interface Company {
   id: string;
@@ -39,6 +40,22 @@ const WALLET_TX_TYPE_LABELS: Record<string, string> = {
   marketplace_ad: "إعلان السوق",
 };
 
+type TopupRequestRow = {
+  id: string;
+  company_id: string;
+  company_name: string;
+  requested_amount: number;
+  receipt_blob_url: string;
+  status: string;
+  approved_amount: number | null;
+  admin_comment: string | null;
+  reject_reason: string | null;
+  processed_at: string | null;
+  created_at: string;
+  tenant_ack_at: string | null;
+  requested_by_name: string;
+};
+
 export function WalletsContent({ readOnly = false }: { readOnly?: boolean }) {
   const [companies, setCompanies] = useState<Company[]>([]);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
@@ -62,6 +79,22 @@ export function WalletsContent({ readOnly = false }: { readOnly?: boolean }) {
   const [companyActionSaving, setCompanyActionSaving] = useState(false);
   const [marketplaceSavingId, setMarketplaceSavingId] = useState<string | null>(null);
   const [businessTypeSavingId, setBusinessTypeSavingId] = useState<string | null>(null);
+
+  const [topupOwnerRequests, setTopupOwnerRequests] = useState<TopupRequestRow[]>([]);
+  const [topupSuperPending, setTopupSuperPending] = useState<TopupRequestRow[]>([]);
+  const [topupSuperProcessed, setTopupSuperProcessed] = useState<TopupRequestRow[]>([]);
+  const [topupLoading, setTopupLoading] = useState(false);
+  const [topupAmount, setTopupAmount] = useState("");
+  const [topupFile, setTopupFile] = useState<File | null>(null);
+  const [topupSubmitting, setTopupSubmitting] = useState(false);
+  const [topupAction, setTopupAction] = useState<{
+    kind: "approve" | "reject";
+    row: TopupRequestRow;
+    approvedAmount: string;
+    adminComment: string;
+    rejectReason: string;
+  } | null>(null);
+  const [topupActionSaving, setTopupActionSaving] = useState(false);
 
   async function fetchCompanies() {
     try {
@@ -150,9 +183,40 @@ export function WalletsContent({ readOnly = false }: { readOnly?: boolean }) {
     }
   }
 
+  async function fetchTopupData() {
+    setTopupLoading(true);
+    try {
+      const res = await fetch("/api/admin/wallets/topup-requests");
+      if (!res.ok) {
+        if (readOnly) setTopupOwnerRequests([]);
+        else {
+          setTopupSuperPending([]);
+          setTopupSuperProcessed([]);
+        }
+        return;
+      }
+      const d = await res.json();
+      if (readOnly) {
+        setTopupOwnerRequests(Array.isArray(d.requests) ? d.requests : []);
+      } else {
+        setTopupSuperPending(Array.isArray(d.pending) ? d.pending : []);
+        setTopupSuperProcessed(Array.isArray(d.processed) ? d.processed : []);
+      }
+    } catch {
+      if (readOnly) setTopupOwnerRequests([]);
+      else {
+        setTopupSuperPending([]);
+        setTopupSuperProcessed([]);
+      }
+    } finally {
+      setTopupLoading(false);
+    }
+  }
+
   useEffect(() => {
     fetchCompanies();
     fetchTransactions();
+    fetchTopupData();
     if (!readOnly) fetchFeeSettings();
   }, [readOnly]);
 
@@ -160,11 +224,107 @@ export function WalletsContent({ readOnly = false }: { readOnly?: boolean }) {
     const handleOnline = () => {
       fetchCompanies();
       fetchTransactions();
+      fetchTopupData();
       if (!readOnly) fetchFeeSettings();
     };
     window.addEventListener("alameen-online", handleOnline);
     return () => window.removeEventListener("alameen-online", handleOnline);
   }, [readOnly]);
+
+  async function handleTopupAck(requestId: string) {
+    try {
+      await fetch("/api/admin/wallets/topup-ack", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ request_id: requestId }),
+      });
+      await fetchTopupData();
+    } catch {
+      /* ignore */
+    }
+  }
+
+  async function handleTopupSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!topupFile) {
+      alert("اختر صورة الإيصال");
+      return;
+    }
+    const amt = Number(topupAmount);
+    if (!Number.isFinite(amt) || amt < WALLET_TOPUP_MIN_AMOUNT) {
+      alert(`المبلغ يجب أن يكون ${WALLET_TOPUP_MIN_AMOUNT} ج.م أو أكثر`);
+      return;
+    }
+    setTopupSubmitting(true);
+    try {
+      const fd = new FormData();
+      fd.append("file", topupFile);
+      const up = await fetch("/api/admin/wallets/topup-receipt", { method: "POST", body: fd });
+      const upData = await up.json().catch(() => ({}));
+      if (!up.ok) {
+        alert(upData.error || "فشل رفع الصورة");
+        return;
+      }
+      const url = typeof upData.url === "string" ? upData.url : "";
+      if (!url) {
+        alert("لم يُرجع الخادم رابط الصورة");
+        return;
+      }
+      const cr = await fetch("/api/admin/wallets/topup-requests", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ requested_amount: amt, receipt_blob_url: url }),
+      });
+      const crData = await cr.json().catch(() => ({}));
+      if (!cr.ok) {
+        alert(crData.error || "فشل إنشاء الطلب");
+        return;
+      }
+      setTopupAmount("");
+      setTopupFile(null);
+      await fetchTopupData();
+      await fetchCompanies();
+      alert("تم إرسال طلب الشحن. سيتم المراجعة من الإدارة.");
+    } catch {
+      alert("فشل الاتصال");
+    } finally {
+      setTopupSubmitting(false);
+    }
+  }
+
+  async function submitTopupAdminAction() {
+    if (!topupAction) return;
+    const { kind, row, approvedAmount, adminComment, rejectReason } = topupAction;
+    setTopupActionSaving(true);
+    try {
+      const body =
+        kind === "reject"
+          ? { action: "reject", reject_reason: rejectReason.trim() }
+          : {
+              action: "approve",
+              approved_amount: Number(approvedAmount),
+              admin_comment: adminComment.trim() || undefined,
+            };
+      const res = await fetch(`/api/admin/wallets/topup-requests/${row.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      const d = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        alert(d.error || "فشلت العملية");
+        return;
+      }
+      setTopupAction(null);
+      await fetchTopupData();
+      await fetchCompanies();
+      await fetchTransactions();
+    } catch {
+      alert("فشل الاتصال");
+    } finally {
+      setTopupActionSaving(false);
+    }
+  }
 
   async function handleWalletAction(e: React.FormEvent) {
     e.preventDefault();
@@ -415,6 +575,136 @@ export function WalletsContent({ readOnly = false }: { readOnly?: boolean }) {
                 ))}
               </ul>
             </div>
+          </div>
+        </div>
+
+        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 p-6">
+          <h2 className="font-medium text-gray-900 dark:text-gray-100 mb-2">طلب شحن بالإيصال</h2>
+          <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
+            بعد التحويل إلى أرقام الشحن أعلاه، ارفع صورة الإيصال وأدخل المبلغ (الحد الأدنى {WALLET_TOPUP_MIN_AMOUNT} ج.م). يمكنك إرسال أكثر من طلب معلّق. تُراجع الطلبات من الإدارة وتُضاف الأرصدة يدوياً بعد الموافقة.
+          </p>
+          <form onSubmit={handleTopupSubmit} className="space-y-4 max-w-xl">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">المبلغ المحوَّل (ج.م)</label>
+              <input
+                type="number"
+                min={WALLET_TOPUP_MIN_AMOUNT}
+                step="0.01"
+                value={topupAmount}
+                onChange={(e) => setTopupAmount(e.target.value)}
+                placeholder={`مثال: ${WALLET_TOPUP_MIN_AMOUNT}`}
+                className={inputClass}
+                required
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">صورة الإيصال</label>
+              <input
+                type="file"
+                accept="image/jpeg,image/png,image/webp,image/heic,.heic"
+                onChange={(e) => setTopupFile(e.target.files?.[0] ?? null)}
+                className="block w-full text-sm text-gray-600 dark:text-gray-400"
+              />
+            </div>
+            <button
+              type="submit"
+              disabled={topupSubmitting}
+              className="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-medium disabled:opacity-50"
+            >
+              {topupSubmitting ? "جاري الإرسال…" : "إرسال طلب الشحن"}
+            </button>
+          </form>
+        </div>
+
+        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden">
+          <div className="p-4 border-b border-gray-100 dark:border-gray-700 flex items-center justify-between gap-2">
+            <div>
+              <h2 className="font-medium text-gray-900 dark:text-gray-100">طلبات الشحن</h2>
+              <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">حالة طلباتك ومبالغ الاعتماد</p>
+            </div>
+            <button
+              type="button"
+              onClick={() => fetchTopupData()}
+              disabled={topupLoading}
+              className="text-sm text-emerald-600 dark:text-emerald-400 hover:underline disabled:opacity-50"
+            >
+              تحديث
+            </button>
+          </div>
+          <div className="overflow-x-auto">
+            {topupOwnerRequests.length === 0 ? (
+              <div className="p-8 text-center text-gray-500 dark:text-gray-400">
+                {topupLoading ? "جاري التحميل…" : "لا توجد طلبات بعد"}
+              </div>
+            ) : (
+              <table className="w-full">
+                <thead>
+                  <tr className="bg-gray-50 dark:bg-gray-700/50">
+                    <th className="text-right px-4 py-3 text-sm font-medium text-gray-600 dark:text-gray-300">التاريخ</th>
+                    <th className="text-right px-4 py-3 text-sm font-medium text-gray-600 dark:text-gray-300">المبلغ المطلوب</th>
+                    <th className="text-right px-4 py-3 text-sm font-medium text-gray-600 dark:text-gray-300">الحالة</th>
+                    <th className="text-right px-4 py-3 text-sm font-medium text-gray-600 dark:text-gray-300">التفاصيل</th>
+                    <th className="text-right px-4 py-3 text-sm font-medium text-gray-600 dark:text-gray-300">إيصال</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {topupOwnerRequests.map((r) => (
+                    <tr key={r.id} className="border-b border-gray-50 dark:border-gray-700">
+                      <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-300">
+                        {new Date(r.created_at).toLocaleString("ar-EG")}
+                      </td>
+                      <td className="px-4 py-3 text-sm tabular-nums">{r.requested_amount.toFixed(2)} ج.م</td>
+                      <td className="px-4 py-3 text-sm">
+                        {r.status === "pending" && (
+                          <span className="text-amber-600 dark:text-amber-400">قيد المراجعة</span>
+                        )}
+                        {r.status === "approved" && (
+                          <span className="text-emerald-600 dark:text-emerald-400">تم الشحن</span>
+                        )}
+                        {r.status === "rejected" && (
+                          <span className="text-red-600 dark:text-red-400">مرفوض</span>
+                        )}
+                      </td>
+                      <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-400 max-w-[14rem]">
+                        {r.status === "approved" && r.approved_amount != null && (
+                          <span>
+                            مُعتمد: {r.approved_amount.toFixed(2)} ج.م
+                            {r.admin_comment ? ` — ${r.admin_comment}` : ""}
+                          </span>
+                        )}
+                        {r.status === "rejected" && r.reject_reason && (
+                          <span>السبب: {r.reject_reason}</span>
+                        )}
+                        {r.status === "pending" && "—"}
+                      </td>
+                      <td className="px-4 py-3 text-sm">
+                        {r.receipt_blob_url ? (
+                          <a
+                            href={r.receipt_blob_url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-emerald-600 dark:text-emerald-400 hover:underline"
+                          >
+                            عرض
+                          </a>
+                        ) : (
+                          "—"
+                        )}
+                        {(r.status === "approved" || r.status === "rejected") && !r.tenant_ack_at && (
+                          <button
+                            type="button"
+                            onClick={() => handleTopupAck(r.id)}
+                            className="mr-2 text-xs text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 underline"
+                          >
+                            تأكيد الاطلاع
+                          </button>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
           </div>
         </div>
 
@@ -700,6 +990,221 @@ export function WalletsContent({ readOnly = false }: { readOnly?: boolean }) {
           )}
         </div>
       </div>
+
+      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden">
+        <div className="p-4 border-b border-gray-100 dark:border-gray-700 flex items-center justify-between gap-2">
+          <div>
+            <h2 className="font-medium text-gray-900 dark:text-gray-100">طلبات شحن بالإيصال</h2>
+            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+              مراجعة إيصالات الشركات واعتماد المبلغ (الحد الأدنى {WALLET_TOPUP_MIN_AMOUNT} ج.م) أو الرفض مع سبب
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={() => fetchTopupData()}
+            disabled={topupLoading}
+            className="text-sm text-emerald-600 dark:text-emerald-400 hover:underline disabled:opacity-50"
+          >
+            تحديث
+          </button>
+        </div>
+        <div className="p-4 space-y-6">
+          <div>
+            <h3 className="text-sm font-medium text-gray-800 dark:text-gray-200 mb-2">معلّقة</h3>
+            {topupSuperPending.length === 0 ? (
+              <p className="text-sm text-gray-500 dark:text-gray-400">{topupLoading ? "جاري التحميل…" : "لا توجد طلبات معلّقة"}</p>
+            ) : (
+              <div className="overflow-x-auto border border-gray-100 dark:border-gray-700 rounded-lg">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="bg-gray-50 dark:bg-gray-700/50">
+                      <th className="text-right px-3 py-2">الشركة</th>
+                      <th className="text-right px-3 py-2">المبلغ المطلوب</th>
+                      <th className="text-right px-3 py-2">من</th>
+                      <th className="text-right px-3 py-2">التاريخ</th>
+                      <th className="text-right px-3 py-2">إيصال</th>
+                      <th className="text-right px-3 py-2">إجراء</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {topupSuperPending.map((r) => (
+                      <tr key={r.id} className="border-t border-gray-100 dark:border-gray-700">
+                        <td className="px-3 py-2">{r.company_name}</td>
+                        <td className="px-3 py-2 tabular-nums">{r.requested_amount.toFixed(2)} ج.م</td>
+                        <td className="px-3 py-2 text-gray-600 dark:text-gray-400">{r.requested_by_name || "—"}</td>
+                        <td className="px-3 py-2 text-gray-600 dark:text-gray-400 whitespace-nowrap">
+                          {new Date(r.created_at).toLocaleString("ar-EG")}
+                        </td>
+                        <td className="px-3 py-2">
+                          {r.receipt_blob_url ? (
+                            <a
+                              href={r.receipt_blob_url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-emerald-600 dark:text-emerald-400 hover:underline"
+                            >
+                              عرض
+                            </a>
+                          ) : (
+                            "—"
+                          )}
+                        </td>
+                        <td className="px-3 py-2 whitespace-nowrap">
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setTopupAction({
+                                kind: "approve",
+                                row: r,
+                                approvedAmount: String(r.requested_amount),
+                                adminComment: "",
+                                rejectReason: "",
+                              })
+                            }
+                            className="text-emerald-600 dark:text-emerald-400 hover:underline ml-2"
+                          >
+                            قبول
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setTopupAction({
+                                kind: "reject",
+                                row: r,
+                                approvedAmount: "",
+                                adminComment: "",
+                                rejectReason: "",
+                              })
+                            }
+                            className="text-red-600 dark:text-red-400 hover:underline"
+                          >
+                            رفض
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+          <div>
+            <h3 className="text-sm font-medium text-gray-800 dark:text-gray-200 mb-2">المعالجة مؤخراً</h3>
+            {topupSuperProcessed.length === 0 ? (
+              <p className="text-sm text-gray-500 dark:text-gray-400">لا سجلات</p>
+            ) : (
+              <div className="overflow-x-auto border border-gray-100 dark:border-gray-700 rounded-lg max-h-80 overflow-y-auto">
+                <table className="w-full text-sm">
+                  <thead className="sticky top-0 bg-gray-50 dark:bg-gray-700/80">
+                    <tr>
+                      <th className="text-right px-3 py-2">الشركة</th>
+                      <th className="text-right px-3 py-2">الحالة</th>
+                      <th className="text-right px-3 py-2">المطلوب</th>
+                      <th className="text-right px-3 py-2">المعتمد</th>
+                      <th className="text-right px-3 py-2">ملاحظة / سبب</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {topupSuperProcessed.map((r) => (
+                      <tr key={r.id} className="border-t border-gray-100 dark:border-gray-700">
+                        <td className="px-3 py-2">{r.company_name}</td>
+                        <td className="px-3 py-2">
+                          {r.status === "approved" ? (
+                            <span className="text-emerald-600">مقبول</span>
+                          ) : (
+                            <span className="text-red-600">مرفوض</span>
+                          )}
+                        </td>
+                        <td className="px-3 py-2 tabular-nums">{r.requested_amount.toFixed(2)}</td>
+                        <td className="px-3 py-2 tabular-nums">
+                          {r.approved_amount != null ? `${r.approved_amount.toFixed(2)} ج.م` : "—"}
+                        </td>
+                        <td className="px-3 py-2 text-gray-600 dark:text-gray-400 max-w-[12rem] truncate" title={r.admin_comment || r.reject_reason || ""}>
+                          {r.admin_comment || r.reject_reason || "—"}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {topupAction && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/50" dir="rtl">
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl w-full max-w-md p-6 space-y-4">
+            <h3 className="text-lg font-bold text-gray-900 dark:text-gray-100">
+              {topupAction.kind === "approve" ? "قبول طلب شحن" : "رفض طلب شحن"}
+            </h3>
+            <p className="text-sm text-gray-600 dark:text-gray-400">
+              {topupAction.row.company_name} — مطلوب {topupAction.row.requested_amount.toFixed(2)} ج.م
+            </p>
+            {topupAction.kind === "approve" ? (
+              <>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    المبلغ المعتمد للشحن (ج.م) — حد أدنى {WALLET_TOPUP_MIN_AMOUNT}
+                  </label>
+                  <input
+                    type="number"
+                    min={WALLET_TOPUP_MIN_AMOUNT}
+                    step="0.01"
+                    value={topupAction.approvedAmount}
+                    onChange={(e) =>
+                      setTopupAction((a) => (a ? { ...a, approvedAmount: e.target.value } : a))
+                    }
+                    className={inputClass}
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">تعليق (اختياري)</label>
+                  <textarea
+                    value={topupAction.adminComment}
+                    onChange={(e) =>
+                      setTopupAction((a) => (a ? { ...a, adminComment: e.target.value } : a))
+                    }
+                    rows={2}
+                    className={inputClass}
+                  />
+                </div>
+              </>
+            ) : (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">سبب الرفض *</label>
+                <textarea
+                  value={topupAction.rejectReason}
+                  onChange={(e) =>
+                    setTopupAction((a) => (a ? { ...a, rejectReason: e.target.value } : a))
+                  }
+                  rows={3}
+                  className={inputClass}
+                  required
+                />
+              </div>
+            )}
+            <div className="flex gap-2 justify-end pt-2">
+              <button
+                type="button"
+                onClick={() => setTopupAction(null)}
+                disabled={topupActionSaving}
+                className="px-4 py-2 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg"
+              >
+                إلغاء
+              </button>
+              <button
+                type="button"
+                onClick={submitTopupAdminAction}
+                disabled={topupActionSaving}
+                className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg disabled:opacity-50"
+              >
+                {topupActionSaving ? "جاري الحفظ…" : "تأكيد"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {modalOpen && selectedCompany && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50" dir="rtl">

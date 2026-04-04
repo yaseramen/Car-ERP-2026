@@ -4,6 +4,8 @@ import { createContext, useContext, useEffect, useRef, useCallback, useState } f
 import {
   FEEDBACK_SUPER_PENDING_BASELINE_KEY,
   FEEDBACK_USER_UNREAD_BASELINE_KEY,
+  WALLET_TOPUP_SUPER_PENDING_BASELINE_KEY,
+  WALLET_TOPUP_TENANT_UNACK_BASELINE_KEY,
 } from "@/lib/feedback-notification-keys";
 
 type Summary = {
@@ -100,6 +102,44 @@ function setFeedbackUserBaseline(n: number) {
   } catch {}
 }
 
+function getWalletTopupSuperBaseline(): number | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const s = localStorage.getItem(WALLET_TOPUP_SUPER_PENDING_BASELINE_KEY);
+    if (s == null) return null;
+    const n = parseInt(s, 10);
+    return Number.isFinite(n) ? n : null;
+  } catch {
+    return null;
+  }
+}
+
+function setWalletTopupSuperBaseline(n: number) {
+  if (typeof window === "undefined") return;
+  try {
+    localStorage.setItem(WALLET_TOPUP_SUPER_PENDING_BASELINE_KEY, String(n));
+  } catch {}
+}
+
+function getWalletTopupTenantUnackBaseline(): number | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const s = localStorage.getItem(WALLET_TOPUP_TENANT_UNACK_BASELINE_KEY);
+    if (s == null) return null;
+    const n = parseInt(s, 10);
+    return Number.isFinite(n) ? n : null;
+  } catch {
+    return null;
+  }
+}
+
+function setWalletTopupTenantUnackBaseline(n: number) {
+  if (typeof window === "undefined") return;
+  try {
+    localStorage.setItem(WALLET_TOPUP_TENANT_UNACK_BASELINE_KEY, String(n));
+  } catch {}
+}
+
 function markReleaseSeen(ids: string[]) {
   if (typeof window === "undefined" || ids.length === 0) return;
   try {
@@ -144,11 +184,13 @@ export function NotificationsProvider({ children }: { children: React.ReactNode 
   const checkAndNotify = useCallback(async () => {
     if (!("Notification" in window) || Notification.permission !== "granted") return;
     try {
-      const [summaryRes, releaseRes, fbSuperRes, fbUserRes] = await Promise.all([
+      const [summaryRes, releaseRes, fbSuperRes, fbUserRes, wtSuperRes, wtTenantRes] = await Promise.all([
         fetch("/api/admin/reports/summary"),
         fetch("/api/admin/help/release-notifications"),
         fetch("/api/admin/feedback/notify-summary"),
         fetch("/api/feedback/notify-summary"),
+        fetch("/api/admin/wallets/topup-notify-summary-super"),
+        fetch("/api/admin/wallets/topup-notify-summary"),
       ]);
 
       if (releaseRes.ok) {
@@ -209,6 +251,61 @@ export function NotificationsProvider({ children }: { children: React.ReactNode 
             } else if (unread < baseline) {
               setFeedbackUserBaseline(unread);
             }
+          }
+        }
+      }
+
+      if (wtSuperRes.ok) {
+        const w = await wtSuperRes.json();
+        const pendingCount = Number(w.pendingCount ?? 0);
+        if (Number.isFinite(pendingCount)) {
+          const baseline = getWalletTopupSuperBaseline();
+          if (baseline === null) {
+            setWalletTopupSuperBaseline(pendingCount);
+          } else if (pendingCount > baseline) {
+            const delta = pendingCount - baseline;
+            try {
+              new Notification("EFCT — طلبات شحن محفظة", {
+                body:
+                  delta === 1
+                    ? "يوجد طلب شحن جديد بإيصال بانتظار المراجعة في المحافظ."
+                    : `${delta} طلبات شحن جديدة بانتظار المراجعة في المحافظ.`,
+                icon: "/icon.svg",
+                tag: "efct-wallet-topup-super",
+              });
+            } catch {
+              /* ignore */
+            }
+            setWalletTopupSuperBaseline(pendingCount);
+          } else if (pendingCount < baseline) {
+            setWalletTopupSuperBaseline(pendingCount);
+          }
+        }
+      }
+
+      if (wtTenantRes.ok) {
+        const wt = await wtTenantRes.json();
+        const unacked = Number(wt.unackedCount ?? 0);
+        if (Number.isFinite(unacked)) {
+          const baseline = getWalletTopupTenantUnackBaseline();
+          if (baseline === null) {
+            setWalletTopupTenantUnackBaseline(unacked);
+          } else if (unacked > baseline) {
+            try {
+              new Notification("EFCT — محفظتك", {
+                body:
+                  unacked === 1
+                    ? "تمت معالجة طلب شحن المحفظة. افتح «المحافظ» للاطلاع."
+                    : `تمت معالجة ${unacked} طلبات شحن. افتح «المحافظ» للاطلاع.`,
+                icon: "/icon.svg",
+                tag: "efct-wallet-topup-tenant",
+              });
+            } catch {
+              /* ignore */
+            }
+            setWalletTopupTenantUnackBaseline(unacked);
+          } else if (unacked < baseline) {
+            setWalletTopupTenantUnackBaseline(unacked);
           }
         }
       }
