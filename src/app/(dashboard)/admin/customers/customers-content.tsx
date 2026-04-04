@@ -325,7 +325,7 @@ export function CustomersContent() {
               {customers.length === 0 ? (
                 <tr>
                   <td colSpan={4} className="px-4 py-12 text-center text-gray-500 dark:text-gray-400">
-                    لا يوجد عملاء. اضغط "إضافة عميل جديد" للبدء.
+                    لا يوجد عملاء. اضغط «إضافة عميل جديد» للبدء.
                   </td>
                 </tr>
               ) : (

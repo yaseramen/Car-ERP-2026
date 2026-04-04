@@ -161,7 +161,7 @@ export function NotificationsProvider({ children }: { children: React.ReactNode 
         const fb = await fbSuperRes.json();
         const pendingCount = Number(fb.pendingCount ?? 0);
         if (Number.isFinite(pendingCount)) {
-          let baseline = getFeedbackSuperBaseline();
+          const baseline = getFeedbackSuperBaseline();
           if (baseline === null) {
             setFeedbackSuperBaseline(pendingCount);
           } else {
@@ -191,7 +191,7 @@ export function NotificationsProvider({ children }: { children: React.ReactNode 
         const fu = await fbUserRes.json();
         const unread = Number(fu.unreadReplyCount ?? 0);
         if (Number.isFinite(unread)) {
-          let baseline = getFeedbackUserBaseline();
+          const baseline = getFeedbackUserBaseline();
           if (baseline === null) {
             setFeedbackUserBaseline(unread);
           } else {

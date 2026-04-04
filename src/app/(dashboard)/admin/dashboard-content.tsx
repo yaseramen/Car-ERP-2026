@@ -90,6 +90,8 @@ export function DashboardContent({
   const [revTo, setRevTo] = useState(() => formatYMD(new Date()));
   const [platformRevenue, setPlatformRevenue] = useState<PlatformRevenueData | null>(null);
   const [revLoading, setRevLoading] = useState(false);
+  /** Snapshot at mount for backup-age math (avoids Date.now() during render for eslint purity). */
+  const [dashboardClockMs] = useState(() => Date.now());
 
   useEffect(() => {
     try {
@@ -113,7 +115,7 @@ export function DashboardContent({
 
   const needsBackupReminder = (() => {
     if (!lastBackup) return true;
-    const diff = (Date.now() - new Date(lastBackup).getTime()) / (1000 * 60 * 60 * 24);
+    const diff = (dashboardClockMs - new Date(lastBackup).getTime()) / (1000 * 60 * 60 * 24);
     return diff >= BACKUP_REMINDER_DAYS;
   })();
 
@@ -495,7 +497,7 @@ export function DashboardContent({
       {needsBackupReminder && !hiddenSections.has("backup") && (
         <div className="bg-amber-50 dark:bg-amber-900/30 border border-amber-200 dark:border-amber-700 rounded-xl p-4 flex items-center justify-between gap-4">
           <p className="text-amber-800 dark:text-amber-200 text-sm">
-            {lastBackup ? `لم تقم بنسخ احتياطي منذ ${Math.floor((Date.now() - new Date(lastBackup).getTime()) / (1000 * 60 * 60 * 24))} يوم.` : "لم تقم بنسخ احتياطي بعد."} يُنصح بعمل نسخة احتياطية دورياً.
+            {lastBackup ? `لم تقم بنسخ احتياطي منذ ${Math.floor((dashboardClockMs - new Date(lastBackup).getTime()) / (1000 * 60 * 60 * 24))} يوم.` : "لم تقم بنسخ احتياطي بعد."} يُنصح بعمل نسخة احتياطية دورياً.
           </p>
           <Link
             href="/admin/settings"

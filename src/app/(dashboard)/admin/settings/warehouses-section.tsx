@@ -317,7 +317,7 @@ export function WarehousesSection() {
                   disabled={saving}
                   className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg disabled:opacity-50"
                 >
-                  {saving ? "جاري الحفظ..." : "حفظ"}
+                  {saving ? "جاري الحفظ…" : "حفظ"}
                 </button>
               </div>
             </form>
@@ -330,7 +330,7 @@ export function WarehousesSection() {
           <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl max-w-md w-full p-6">
             <h3 className="font-bold text-gray-900 dark:text-gray-100 mb-4">تعطيل المخزن</h3>
             <p className="text-gray-600 dark:text-gray-400 mb-4">
-              هل تريد تعطيل مخزن "{deleteConfirm.name}"؟ يجب أن يكون المخزن فارغاً (بدون كميات).
+              هل تريد تعطيل مخزن «{deleteConfirm.name}»؟ يجب أن يكون المخزن فارغاً (بدون كميات).
             </p>
             <div className="flex gap-3 justify-end">
               <button

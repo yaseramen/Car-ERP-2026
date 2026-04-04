@@ -17,8 +17,8 @@ export async function GET(request: Request) {
   const to = searchParams.get("to");
 
   try {
-    let fromDate = from || new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
-    let toDate = to || new Date().toISOString().slice(0, 10);
+    const fromDate = from || new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+    const toDate = to || new Date().toISOString().slice(0, 10);
     const fromStr = `${fromDate}T00:00:00`;
     const toStr = `${toDate}T23:59:59`;
 

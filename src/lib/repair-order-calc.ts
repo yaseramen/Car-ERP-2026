@@ -14,14 +14,14 @@ export interface LineCalcInput {
 
 export function calcLineTotal(input: LineCalcInput): number {
   const { quantity, unit_price, discount_type, discount_value = 0, tax_percent } = input;
-  let base = quantity * unit_price;
+  const base = quantity * unit_price;
   let discountAmount = 0;
   if (discount_type === "percent" && discount_value > 0) {
     discountAmount = base * (Math.min(100, discount_value) / 100);
   } else if (discount_type === "amount" && discount_value > 0) {
     discountAmount = Math.min(base, discount_value);
   }
-  let afterDiscount = Math.max(0, base - discountAmount);
+  const afterDiscount = Math.max(0, base - discountAmount);
   let taxAmount = 0;
   if (tax_percent != null && tax_percent > 0) {
     taxAmount = afterDiscount * (Math.min(100, tax_percent) / 100);

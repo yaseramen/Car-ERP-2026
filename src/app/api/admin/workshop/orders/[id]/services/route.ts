@@ -30,11 +30,11 @@ export async function GET(
       const dt = (r.discount_type as string) || null;
       const dv = Number(r.discount_value ?? 0);
       const tp = r.tax_percent != null ? Number(r.tax_percent) : null;
-      let base = qty * up;
+      const base = qty * up;
       let disc = 0;
       if (dt === "percent" && dv > 0) disc = base * (Math.min(100, dv) / 100);
       else if (dt === "amount" && dv > 0) disc = Math.min(base, dv);
-      let after = Math.max(0, base - disc);
+      const after = Math.max(0, base - disc);
       let tax = 0;
       if (tp != null && tp > 0) tax = after * (Math.min(100, tp) / 100);
       const total = Math.round((after + tax) * 100) / 100;
@@ -83,11 +83,11 @@ export async function POST(
     const dt = discount_type === "percent" || discount_type === "amount" ? discount_type : null;
     const dv = Math.max(0, Number(discount_value ?? 0));
     const tp = tax_percent != null && !Number.isNaN(Number(tax_percent)) ? Number(tax_percent) : null;
-    let base = qty * price;
+    const base = qty * price;
     let disc = 0;
     if (dt === "percent" && dv > 0) disc = base * (Math.min(100, dv) / 100);
     else if (dt === "amount" && dv > 0) disc = Math.min(base, dv);
-    let after = Math.max(0, base - disc);
+    const after = Math.max(0, base - disc);
     let tax = 0;
     if (tp != null && tp > 0) tax = after * (Math.min(100, tp) / 100);
     const total = Math.round((after + tax) * 100) / 100;
@@ -163,11 +163,11 @@ export async function PATCH(
     const dv = Math.max(0, Number(discount_value ?? 0));
     const tp = tax_percent != null && !Number.isNaN(Number(tax_percent)) ? Number(tax_percent) : null;
 
-    let base = qty * price;
+    const base = qty * price;
     let disc = 0;
     if (dt === "percent" && dv > 0) disc = base * (Math.min(100, dv) / 100);
     else if (dt === "amount" && dv > 0) disc = Math.min(base, dv);
-    let after = Math.max(0, base - disc);
+    const after = Math.max(0, base - disc);
     let tax = 0;
     if (tp != null && tp > 0) tax = after * (Math.min(100, tp) / 100);
     const total = Math.round((after + tax) * 100) / 100;

@@ -28,17 +28,18 @@ export default async function RepairOrderReportPage({
 
   const { id } = await params;
 
-  try {
-    const orderResult = await db.execute({
+  const orderResult = await db
+    .execute({
       sql: `SELECT ro.*, c.name as customer_name, ro.invoice_id, inv.invoice_number, inv.subtotal, inv.digital_service_fee, inv.total as invoice_total
             FROM repair_orders ro
             LEFT JOIN customers c ON ro.customer_id = c.id
             LEFT JOIN invoices inv ON ro.invoice_id = inv.id
             WHERE ro.id = ? AND ro.company_id = ?`,
       args: [id, companyId],
-    });
+    })
+    .catch(() => ({ rows: [] as Record<string, unknown>[] }));
 
-    if (orderResult.rows.length === 0) notFound();
+  if (orderResult.rows.length === 0) notFound();
 
     const row = orderResult.rows[0];
     const customerId = row.customer_id ? String(row.customer_id) : null;
@@ -81,11 +82,11 @@ export default async function RepairOrderReportPage({
       const dt = (r.discount_type as string) || null;
       const dv = Number(r.discount_value ?? 0);
       const tp = r.tax_percent != null ? Number(r.tax_percent) : null;
-      let base = qty * up;
+      const base = qty * up;
       let disc = 0;
       if (dt === "percent" && dv > 0) disc = base * (Math.min(100, dv) / 100);
       else if (dt === "amount" && dv > 0) disc = Math.min(base, dv);
-      let after = Math.max(0, base - disc);
+      const after = Math.max(0, base - disc);
       let tax = 0;
       if (tp != null && tp > 0) tax = after * (Math.min(100, tp) / 100);
       const total = Math.round((after + tax) * 100) / 100;
@@ -113,11 +114,11 @@ export default async function RepairOrderReportPage({
       const dt = (r.discount_type as string) || null;
       const dv = Number(r.discount_value ?? 0);
       const tp = r.tax_percent != null ? Number(r.tax_percent) : null;
-      let base = qty * up;
+      const base = qty * up;
       let disc = 0;
       if (dt === "percent" && dv > 0) disc = base * (Math.min(100, dv) / 100);
       else if (dt === "amount" && dv > 0) disc = Math.min(base, dv);
-      let after = Math.max(0, base - disc);
+      const after = Math.max(0, base - disc);
       let tax = 0;
       if (tp != null && tp > 0) tax = after * (Math.min(100, tp) / 100);
       const total = Math.round((after + tax) * 100) / 100;
@@ -168,21 +169,18 @@ export default async function RepairOrderReportPage({
       invoice_total: r.invoice_total != null ? Number(r.invoice_total) : null,
     }));
 
-    return (
-      <div className="p-4 md:p-8">
-        <RepairOrderEditContent
-          order={order}
-          items={items}
-          services={services}
-          itemsTotal={itemsTotal}
-          servicesTotal={servicesTotal}
-          orderType={orderType}
-          previousOrders={previousOrders}
-          showPurchaseCost={showPurchaseCost}
-        />
-      </div>
-    );
-  } catch {
-    notFound();
-  }
+  return (
+    <div className="p-4 md:p-8">
+      <RepairOrderEditContent
+        order={order}
+        items={items}
+        services={services}
+        itemsTotal={itemsTotal}
+        servicesTotal={servicesTotal}
+        orderType={orderType}
+        previousOrders={previousOrders}
+        showPurchaseCost={showPurchaseCost}
+      />
+    </div>
+  );
 }
