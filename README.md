@@ -21,12 +21,7 @@
 │   ├── app/
 │   │   ├── (auth)/         # تسجيل الدخول
 │   │   └── (dashboard)/    # لوحة التحكم
-│   │       ├── admin/      # Super Admin - شحن المحافظ
-│   │       └── [tenant]/   # مسارات المركز
-│   │           ├── warehouse/  # المخزن
-│   │           ├── workshop/   # الورشة
-│   │           ├── cashier/    # الكاشير
-│   │           └── reports/    # التقارير
+│   │       └── admin/      # لوحة التحكم (كل الأدوار تحت /admin)
 │   ├── components/
 │   ├── lib/
 │   │   └── db/             # اتصال Turso
