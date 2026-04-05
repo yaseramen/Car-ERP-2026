@@ -87,6 +87,12 @@ export default async function InvoiceDetailPage({
       created_at: String(row.created_at ?? ""),
       created_by_name: row.created_by_name ? String(row.created_by_name) : null,
       created_by_email: row.created_by_email ? String(row.created_by_email) : null,
+      /** للعرض: الاسم أولاً؛ إن لم يُعرَّف يُعرض البريد (مفيد للطباعة الضيقة) */
+      created_by_display: (() => {
+        const n = row.created_by_name != null ? String(row.created_by_name).trim() : "";
+        const e = row.created_by_email != null ? String(row.created_by_email).trim() : "";
+        return n || e || null;
+      })(),
       warehouse_name: row.warehouse_name ? String(row.warehouse_name) : null,
     };
 
@@ -318,13 +324,18 @@ export default async function InvoiceDetailPage({
                 {TYPE_LABELS[data.type] || data.type} — {STATUS_LABELS[data.status] || data.status}
               </dd>
             </div>
-            {(data.created_by_name || data.created_by_email) && (
+            {data.created_by_display && (
               <div className="flex justify-between gap-2">
                 <dt className="text-gray-500 dark:text-gray-400 shrink-0">أصدرها</dt>
-                <dd className="text-gray-900 dark:text-gray-100 text-left break-words invoice-print-issuer-line">
-                  {data.created_by_name && data.created_by_email
-                    ? `${data.created_by_name} — ${data.created_by_email}`
-                    : (data.created_by_name || data.created_by_email)}
+                <dd
+                  className="text-gray-900 dark:text-gray-100 text-left break-words invoice-print-issuer-line"
+                  title={
+                    data.created_by_name?.trim() && data.created_by_email
+                      ? data.created_by_email
+                      : undefined
+                  }
+                >
+                  {data.created_by_display}
                 </dd>
               </div>
             )}
@@ -414,7 +425,9 @@ export default async function InvoiceDetailPage({
                 </tr>
                 <tr className="bg-gray-50 dark:bg-gray-700/50">
                   <th className="text-right px-4 py-3 text-sm font-medium text-gray-600 dark:text-gray-300">الصنف</th>
-                  <th className="text-right px-4 py-3 text-sm font-medium text-gray-600 dark:text-gray-300">الكمية</th>
+                  <th className="text-right px-4 py-3 text-sm font-medium text-gray-600 dark:text-gray-300 invoice-print-qty-col w-14 min-w-[3.25rem]">
+                    عدد
+                  </th>
                   <th className="text-right px-4 py-3 text-sm font-medium text-gray-600 dark:text-gray-300">سعر الوحدة</th>
                   <th className="text-right px-4 py-3 text-sm font-medium text-gray-600 dark:text-gray-300">الإجمالي</th>
                 </tr>
@@ -423,41 +436,59 @@ export default async function InvoiceDetailPage({
                 {items.map((item) => (
                   <tr key={item.id} className="border-b border-gray-50 dark:border-gray-700">
                     <td className="px-4 py-3 text-sm text-gray-900 dark:text-gray-100">{item.item_name}</td>
-                    <td className="px-4 py-3 text-sm text-gray-900 dark:text-gray-100">{item.quantity}</td>
-                    <td className="px-4 py-3 text-sm text-gray-900 dark:text-gray-100">{item.unit_price?.toFixed(2)} ج.م</td>
-                    <td className="px-4 py-3 text-sm font-medium text-gray-900 dark:text-gray-100">{item.total?.toFixed(2)} ج.م</td>
+                    <td className="px-4 py-3 text-sm text-gray-900 dark:text-gray-100 invoice-print-qty-col w-14 min-w-[3.25rem] text-center tabular-nums">
+                      {item.quantity}
+                    </td>
+                    <td className="px-4 py-3 text-sm text-gray-900 dark:text-gray-100 whitespace-nowrap invoice-print-money">
+                      {item.unit_price?.toFixed(2)} ج.م
+                    </td>
+                    <td className="px-4 py-3 text-sm font-medium text-gray-900 dark:text-gray-100 whitespace-nowrap invoice-print-money">
+                      {item.total?.toFixed(2)} ج.م
+                    </td>
                   </tr>
                 ))}
                 <tr className="bg-gray-50 dark:bg-gray-700/50">
                   <td colSpan={3} className="px-4 py-3 text-sm text-right text-gray-900 dark:text-gray-100">المجموع الفرعي</td>
-                  <td className="px-4 py-3 text-sm font-medium text-gray-900 dark:text-gray-100">{data.subtotal?.toFixed(2)} ج.م</td>
+                  <td className="px-4 py-3 text-sm font-medium text-gray-900 dark:text-gray-100 whitespace-nowrap invoice-print-money">
+                    {data.subtotal?.toFixed(2)} ج.م
+                  </td>
                 </tr>
                 {data.discount > 0 && (
                   <tr className="bg-gray-50 dark:bg-gray-700/50">
                     <td colSpan={3} className="px-4 py-3 text-sm text-right text-gray-900 dark:text-gray-100">الخصم</td>
-                    <td className="px-4 py-3 text-sm text-red-600 dark:text-red-400">-{data.discount?.toFixed(2)} ج.م</td>
+                    <td className="px-4 py-3 text-sm text-red-600 dark:text-red-400 whitespace-nowrap invoice-print-money">
+                      -{data.discount?.toFixed(2)} ج.م
+                    </td>
                   </tr>
                 )}
                 {data.tax > 0 && (
                   <tr className="bg-gray-50 dark:bg-gray-700/50">
                     <td colSpan={3} className="px-4 py-3 text-sm text-right text-gray-900 dark:text-gray-100">الضريبة</td>
-                    <td className="px-4 py-3 text-sm text-gray-900 dark:text-gray-100">+{data.tax?.toFixed(2)} ج.م</td>
+                    <td className="px-4 py-3 text-sm text-gray-900 dark:text-gray-100 whitespace-nowrap invoice-print-money">
+                      +{data.tax?.toFixed(2)} ج.م
+                    </td>
                   </tr>
                 )}
                 {data.digital_service_fee > 0 && (
                   <tr className="bg-gray-50 dark:bg-gray-700/50">
                     <td colSpan={3} className="px-4 py-3 text-sm text-right text-gray-900 dark:text-gray-100">الخدمة الرقمية</td>
-                    <td className="px-4 py-3 text-sm text-gray-900 dark:text-gray-100">{data.digital_service_fee?.toFixed(2)} ج.م</td>
+                    <td className="px-4 py-3 text-sm text-gray-900 dark:text-gray-100 whitespace-nowrap invoice-print-money">
+                      {data.digital_service_fee?.toFixed(2)} ج.م
+                    </td>
                   </tr>
                 )}
                 <tr className="bg-emerald-50 dark:bg-emerald-900/30 font-bold">
                   <td colSpan={3} className="px-4 py-3 text-sm text-right text-gray-900 dark:text-gray-100">الإجمالي النهائي</td>
-                  <td className="px-4 py-3 text-sm text-emerald-700 dark:text-emerald-400">{data.total?.toFixed(2)} ج.م</td>
+                  <td className="px-4 py-3 text-sm text-emerald-700 dark:text-emerald-400 whitespace-nowrap invoice-print-money">
+                    {data.total?.toFixed(2)} ج.م
+                  </td>
                 </tr>
                 {data.paid_amount > 0 && (
                   <tr>
                     <td colSpan={3} className="px-4 py-3 text-sm text-right text-gray-900 dark:text-gray-100">المدفوع</td>
-                    <td className="px-4 py-3 text-sm text-gray-900 dark:text-gray-100">{data.paid_amount?.toFixed(2)} ج.م</td>
+                    <td className="px-4 py-3 text-sm text-gray-900 dark:text-gray-100 whitespace-nowrap invoice-print-money">
+                      {data.paid_amount?.toFixed(2)} ج.م
+                    </td>
                   </tr>
                 )}
               </tbody>

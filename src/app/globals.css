@@ -334,11 +334,13 @@ html.dark table tbody tr:hover,
     text-overflow: ellipsis !important;
     max-width: 100% !important;
   }
+  /* اسم المُصدر: سماح بالتفاف سطرين على الورق الضيق بدل قص النص */
   #invoice-print-area .invoice-print-issuer-line {
-    white-space: nowrap !important;
-    overflow: hidden !important;
-    text-overflow: ellipsis !important;
-    max-width: 55% !important;
+    white-space: normal !important;
+    overflow: visible !important;
+    text-overflow: unset !important;
+    max-width: 100% !important;
+    word-break: break-word !important;
   }
   #invoice-print-area .invoice-print-compact {
     margin-bottom: 0.3rem !important;
@@ -410,6 +412,21 @@ html.dark table tbody tr:hover,
     padding: 0.12rem 0.25rem !important;
     line-height: 1.15 !important;
     border: 1px solid #000 !important;
+  }
+  /* أسعار + ج.م في سطر واحد على الطابعة الحرارية الضيقة */
+  #invoice-print-area table.invoice-lines-table .invoice-print-money {
+    white-space: nowrap !important;
+    font-size: 8px !important;
+    font-variant-numeric: tabular-nums;
+  }
+  #invoice-print-area table.invoice-lines-table .invoice-print-qty-col {
+    width: 2.35rem !important;
+    max-width: 2.5rem !important;
+    min-width: 0 !important;
+    padding-left: 0.1rem !important;
+    padding-right: 0.1rem !important;
+    font-size: 8px !important;
+    vertical-align: middle !important;
   }
   #invoice-print-area table.invoice-lines-table thead {
     display: table-header-group;
