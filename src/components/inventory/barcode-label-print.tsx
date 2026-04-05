@@ -116,6 +116,18 @@ function mmToCssPx(mm: number) {
   return Math.max(1, Math.round((mm * 96) / 25.4));
 }
 
+/** أحجام خط الاسم والسعر (والصلاحية) — أوضح على الطابعة الحرارية */
+function labelNamePriceExpiryFonts(wMm: number, hMm: number) {
+  const isTiny = wMm <= 22 && hMm <= 35;
+  if (isTiny) {
+    return { nameFont: 6, priceFont: 7.5, expiryFont: 5 };
+  }
+  const nameFont = Math.min(15, Math.max(10, hMm / 2.65));
+  const priceFont = Math.min(17, Math.max(12, hMm / 2.2));
+  const expiryFont = Math.min(12, Math.max(7.5, hMm / 3.4));
+  return { nameFont, priceFont, expiryFont };
+}
+
 function dataUrlToBlob(dataUrl: string): Blob | null {
   const m = dataUrl.match(/^data:([^;]+);base64,(.+)$/);
   if (!m) return null;
@@ -206,9 +218,7 @@ async function buildFullLabelPngBlob(params: {
   const h = mmToCssPx(preset.hMm);
   const isTiny = preset.wMm <= 22 && preset.hMm <= 35;
   const pad = isTiny ? 2 : 4;
-  const nameFont = isTiny ? 4.5 : Math.min(9, Math.max(5, preset.hMm / 5));
-  const priceFont = isTiny ? 5.5 : Math.min(11, Math.max(7, preset.hMm / 4.5));
-  const expiryFont = isTiny ? 4 : Math.min(8, Math.max(5, preset.hMm / 6));
+  const { nameFont, priceFont, expiryFont } = labelNamePriceExpiryFonts(preset.wMm, preset.hMm);
 
   const scale = 3;
   const canvas = document.createElement("canvas");
@@ -385,6 +395,11 @@ export function BarcodeLabelPrint({
 
   const expiryShort = useMemo(() => expiryLineForLabel(hasExpiry, expiryDate), [hasExpiry, expiryDate]);
 
+  const labelTextSizes = useMemo(
+    () => labelNamePriceExpiryFonts(preset.wMm, preset.hMm),
+    [preset.wMm, preset.hMm]
+  );
+
   const barcodeOpts = useMemo(() => {
     const shortSide = Math.min(preset.wMm, preset.hMm);
     const isTiny = preset.wMm <= 22 && preset.hMm <= 35;
@@ -470,9 +485,7 @@ export function BarcodeLabelPrint({
           : "";
 
       const isTiny = preset.wMm <= 22 && preset.hMm <= 35;
-      const nameFont = isTiny ? 4.5 : Math.min(9, Math.max(5, preset.hMm / 5));
-      const priceFont = isTiny ? 5.5 : Math.min(11, Math.max(7, preset.hMm / 4.5));
-      const expiryFont = isTiny ? 4 : Math.min(8, Math.max(5, preset.hMm / 6));
+      const { nameFont, priceFont, expiryFont } = labelNamePriceExpiryFonts(preset.wMm, preset.hMm);
 
       const w = preset.pageCss.split(/\s+/)[0];
       const h = preset.pageCss.split(/\s+/)[1] ?? preset.pageCss.split(/\s+/)[0];
@@ -730,14 +743,27 @@ export function BarcodeLabelPrint({
         </div>
 
         <div className="border border-gray-200 dark:border-gray-600 rounded-lg p-4 bg-white dark:bg-gray-900 text-center">
-          <p className="text-xs text-gray-600 dark:text-gray-400 mb-2 break-words">{itemName}</p>
+          <p
+            className="text-gray-700 dark:text-gray-200 mb-2 break-words font-medium leading-tight"
+            style={{ fontSize: `${Math.min(18, Math.max(11, labelTextSizes.nameFont * 1.35))}px` }}
+          >
+            {itemName}
+          </p>
           {salePrice != null && Number.isFinite(salePrice) && (
-            <p className="text-sm font-bold text-emerald-700 dark:text-emerald-300 mb-2">
+            <p
+              className="font-bold text-emerald-700 dark:text-emerald-300 mb-2"
+              style={{ fontSize: `${Math.min(20, Math.max(12, labelTextSizes.priceFont * 1.25))}px` }}
+            >
               {Number(salePrice).toFixed(2)} ج.م
             </p>
           )}
           {expiryShort && (
-            <p className="text-xs text-gray-600 dark:text-gray-400 mb-2">صلاحية: {expiryShort}</p>
+            <p
+              className="text-gray-600 dark:text-gray-400 mb-2"
+              style={{ fontSize: `${Math.min(14, Math.max(10, labelTextSizes.expiryFont * 1.2))}px` }}
+            >
+              صلاحية: {expiryShort}
+            </p>
           )}
           <div className="flex justify-center overflow-hidden max-h-40">
             <svg ref={svgRef} className="max-w-full h-auto" />
