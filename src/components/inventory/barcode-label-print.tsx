@@ -111,6 +111,166 @@ function escapeHtml(s: string) {
   return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 }
 
+/** تحويل مم → بكسل كما في CSS (96dpi) */
+function mmToCssPx(mm: number) {
+  return Math.max(1, Math.round((mm * 96) / 25.4));
+}
+
+function dataUrlToBlob(dataUrl: string): Blob | null {
+  const m = dataUrl.match(/^data:([^;]+);base64,(.+)$/);
+  if (!m) return null;
+  try {
+    const bin = atob(m[2]);
+    const arr = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) arr[i] = bin.charCodeAt(i);
+    return new Blob([arr], { type: m[1] });
+  } catch {
+    return null;
+  }
+}
+
+function safeFilenamePart(s: string) {
+  const t = s.trim().replace(/[^\w\u0600-\u06FF.-]+/g, "_");
+  return (t || "item").slice(0, 72);
+}
+
+function triggerDownloadBlob(blob: Blob, filename: string) {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  a.rel = "noopener";
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+function loadImageFromDataUrl(dataUrl: string): Promise<HTMLImageElement> {
+  return new Promise((resolve, reject) => {
+    const im = new Image();
+    im.onload = () => resolve(im);
+    im.onerror = () => reject(new Error("load image"));
+    im.src = dataUrl;
+  });
+}
+
+function wrapCanvasLines(
+  ctx: CanvasRenderingContext2D,
+  text: string,
+  maxWidth: number,
+  maxLines: number
+): string[] {
+  const words = text.trim().split(/\s+/).filter(Boolean);
+  if (words.length === 0) return [""];
+  const lines: string[] = [];
+  let line = "";
+  for (const word of words) {
+    const test = line ? `${line} ${word}` : word;
+    if (ctx.measureText(test).width <= maxWidth) {
+      line = test;
+    } else {
+      if (line) {
+        lines.push(line);
+        if (lines.length >= maxLines) break;
+        line = word;
+      } else {
+        let w = word;
+        while (w.length > 1 && ctx.measureText(`${w}…`).width > maxWidth) w = w.slice(0, -1);
+        lines.push(`${w}…`);
+        if (lines.length >= maxLines) break;
+        line = "";
+      }
+    }
+  }
+  if (line && lines.length < maxLines) lines.push(line);
+  return lines.length ? lines : [text.slice(0, 16) + (text.length > 16 ? "…" : "")];
+}
+
+async function buildFullLabelPngBlob(params: {
+  preset: (typeof LABEL_PRESETS)[number];
+  itemName: string;
+  salePrice?: number | null;
+  expiryShort: string | null;
+  barcodePngDataUrl: string | null;
+  barcodeSvg: SVGSVGElement | null;
+}): Promise<Blob | null> {
+  const { preset, itemName, salePrice, expiryShort, barcodePngDataUrl, barcodeSvg } = params;
+  let barcodeUrl = barcodePngDataUrl;
+  if (!barcodeUrl && barcodeSvg) {
+    barcodeUrl = await svgBarcodeToPngDataUrl(barcodeSvg);
+  }
+  if (!barcodeUrl) return null;
+
+  const w = mmToCssPx(preset.wMm);
+  const h = mmToCssPx(preset.hMm);
+  const isTiny = preset.wMm <= 22 && preset.hMm <= 35;
+  const pad = isTiny ? 2 : 4;
+  const nameFont = isTiny ? 4.5 : Math.min(9, Math.max(5, preset.hMm / 5));
+  const priceFont = isTiny ? 5.5 : Math.min(11, Math.max(7, preset.hMm / 4.5));
+  const expiryFont = isTiny ? 4 : Math.min(8, Math.max(5, preset.hMm / 6));
+
+  const scale = 3;
+  const canvas = document.createElement("canvas");
+  canvas.width = w * scale;
+  canvas.height = h * scale;
+  const ctx = canvas.getContext("2d");
+  if (!ctx) return null;
+  ctx.scale(scale, scale);
+  ctx.fillStyle = "#ffffff";
+  ctx.fillRect(0, 0, w, h);
+  ctx.fillStyle = "#000000";
+  ctx.textAlign = "center";
+  ctx.textBaseline = "top";
+  ctx.direction = "rtl";
+
+  const maxTextW = w - pad * 2;
+  let y = pad;
+  const name = (itemName || "صنف").trim();
+  ctx.font = `${nameFont}px Arial, "Segoe UI", Tahoma, sans-serif`;
+  const nameLines = wrapCanvasLines(ctx, name, maxTextW, isTiny ? 2 : 2);
+  const lhName = nameFont * 1.12;
+  for (const ln of nameLines) {
+    ctx.fillText(ln, w / 2, y);
+    y += lhName;
+  }
+  y += isTiny ? 1 : 2;
+
+  if (salePrice != null && Number.isFinite(salePrice)) {
+    ctx.font = `bold ${priceFont}px Arial, "Segoe UI", Tahoma, sans-serif`;
+    ctx.fillText(`${Number(salePrice).toFixed(2)} ج.م`, w / 2, y);
+    y += priceFont * 1.2 + (isTiny ? 1 : 2);
+  }
+
+  if (expiryShort) {
+    ctx.font = `${expiryFont}px Arial, "Segoe UI", Tahoma, sans-serif`;
+    ctx.fillStyle = "#333333";
+    ctx.fillText(expiryShort, w / 2, y);
+    y += expiryFont * 1.12 + (isTiny ? 1 : 2);
+    ctx.fillStyle = "#000000";
+  }
+
+  let img: HTMLImageElement;
+  try {
+    img = await loadImageFromDataUrl(barcodeUrl);
+  } catch {
+    return null;
+  }
+  const maxBarW = maxTextW;
+  const maxBarH = Math.max(10, h - y - pad);
+  const ratio = Math.min(maxBarW / img.width, maxBarH / img.height, 1);
+  const bw = img.width * ratio;
+  const bh = img.height * ratio;
+  const bx = (w - bw) / 2;
+  const by = y + Math.max(0, (maxBarH - bh) / 2);
+  ctx.imageSmoothingEnabled = false;
+  ctx.drawImage(img, bx, by, bw, bh);
+
+  return new Promise((resolve) => {
+    canvas.toBlob((b) => resolve(b), "image/png");
+  });
+}
+
 /**
  * Rasterize the JsBarcode SVG to PNG so thermal drivers get bitmap bars
  * (many ESC/POS stacks mishandle SVG scaling). Falls back to null on failure.
@@ -211,6 +371,7 @@ export function BarcodeLabelPrint({
 }: BarcodeLabelPrintProps) {
   const svgRef = useRef<SVGSVGElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const [downloading, setDownloading] = useState<"barcode" | "label" | null>(null);
   const [presetId, setPresetId] = useState<LabelPresetId>(() => {
     if (typeof window === "undefined") return LABEL_PRESETS[0].id;
     try {
@@ -486,6 +647,61 @@ export function BarcodeLabelPrint({
     })();
   };
 
+  const handleDownloadBarcodeOnly = async () => {
+    const svgEl = svgRef.current;
+    if (!svgEl || !barcode?.trim()) {
+      alert("لا يوجد باركود للتنزيل.");
+      return;
+    }
+    setDownloading("barcode");
+    try {
+      const dataUrl = await svgBarcodeToPngDataUrl(svgEl);
+      if (!dataUrl) {
+        alert("تعذر إنشاء صورة الباركود. جرّب مرة أخرى.");
+        return;
+      }
+      const blob = dataUrlToBlob(dataUrl);
+      if (!blob) {
+        alert("تعذر إنشاء الملف.");
+        return;
+      }
+      const code = barcode.trim().replace(/[^\w.-]+/g, "_").slice(0, 48) || "barcode";
+      triggerDownloadBlob(blob, `barcode-${code}.png`);
+    } finally {
+      setDownloading(null);
+    }
+  };
+
+  const handleDownloadFullLabel = async () => {
+    const svgEl = svgRef.current;
+    if (!barcode?.trim()) {
+      alert("لا يوجد باركود للتنزيل.");
+      return;
+    }
+    setDownloading("label");
+    try {
+      let barcodePng: string | null = null;
+      if (svgEl) barcodePng = await svgBarcodeToPngDataUrl(svgEl);
+      const blob = await buildFullLabelPngBlob({
+        preset,
+        itemName,
+        salePrice,
+        expiryShort,
+        barcodePngDataUrl: barcodePng,
+        barcodeSvg: svgEl,
+      });
+      if (!blob) {
+        alert("تعذر إنشاء صورة الملصق. جرّب «تنزيل الباركود فقط» أو أعد فتح النافذة.");
+        return;
+      }
+      const code = barcode.trim().replace(/[^\w.-]+/g, "_").slice(0, 32) || "label";
+      const namePart = safeFilenamePart(itemName);
+      triggerDownloadBlob(blob, `label-${preset.id}-${namePart}-${code}.png`);
+    } finally {
+      setDownloading(null);
+    }
+  };
+
   return (
     <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/50 overflow-y-auto" dir="rtl">
       <div ref={containerRef} className="bg-white dark:bg-gray-800 rounded-xl shadow-xl w-full max-w-lg p-6 my-4">
@@ -532,6 +748,28 @@ export function BarcodeLabelPrint({
           يُحفظ اختيار المقاس على هذا الجهاز للمرة القادمة.
         </p>
 
+        <div className="mt-4 flex flex-col sm:flex-row gap-2">
+          <button
+            type="button"
+            onClick={() => void handleDownloadBarcodeOnly()}
+            disabled={downloading !== null}
+            className="flex-1 px-3 py-2.5 rounded-lg border border-gray-300 dark:border-gray-600 text-gray-800 dark:text-gray-200 text-sm font-medium hover:bg-gray-50 dark:hover:bg-gray-700/80 disabled:opacity-50"
+          >
+            {downloading === "barcode" ? "جاري التنزيل…" : "تنزيل الباركود (PNG)"}
+          </button>
+          <button
+            type="button"
+            onClick={() => void handleDownloadFullLabel()}
+            disabled={downloading !== null}
+            className="flex-1 px-3 py-2.5 rounded-lg border border-emerald-600/60 dark:border-emerald-500/50 text-emerald-800 dark:text-emerald-200 text-sm font-medium hover:bg-emerald-50 dark:hover:bg-emerald-900/30 disabled:opacity-50"
+          >
+            {downloading === "label" ? "جاري التنزيل…" : "تنزيل الملصق كامل (PNG)"}
+          </button>
+        </div>
+        <p className="text-xs text-gray-500 dark:text-gray-400 mt-2 leading-relaxed">
+          إذا فشلت الطباعة من المتصفح: نزّل الملف ثم افتحه في «الصور» أو برنامج التصميم واطبعه من هناك بنفس مقاس الملصق الذي اخترته أعلاه.
+        </p>
+
         <details className="mt-4 rounded-lg border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-900/50 text-right">
           <summary className="cursor-pointer px-3 py-2 text-sm font-medium text-gray-800 dark:text-gray-200">
             طابعات Xprinter (حرارية) — ضبط الإعدادات
@@ -565,14 +803,16 @@ export function BarcodeLabelPrint({
           <button
             type="button"
             onClick={onClose}
-            className="flex-1 px-4 py-2.5 bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200 rounded-lg font-medium"
+            disabled={downloading !== null}
+            className="flex-1 px-4 py-2.5 bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200 rounded-lg font-medium disabled:opacity-50"
           >
             إغلاق
           </button>
           <button
             type="button"
             onClick={handlePrint}
-            className="flex-1 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-medium"
+            disabled={downloading !== null}
+            className="flex-1 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-medium disabled:opacity-50"
           >
             طباعة
           </button>
