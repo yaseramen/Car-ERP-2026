@@ -13,6 +13,8 @@ type LineIn = {
   item_id: string;
   quantity: number;
   unit_price: number;
+  /** إن وُجد يُحدَّث سعر البيع على بطاقة الصنف */
+  sale_price?: number | null;
 };
 
 export async function PATCH(
@@ -50,7 +52,7 @@ export async function PATCH(
   const discountAmount = Math.max(0, Number(discountRaw) || 0);
   const taxAmount = Math.max(0, Number(taxRaw) || 0);
 
-  const normalized: { id?: string; item_id: string; quantity: number; unit_price: number }[] = [];
+  const normalized: { id?: string; item_id: string; quantity: number; unit_price: number; sale_price?: number }[] = [];
   for (const it of rawItems) {
     if (!it.item_id?.trim()) {
       return NextResponse.json({ error: "بند غير صالح: صنف مطلوب" }, { status: 400 });
@@ -63,11 +65,18 @@ export async function PATCH(
     if (!Number.isFinite(up) || up < 0) {
       return NextResponse.json({ error: "بند غير صالح: سعر الوحدة غير صالح" }, { status: 400 });
     }
-    const line: { id?: string; item_id: string; quantity: number; unit_price: number } = {
+    const line: { id?: string; item_id: string; quantity: number; unit_price: number; sale_price?: number } = {
       item_id: it.item_id.trim(),
       quantity: qty,
       unit_price: up,
     };
+    if (it.sale_price !== undefined && it.sale_price !== null) {
+      const sp = Number(it.sale_price);
+      if (!Number.isFinite(sp) || sp < 0) {
+        return NextResponse.json({ error: "بند غير صالح: سعر البيع غير صالح" }, { status: 400 });
+      }
+      line.sale_price = sp;
+    }
     if (it.id && String(it.id).trim()) line.id = String(it.id).trim();
     normalized.push(line);
   }
@@ -275,17 +284,18 @@ export async function PATCH(
       });
     }
 
-    const finalLines = await db.execute({
-      sql: `SELECT item_id, unit_price FROM invoice_items WHERE invoice_id = ? AND item_id IS NOT NULL ORDER BY sort_order, created_at`,
-      args: [invoiceId],
-    });
-    for (const row of finalLines.rows) {
-      const itemId = String(row.item_id);
-      const up = Number(row.unit_price ?? 0);
-      await db.execute({
-        sql: "UPDATE items SET purchase_price = ?, updated_at = datetime('now') WHERE id = ? AND company_id = ?",
-        args: [up, itemId, companyId],
-      });
+    for (const n of normalized) {
+      if (n.sale_price !== undefined) {
+        await db.execute({
+          sql: "UPDATE items SET purchase_price = ?, sale_price = ?, updated_at = datetime('now') WHERE id = ? AND company_id = ?",
+          args: [n.unit_price, n.sale_price, n.item_id, companyId],
+        });
+      } else {
+        await db.execute({
+          sql: "UPDATE items SET purchase_price = ?, updated_at = datetime('now') WHERE id = ? AND company_id = ?",
+          args: [n.unit_price, n.item_id, companyId],
+        });
+      }
     }
 
     const invNum = String(inv.invoice_number ?? "");

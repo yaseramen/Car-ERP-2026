@@ -91,7 +91,7 @@ export default async function InvoiceDetailPage({
     };
 
     const itemsResult = await db.execute({
-      sql: `SELECT ii.*, i.name as item_name, i.unit as item_unit
+      sql: `SELECT ii.*, i.name as item_name, i.unit as item_unit, i.sale_price as item_sale_price
             FROM invoice_items ii
             LEFT JOIN items i ON ii.item_id = i.id
             WHERE ii.invoice_id = ?
@@ -106,6 +106,7 @@ export default async function InvoiceDetailPage({
       quantity: Number(r.quantity ?? 0),
       unit_price: Number(r.unit_price ?? 0),
       total: Number(r.total ?? 0),
+      item_sale_price: Number(r.item_sale_price ?? 0),
     }));
 
     const paymentsResult = await db.execute({
@@ -185,6 +186,7 @@ export default async function InvoiceDetailPage({
                 item_name: it.item_name,
                 quantity: it.quantity,
                 unit_price: it.unit_price,
+                sale_price: it.item_sale_price,
               }))}
             />
           )}

@@ -10,6 +10,8 @@ type Line = {
   item_name: string;
   quantity: number;
   unit_price: number;
+  /** سعر البيع الحالي للصنف في المخزن (للعرض والتعديل مع فاتورة الشراء) */
+  sale_price: number;
 };
 
 type Supplier = { id: string; name: string; phone?: string | null };
@@ -20,6 +22,7 @@ type InventoryRow = {
   code?: string | null;
   category?: string | null;
   purchase_price: number;
+  sale_price: number;
 };
 
 const inputClass =
@@ -54,7 +57,7 @@ export function EditPurchaseInvoice({
   const [discount, setDiscount] = useState(String(initialDiscount || ""));
   const [tax, setTax] = useState(String(initialTax || ""));
   const [rows, setRows] = useState<
-    { lineId: string | null; item_id: string; quantity: string; unit_price: string }[]
+    { lineId: string | null; item_id: string; quantity: string; unit_price: string; sale_price: string }[]
   >([]);
 
   useEffect(() => {
@@ -69,6 +72,7 @@ export function EditPurchaseInvoice({
         item_id: l.item_id,
         quantity: String(l.quantity),
         unit_price: String(l.unit_price),
+        sale_price: String(l.sale_price ?? 0),
       }))
     );
     fetch("/api/admin/suppliers?limit=500&offset=0")
@@ -106,15 +110,25 @@ export function EditPurchaseInvoice({
       .map((r) => {
         const qty = Number(r.quantity);
         const up = Number(r.unit_price);
+        const spRaw = r.sale_price.trim();
+        const sp = spRaw === "" ? null : Number(spRaw);
         if (!r.item_id || !Number.isFinite(qty) || qty <= 0 || !Number.isFinite(up) || up < 0) return null;
+        if (sp !== null && (!Number.isFinite(sp) || sp < 0)) return null;
         return {
           ...(r.lineId ? { id: r.lineId } : {}),
           item_id: r.item_id,
           quantity: qty,
           unit_price: up,
+          ...(sp !== null ? { sale_price: sp } : {}),
         };
       })
-      .filter(Boolean) as { id?: string; item_id: string; quantity: number; unit_price: number }[];
+      .filter(Boolean) as {
+        id?: string;
+        item_id: string;
+        quantity: number;
+        unit_price: number;
+        sale_price?: number;
+      }[];
 
     if (payloadItems.length === 0) {
       alert("أضف بنداً واحداً على الأقل بكمية صحيحة");
@@ -224,7 +238,10 @@ export function EditPurchaseInvoice({
                     type="button"
                     className="text-sm text-emerald-600 hover:underline"
                     onClick={() =>
-                      setRows((prev) => [...prev, { lineId: null, item_id: "", quantity: "1", unit_price: "" }])
+                      setRows((prev) => [
+                        ...prev,
+                        { lineId: null, item_id: "", quantity: "1", unit_price: "", sale_price: "" },
+                      ])
                     }
                   >
                     + بند
@@ -245,6 +262,7 @@ export function EditPurchaseInvoice({
                                     ...r,
                                     item_id: id,
                                     unit_price: it ? String(it.purchase_price ?? 0) : r.unit_price,
+                                    sale_price: it ? String(it.sale_price ?? 0) : r.sale_price,
                                   }
                                 : r
                             )
@@ -253,32 +271,51 @@ export function EditPurchaseInvoice({
                         placeholder="اختر الصنف..."
                         className={inputClass}
                       />
-                      <div className="flex gap-2">
-                        <input
-                          type="number"
-                          min="0.01"
-                          step="any"
-                          value={row.quantity}
-                          onChange={(e) =>
-                            setRows((prev) => prev.map((r, i) => (i === idx ? { ...r, quantity: e.target.value } : r)))
-                          }
-                          className={`${inputClass} flex-1`}
-                          placeholder="الكمية"
-                        />
-                        <input
-                          type="number"
-                          min="0"
-                          step="0.01"
-                          value={row.unit_price}
-                          onChange={(e) =>
-                            setRows((prev) => prev.map((r, i) => (i === idx ? { ...r, unit_price: e.target.value } : r)))
-                          }
-                          className={`${inputClass} flex-1`}
-                          placeholder="سعر الوحدة"
-                        />
+                      <div className="grid grid-cols-2 gap-2">
+                        <div>
+                          <label className="block text-[10px] text-gray-500 mb-0.5">الكمية</label>
+                          <input
+                            type="number"
+                            min="0.01"
+                            step="any"
+                            value={row.quantity}
+                            onChange={(e) =>
+                              setRows((prev) => prev.map((r, i) => (i === idx ? { ...r, quantity: e.target.value } : r)))
+                            }
+                            className={inputClass}
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-[10px] text-gray-500 mb-0.5">سعر التكلفة (ج.م)</label>
+                          <input
+                            type="number"
+                            min="0"
+                            step="0.01"
+                            value={row.unit_price}
+                            onChange={(e) =>
+                              setRows((prev) => prev.map((r, i) => (i === idx ? { ...r, unit_price: e.target.value } : r)))
+                            }
+                            className={inputClass}
+                          />
+                        </div>
+                        <div className="col-span-2">
+                          <label className="block text-[10px] text-gray-500 mb-0.5">سعر البيع (ج.م) — يُحدَّث على بطاقة الصنف</label>
+                          <input
+                            type="number"
+                            min="0"
+                            step="0.01"
+                            value={row.sale_price}
+                            onChange={(e) =>
+                              setRows((prev) => prev.map((r, i) => (i === idx ? { ...r, sale_price: e.target.value } : r)))
+                            }
+                            className={inputClass}
+                          />
+                        </div>
+                      </div>
+                      <div className="flex justify-end">
                         <button
                           type="button"
-                          className="px-2 text-red-600 text-sm shrink-0"
+                          className="px-2 text-red-600 text-sm"
                           onClick={() => setRows((prev) => prev.filter((_, i) => i !== idx))}
                         >
                           حذف
