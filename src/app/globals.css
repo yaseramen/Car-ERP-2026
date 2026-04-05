@@ -268,8 +268,8 @@ html.dark table tbody tr:hover,
   }
   #invoice-print-area {
     overflow: visible !important;
-    font-size: 9px;
-    line-height: 1.15;
+    font-size: 10.5px;
+    line-height: 1.22;
     padding-bottom: 1mm;
     /* ورقة بيضاء + خط أسود حتى مع تفعيل الوضع الليلي على الشاشة */
     color: #000 !important;
@@ -306,6 +306,8 @@ html.dark table tbody tr:hover,
   }
   #invoice-print-area table.invoice-lines-table thead th {
     background-color: #f3f4f6 !important;
+    font-size: 0.68rem !important;
+    font-weight: 700 !important;
   }
   /* مساحة إضافية عند الفواتير الطويلة حتى لا يغطي التذييل الثابت المحتوى */
   #invoice-print-area.invoice-print-long-doc {
@@ -319,13 +321,14 @@ html.dark table tbody tr:hover,
     margin-bottom: 0.35rem !important;
   }
   #invoice-print-area .invoice-print-title-block h1 {
-    font-size: 1.05rem !important;
+    font-size: 1.12rem !important;
     margin-bottom: 0.1rem !important;
-    line-height: 1.2 !important;
+    line-height: 1.22 !important;
   }
   #invoice-print-area .invoice-print-title-block p {
     margin-top: 0.15rem !important;
-    line-height: 1.2 !important;
+    line-height: 1.22 !important;
+    font-size: 0.72rem !important;
   }
   /* عنوان الشركة: سطر واحد في الطباعة (قص إذا تجاوز عرض الورقة) */
   #invoice-print-area .invoice-print-address-one-line {
@@ -409,23 +412,25 @@ html.dark table tbody tr:hover,
   }
   #invoice-print-area table.invoice-lines-table th,
   #invoice-print-area table.invoice-lines-table td {
-    padding: 0.12rem 0.25rem !important;
-    line-height: 1.15 !important;
+    padding: 0.16rem 0.28rem !important;
+    line-height: 1.22 !important;
     border: 1px solid #000 !important;
   }
-  /* أسعار + ج.م في سطر واحد على الطابعة الحرارية الضيقة */
+  /* أسعار + ج.م في سطر واحد؛ خط أوضح من 8px السابقة */
   #invoice-print-area table.invoice-lines-table .invoice-print-money {
     white-space: nowrap !important;
-    font-size: 8px !important;
+    font-size: 10px !important;
+    font-weight: 600 !important;
     font-variant-numeric: tabular-nums;
   }
   #invoice-print-area table.invoice-lines-table .invoice-print-qty-col {
-    width: 2.35rem !important;
-    max-width: 2.5rem !important;
+    width: 2.55rem !important;
+    max-width: 2.75rem !important;
     min-width: 0 !important;
-    padding-left: 0.1rem !important;
-    padding-right: 0.1rem !important;
-    font-size: 8px !important;
+    padding-left: 0.12rem !important;
+    padding-right: 0.12rem !important;
+    font-size: 10px !important;
+    font-weight: 600 !important;
     vertical-align: middle !important;
   }
   #invoice-print-area table.invoice-lines-table thead {
@@ -439,13 +444,13 @@ html.dark table tbody tr:hover,
   #invoice-print-area .invoice-print-notes {
     padding: 0.45rem 0.5rem !important;
     margin-bottom: 0.35rem !important;
-    font-size: 9px !important;
+    font-size: 10px !important;
   }
   #invoice-print-area .invoice-print-footer {
     margin-top: 0.25rem !important;
     padding-top: 0.25rem !important;
-    font-size: 8px !important;
-    line-height: 1.2 !important;
+    font-size: 9px !important;
+    line-height: 1.25 !important;
   }
   /* يتكرر على كل صفحة في معظم متصفحات الطباعة — تلميح «تابع» للفواتير الطويلة */
   #invoice-print-area .invoice-print-fixed-footer {
@@ -455,8 +460,8 @@ html.dark table tbody tr:hover,
     bottom: 0;
     z-index: 1000;
     padding: 2px 8mm 3px;
-    font-size: 7px;
-    line-height: 1.25;
+    font-size: 8px;
+    line-height: 1.3;
     text-align: center;
     color: #000 !important;
     background: #fff;
