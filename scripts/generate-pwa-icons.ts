@@ -1,10 +1,32 @@
 /**
- * تحويل الشعار إلى أيقونات PNG و favicon
- * يدعم: public/icon.png (شعارك الأصلي) أو public/icon.svg
- * يعمل قبل البناء لضمان ظهور الشعار في التبويب والتطبيق
+ * تحويل الشعار إلى أيقونات PNG و favicon (PWA + استعداد لـ Play / TWA)
+ *
+ * الشكل الافتراضي للتطبيق والموقع:
+ *   - public/icon.png (مربّع، يُفضّل 1024×1024، خلفية شفافة أو لون موحّد)
+ *   - أو public/icon.svg إن لم يوجد PNG
+ *
+ * شكل بديل (للمقارنة أو لبناء APK بشعار آخر):
+ *   - public/icon-variant.png → يُنشئ icon-variant-192.png و icon-variant-512.png
+ *   لاستخدام البديل كأيقونة رسمية: انسخ الملفين إلى icon-192.png و icon-512.png
+ *   أو عيّن الشكل المختار كـ icon.png وأعد تشغيل السكربت.
  */
 import { readFileSync, writeFileSync, existsSync } from "fs";
 import { join } from "path";
+
+async function generateSet(
+  sharp: typeof import("sharp"),
+  inputBuffer: Buffer,
+  publicDir: string,
+  baseName: string
+) {
+  const sizes = [192, 512] as const;
+  for (const size of sizes) {
+    const pngBuffer = await sharp.default(inputBuffer).resize(size, size).png().toBuffer();
+    const outPath = join(publicDir, `${baseName}-${size}.png`);
+    writeFileSync(outPath, pngBuffer);
+    console.log(`تم إنشاء ${outPath}`);
+  }
+}
 
 async function main() {
   try {
@@ -12,7 +34,6 @@ async function main() {
     const publicDir = join(process.cwd(), "public");
     const appDir = join(process.cwd(), "src", "app");
 
-    // الأفضلية لـ icon.png (شعارك الأصلي) ثم icon.svg
     const pngSource = join(publicDir, "icon.png");
     const svgSource = join(publicDir, "icon.svg");
     const sourcePath = existsSync(pngSource) ? pngSource : existsSync(svgSource) ? svgSource : null;
@@ -23,16 +44,14 @@ async function main() {
     }
 
     const inputBuffer = readFileSync(sourcePath);
-    const sizes = [192, 512] as const;
+    await generateSet(sharp, inputBuffer, publicDir, "icon");
 
-    for (const size of sizes) {
-      const pngBuffer = await sharp.default(inputBuffer)
-        .resize(size, size)
-        .png()
-        .toBuffer();
-      const outPath = join(publicDir, `icon-${size}.png`);
-      writeFileSync(outPath, pngBuffer);
-      console.log(`تم إنشاء ${outPath}`);
+    const variantPath = join(publicDir, "icon-variant.png");
+    if (existsSync(variantPath)) {
+      await generateSet(sharp, readFileSync(variantPath), publicDir, "icon-variant");
+      console.log(
+        "تم توليد icon-variant-192/512 — للاعتماد عليها: انسخها إلى icon-192.png و icon-512.png أو استبدل icon.png وأعد التشغيل."
+      );
     }
 
     const icon192 = join(publicDir, "icon-192.png");
