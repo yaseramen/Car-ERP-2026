@@ -12,16 +12,12 @@
  */
 import { readFileSync, writeFileSync, existsSync } from "fs";
 import { join } from "path";
+import sharp from "sharp";
 
-async function generateSet(
-  sharp: typeof import("sharp"),
-  inputBuffer: Buffer,
-  publicDir: string,
-  baseName: string
-) {
+async function generateSet(inputBuffer: Buffer, publicDir: string, baseName: string) {
   const sizes = [192, 512] as const;
   for (const size of sizes) {
-    const pngBuffer = await sharp.default(inputBuffer).resize(size, size).png().toBuffer();
+    const pngBuffer = await sharp(inputBuffer).resize(size, size).png().toBuffer();
     const outPath = join(publicDir, `${baseName}-${size}.png`);
     writeFileSync(outPath, pngBuffer);
     console.log(`تم إنشاء ${outPath}`);
@@ -30,7 +26,6 @@ async function generateSet(
 
 async function main() {
   try {
-    const sharp = await import("sharp");
     const publicDir = join(process.cwd(), "public");
     const appDir = join(process.cwd(), "src", "app");
 
@@ -44,11 +39,11 @@ async function main() {
     }
 
     const inputBuffer = readFileSync(sourcePath);
-    await generateSet(sharp, inputBuffer, publicDir, "icon");
+    await generateSet(inputBuffer, publicDir, "icon");
 
     const variantPath = join(publicDir, "icon-variant.png");
     if (existsSync(variantPath)) {
-      await generateSet(sharp, readFileSync(variantPath), publicDir, "icon-variant");
+      await generateSet(readFileSync(variantPath), publicDir, "icon-variant");
       console.log(
         "تم توليد icon-variant-192/512 — للاعتماد عليها: انسخها إلى icon-192.png و icon-512.png أو استبدل icon.png وأعد التشغيل."
       );
