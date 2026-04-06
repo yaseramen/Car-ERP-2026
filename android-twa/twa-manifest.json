@@ -2,7 +2,7 @@
   "packageId": "com.aiverce.carerp",
   "host": "car.aiverce.com",
   "name": "الأمين لإدارة قطع الغيار ومراكز الخدمة",
-  "launcherName": "الأمين للسيارات",
+  "launcherName": "الأمين",
   "display": "standalone",
   "displayOverride": [],
   "themeColor": "#000000",
