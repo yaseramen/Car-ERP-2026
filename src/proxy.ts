@@ -37,6 +37,7 @@ export default auth((req) => {
     "/how-it-works",
     "/faq",
     "/terms",
+    "/manifest.json",
     "/manifest.webmanifest",
   ];
   if (publicPaths.includes(path)) {
@@ -92,5 +93,7 @@ export default auth((req) => {
 
 export const config = {
   // استثناء "/" والملفات الثابتة - الصفحة الترحيبية تُحمّل مباشرة
-  matcher: ["/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$|$).+)"],
+  matcher: [
+    "/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp|json|webmanifest)$|$).+)",
+  ],
 };
