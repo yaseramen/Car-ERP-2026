@@ -3,6 +3,18 @@ import type { NextConfig } from "next";
 const appUrl = process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, "") ?? "";
 
 const nextConfig: NextConfig = {
+  async headers() {
+    const corsJson = [
+      { key: "Access-Control-Allow-Origin", value: "*" },
+      { key: "Access-Control-Allow-Methods", value: "GET, HEAD, OPTIONS" },
+      { key: "Access-Control-Allow-Headers", value: "Content-Type, Accept" },
+      { key: "Access-Control-Max-Age", value: "86400" },
+    ];
+    return [
+      { source: "/manifest.json", headers: corsJson },
+      { source: "/manifest.webmanifest", headers: corsJson },
+    ];
+  },
   env: {
     AUTH_SECRET: process.env.AUTH_SECRET,
     NEXTAUTH_SECRET: process.env.NEXTAUTH_SECRET,

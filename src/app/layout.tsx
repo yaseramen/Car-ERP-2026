@@ -29,7 +29,6 @@ export const metadata: Metadata = {
   title: "EFCT | إدارة مراكز الصيانة ومحلات قطع غيار السيارات",
   description:
     "برنامج متكامل لإدارة مراكز خدمة السيارات ومحلات بيع قطع الغيار. المخزون، الفواتير، الورشة، الكاشير، العملاء، الموردين، التقارير.",
-  manifest: "/manifest.json",
   icons: {
     icon: [
       { url: "/icon-192.png", sizes: "192x192", type: "image/png" },
@@ -55,6 +54,8 @@ export default function RootLayout({
   return (
     <html lang="ar" dir="rtl" suppressHydrationWarning>
       <head>
+        {/* مانيفست صريح لأدوات مثل PWABuilder؛ anonymous يتوافق مع CORS Allow-Origin: * */}
+        <link rel="manifest" href="/manifest.json" crossOrigin="anonymous" />
         <script
           dangerouslySetInnerHTML={{
             __html: `(function(){try{var t=localStorage.getItem('alameen-theme');var d=typeof window.matchMedia!=='undefined'&&window.matchMedia('(prefers-color-scheme: dark)').matches;document.documentElement.classList.add(t||(d?'dark':'light')||'light');}catch(e){document.documentElement.classList.add('light');}})();`,
