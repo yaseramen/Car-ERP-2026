@@ -424,7 +424,9 @@ export default async function InvoiceDetailPage({
                   </th>
                 </tr>
                 <tr className="bg-gray-50 dark:bg-gray-700/50">
-                  <th className="text-right px-4 py-3 text-sm font-medium text-gray-600 dark:text-gray-300">الصنف</th>
+                  <th className="text-right px-4 py-3 text-sm font-medium text-gray-600 dark:text-gray-300 invoice-print-item-name">
+                    الصنف
+                  </th>
                   <th className="text-right px-4 py-3 text-sm font-medium text-gray-600 dark:text-gray-300 invoice-print-qty-col w-14 min-w-[3.25rem]">
                     عدد
                   </th>
@@ -435,7 +437,9 @@ export default async function InvoiceDetailPage({
               <tbody>
                 {items.map((item) => (
                   <tr key={item.id} className="border-b border-gray-50 dark:border-gray-700">
-                    <td className="px-4 py-3 text-sm text-gray-900 dark:text-gray-100">{item.item_name}</td>
+                    <td className="px-4 py-3 text-sm text-gray-900 dark:text-gray-100 invoice-print-item-name">
+                      {item.item_name}
+                    </td>
                     <td className="px-4 py-3 text-sm text-gray-900 dark:text-gray-100 invoice-print-qty-col w-14 min-w-[3.25rem] text-center tabular-nums">
                       {item.quantity}
                     </td>
