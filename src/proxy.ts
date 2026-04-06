@@ -29,6 +29,11 @@ export default auth((req) => {
     return NextResponse.next();
   }
 
+  // Digital Asset Links (TWA / APK احترافي) — يجب أن يبقى عاماً
+  if (path === "/.well-known/assetlinks.json") {
+    return NextResponse.next();
+  }
+
   // صفحات عامة (SEO، PWA، لا تتطلب تسجيل دخول)
   const publicPaths = [
     "/login",
