@@ -237,7 +237,7 @@ async function buildFullLabelPngBlob(params: {
   const maxTextW = w - pad * 2;
   let y = pad;
   const name = (itemName || "صنف").trim();
-  ctx.font = `${nameFont}px Arial, "Segoe UI", Tahoma, sans-serif`;
+  ctx.font = `bold ${nameFont}px Arial, "Segoe UI", Tahoma, sans-serif`;
   const nameLines = wrapCanvasLines(ctx, name, maxTextW, isTiny ? 2 : 2);
   const lhName = nameFont * 1.12;
   for (const ln of nameLines) {
@@ -533,6 +533,7 @@ export function BarcodeLabelPrint({
     }
     .label-name {
       font-size: ${nameFont}px;
+      font-weight: bold;
       line-height: 1.05;
       max-height: 2.1em;
       overflow: hidden;
@@ -744,7 +745,7 @@ export function BarcodeLabelPrint({
 
         <div className="border border-gray-200 dark:border-gray-600 rounded-lg p-4 bg-white dark:bg-gray-900 text-center">
           <p
-            className="text-gray-700 dark:text-gray-200 mb-2 break-words font-medium leading-tight"
+            className="text-gray-700 dark:text-gray-200 mb-2 break-words font-bold leading-tight"
             style={{ fontSize: `${Math.min(18, Math.max(11, labelTextSizes.nameFont * 1.35))}px` }}
           >
             {itemName}
