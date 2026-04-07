@@ -144,21 +144,26 @@ jobs:
           export ANDROID_HOME
           bubblewrap build --manifest twa-manifest.json $BW_SKIP_FLAG'
 
+      # Docker يعمل كـ root فيُنشئ app/build بصلاحيات root — runner لا يقرأها (EACCES عند رفع الـ artifact)
+      - name: Fix permissions after Docker (chown to runner)
+        run: sudo chown -R "$(id -u):$(id -g)" "$TWA_DIR"
+
       - name: List outputs
         run: |
           find "$TWA_DIR" -type f \( -name "*.aab" -o -name "*.apk" \) -print 2>/dev/null | head -50 || true
           ls -la "$TWA_DIR" || true
 
+      # الملفات النهائية تحت outputs فقط — تجنّب intermediates (ملفات وسيطة وليست حزمة Play)
       - name: Upload AAB artifact
         uses: actions/upload-artifact@v4
         with:
           name: app-release-bundle
-          path: ${{ env.TWA_DIR }}/**/*.aab
+          path: ${{ env.TWA_DIR }}/app/build/outputs/**/*.aab
           if-no-files-found: warn
 
       - name: Upload signed APK (if present)
         uses: actions/upload-artifact@v4
         with:
           name: app-release-apk
-          path: ${{ env.TWA_DIR }}/**/*release*.apk
+          path: ${{ env.TWA_DIR }}/app/build/outputs/**/*.apk
           if-no-files-found: ignore
