@@ -117,24 +117,31 @@ jobs:
             -c 'set -e
           export JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64
           export PATH="$JAVA_HOME/bin:$PATH"
-          SDKM=$(find /root/.bubblewrap -name sdkmanager -type f 2>/dev/null | head -1)
-          if [ -n "$SDKM" ]; then
-            H=$(dirname "$SDKM")
-            ANDROID_HOME=""
-            while [ "$H" != "/" ]; do
-              if [ -d "$H/cmdline-tools" ]; then ANDROID_HOME="$H"; break; fi
-              H=$(dirname "$H")
-            done
-            if [ -z "$ANDROID_HOME" ]; then ANDROID_HOME=$(cd "$(dirname "$SDKM")/../../.." && pwd); fi
-            export ANDROID_HOME ANDROID_SDK_ROOT="$ANDROID_HOME"
-            chmod +x "$SDKM" 2>/dev/null || true
-            echo "Using ANDROID_HOME=$ANDROID_HOME sdkmanager=$SDKM"
-            yes | "$SDKM" --licenses >/dev/null 2>&1 || true
-            yes | "$SDKM" "platform-tools" "platforms;android-35" "build-tools;35.0.0" "build-tools;34.0.0" >/dev/null 2>&1 || true
-          else
-            echo "::warning::لم يُعثر على sdkmanager — قد يفشل Gradle بسبب التراخيص"
-          fi
+          ANDROID_HOME="/root/.bubblewrap/android_sdk"
+          unset ANDROID_SDK_ROOT
+          export ANDROID_HOME
           bubblewrap update --manifest twa-manifest.json --skipVersionUpgrade
+          unset ANDROID_SDK_ROOT
+          export ANDROID_HOME
+          if [ -d "$ANDROID_HOME" ]; then
+            SDKM=$(find "$ANDROID_HOME" -path "*/cmdline-tools/*/bin/sdkmanager" -type f 2>/dev/null | sort | head -1)
+            if [ -z "$SDKM" ]; then SDKM=$(find "$ANDROID_HOME" -name sdkmanager -type f 2>/dev/null | sort | head -1); fi
+            if [ -n "$SDKM" ]; then
+              chmod +x "$SDKM" 2>/dev/null || true
+              echo "sdkmanager=$SDKM ANDROID_HOME=$ANDROID_HOME"
+              mkdir -p "$ANDROID_HOME/licenses"
+              echo "24333f8a63b6825ea9c5514f83c2829b04d171ee72b7452b67716ee344a66893" > "$ANDROID_HOME/licenses/android-sdk-license"
+              echo "84831b9409646a918e30573bab4c9c91346d8abd" > "$ANDROID_HOME/licenses/android-sdk-preview-license"
+              yes | "$SDKM" --sdk_root="$ANDROID_HOME" --licenses || true
+              yes | "$SDKM" --sdk_root="$ANDROID_HOME" "platform-tools" "platforms;android-35" "build-tools;35.0.0" "build-tools;34.0.0" || true
+            else
+              echo "::warning::لم يُعثر على sdkmanager تحت $ANDROID_HOME"
+            fi
+          else
+            echo "::warning::لم يُوجد $ANDROID_HOME بعد update — قد يفشل build"
+          fi
+          unset ANDROID_SDK_ROOT
+          export ANDROID_HOME
           bubblewrap build --manifest twa-manifest.json $BW_SKIP_FLAG'
 
       - name: List outputs
