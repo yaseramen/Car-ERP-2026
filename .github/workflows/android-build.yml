@@ -1,11 +1,12 @@
-# بناء حزمة Android (TWA) باستخدام Bubblewrap في السحابة — لا حاجة لـ JDK/SDK على جهازك.
+# بناء حزمة Android (TWA) باستخدام Bubblewrap في السحابة — لا حاجة لـ Android SDK على جهازك.
 #
-# المتطلبات (GitHub → Settings → Secrets and variables → Actions):
-#   KEYSTORE_BASE64     محتوى ملف android.keystore مشفّر base64 (انظر README في android-twa)
-#   KEYSTORE_PASSWORD   كلمة مرور الـ keystore
-#   KEY_PASSWORD        كلمة مرور المفتاح (غالباً نفس KEYSTORE_PASSWORD)
+# أسرار GitHub (Settings → Secrets and variables → Actions):
+#   KEYSTORE_BASE64      محتوى ملف android.keystore بصيغة base64 (انظر android-twa/README.txt)
+#   KEYSTORE_PASSWORD    كلمة مرور الـ keystore
+#   KEY_PASSWORD         كلمة مرور المفتاح (غالباً نفس KEYSTORE_PASSWORD)
 #
-# اختياري: غيّر packageId عند التشغيل من واجهة workflow_dispatch.
+# بعد أول build ناجح: انسخ من سجل الـ workflow قيم ANDROID_TWA_* وضعها في Vercel
+# ثم أعد نشر الموقع حتى يعمل ملف /.well-known/assetlinks.json (وضع TWA احترافي بدون شريط عنوان).
 
 name: Android TWA (Bubblewrap AAB)
 
@@ -34,6 +35,12 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Setup Java (keytool — بصمة SHA-256 لـ Digital Asset Links)
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
       - name: Check secrets
         run: |
           test -n "${{ secrets.KEYSTORE_BASE64 }}" || { echo "::error::أضف السر KEYSTORE_BASE64"; exit 1; }
@@ -46,6 +53,41 @@ jobs:
         run: |
           echo "$KEYSTORE_BASE64" | base64 -d > "$TWA_DIR/android.keystore"
           test -s "$TWA_DIR/android.keystore" || { echo "::error::فك KEYSTORE_BASE64 فشل"; exit 1; }
+
+      - name: استخراج بصمة التوقيع SHA-256 (لـ Vercel وملف assetlinks)
+        env:
+          KEYSTORE_PASS: ${{ secrets.KEYSTORE_PASSWORD }}
+        run: |
+          set -e
+          KS="$TWA_DIR/android.keystore"
+          ALIAS=$(jq -r '.signingKey.alias // "android"' "$TWA_DIR/twa-manifest.json")
+          PKG=$(jq -r .packageId "$TWA_DIR/twa-manifest.json")
+          HOST=$(jq -r .host "$TWA_DIR/twa-manifest.json")
+          if ! keytool -list -alias "$ALIAS" -keystore "$KS" -storepass "$KEYSTORE_PASS" -noprompt >/dev/null 2>&1; then
+            echo "::warning::الاسم المستعار «$ALIAS» غير موجود في الـ keystore أو كلمة المرور غير صحيحة."
+            echo "المفاتيح المتاحة في الملف:"
+            keytool -list -keystore "$KS" -storepass "$KEYSTORE_PASS" -noprompt || true
+            exit 0
+          fi
+          FP_LINE=$(keytool -list -v -keystore "$KS" -alias "$ALIAS" -storepass "$KEYSTORE_PASS" -noprompt 2>/dev/null | grep -i "SHA256:" | head -1 || true)
+          FP=$(echo "$FP_LINE" | sed -n 's/.*SHA256:[[:space:]]*//p' | tr -d '\r' | head -c 200)
+          if [ -z "$FP" ]; then
+            echo "::warning::تعذر قراءة SHA256 من keytool."
+            exit 0
+          fi
+          echo ""
+          echo "══════════════════════════════════════════════════════════════"
+          echo " TWA احترافي — متغيرات Vercel (Production)"
+          echo "══════════════════════════════════════════════════════════════"
+          echo " انسخ إلى Vercel → Project → Settings → Environment Variables:"
+          echo ""
+          echo "   ANDROID_TWA_PACKAGE_NAME=${PKG}"
+          echo "   ANDROID_TWA_SHA256_FINGERPRINTS=${FP}"
+          echo ""
+          echo " ثم أعد نشر الموقع (Redeploy). تحقق من:"
+          echo "   https://${HOST}/.well-known/assetlinks.json"
+          echo "══════════════════════════════════════════════════════════════"
+          echo "::notice::أضف في Vercel: ANDROID_TWA_PACKAGE_NAME=$PKG و ANDROID_TWA_SHA256_FINGERPRINTS=$FP"
 
       - name: Apply packageId from workflow input
         if: ${{ inputs.package_id != '' }}
@@ -75,7 +117,7 @@ jobs:
 
       - name: List outputs
         run: |
-          find "$TWA_DIR" -maxdepth 4 -type f \( -name "*.aab" -o -name "*.apk" \) -print 2>/dev/null || true
+          find "$TWA_DIR" -type f \( -name "*.aab" -o -name "*.apk" \) -print 2>/dev/null | head -50 || true
           ls -la "$TWA_DIR" || true
 
       - name: Upload AAB artifact

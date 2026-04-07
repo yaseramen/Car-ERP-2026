@@ -1,23 +1,35 @@
-TWA / Android App Bundle (Bubblewrap) — إعداد أسرار GitHub
-============================================================
+TWA / Android (Bubblewrap) — دليل مختصر (AAB + APK من GitHub Actions)
+====================================================================
 
-1) أنشئ keystore (مرة واحدة — على أي جهاز فيه Java):
+أ) إنشاء مفتاح التوقيع (مرة واحدة — جهاز فيه Java / JDK)
+   يجب أن يطابق twa-manifest.json: path = ./android.keystore و alias = android
+
    keytool -genkeypair -v -keystore android.keystore -alias android \
      -keyalg RSA -keysize 2048 -validity 10000
 
-2) حوّل الملف إلى base64 (Linux/macOS):
-   base64 -w0 android.keystore > keystore.b64
-   (على macOS: base64 -i android.keystore | tr -d '\n' > keystore.b64)
-
-3) في GitHub: Repository → Settings → Secrets and variables → Actions → New repository secret
-   - KEYSTORE_BASE64 = محتوى ملف keystore.b64 كاملاً
+ب) أسرار GitHub (Repository → Settings → Secrets and variables → Actions)
+   - KEYSTORE_BASE64  = محتوى الملف بعد التشفير base64 (سطر واحد بدون فواصل)
+       Linux:  base64 -w0 android.keystore > keystore.b64
+       macOS:  base64 -i android.keystore | tr -d '\n' > keystore.b64
+       Windows (PowerShell): [Convert]::ToBase64String([IO.File]::ReadAllBytes("android.keystore")) | Out-File keystore.b64 -Encoding ascii
    - KEYSTORE_PASSWORD = كلمة مرور الـ keystore
-   - KEY_PASSWORD = كلمة مرور المفتاح (غالباً نفس أعلاه)
+   - KEY_PASSWORD      = كلمة مرور المفتاح (غالباً نفس KEYSTORE_PASSWORD)
 
-4) شغّل الـ workflow: Actions → "Android TWA (Bubblewrap AAB)" → Run workflow
+ج) بناء الحزمة
+   Actions → "Android TWA (Bubblewrap AAB)" → Run workflow
+   - يُنزَّل من Artifacts: ملف .aab (Google Play) وقد يُرفع أيضاً .apk إن ولّده Bubblewrap.
+   - في سجل الـ job يظهر مربع "متغيرات Vercel": انسخ ANDROID_TWA_PACKAGE_NAME و ANDROID_TWA_SHA256_FINGERPRINTS.
 
-5) بعد أول build ناجح: خذ SHA-256 للتوقيع وضعه في Vercel:
-   ANDROID_TWA_PACKAGE_NAME = نفس packageId في twa-manifest.json
-   ANDROID_TWA_SHA256_FINGERPRINTS = البصمة
+د) وضع TWA احترافي (بدون شريط عنوان المتصفح)
+   1) في Vercel → المشروع → Settings → Environment Variables (Production):
+      ANDROID_TWA_PACKAGE_NAME        = نفس packageId في twa-manifest.json (مثلاً com.aiverce.carerp)
+      ANDROID_TWA_SHA256_FINGERPRINTS = البصمة كما في سجل GitHub (صيغة AA:BB:... أو بدون نقطتين)
+   2) Redeploy للموقع.
+   3) تحقق: https://<host من twa-manifest>/.well-known/assetlinks.json
+      يجب أن يعرض JSON فيه package_name و sha256_cert_fingerprints وليس [] فارغة.
 
-packageId الافتراضي: com.aiverce.carerp — غيّره عند التشغيل اليدوي إن لزم.
+هـ) Google Play
+   ارفع الـ AAB نفسه الذي وقّعته بهذه الأسرار؛ البصمة أعلاه يجب أن تطابق شهادة التوقيع في Play.
+
+packageId الافتراضي في المستودع: com.aiverce.carerp — غيّره من واجهة تشغيل الـ workflow إن لزم،
+ومعه حدّث ANDROID_TWA_PACKAGE_NAME على Vercel لنفس القيمة.
