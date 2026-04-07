@@ -1,0 +1,32 @@
+# يستدعي نشر Production على Vercel عند كل دفع إلى main.
+# إذا كان تكامل GitHub في Vercel يعمل، قد يحدث نشران متتاليان — يمكنك حذف هذا الملف لاحقاً.
+#
+# الإعداد (مرة واحدة في Vercel):
+#   Project → Settings → Git → Deploy Hooks → Create Hook (Branch: main, Environment: Production)
+# ثم في GitHub: Repository → Settings → Secrets → Actions → New secret
+#   VERCEL_DEPLOY_HOOK_URL = الرابط الكامل الذي يعطيك إياه Vercel (يبدأ عادة بـ https://api.vercel.com/v1/integrations/...)
+
+name: Trigger Vercel production deploy
+
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  vercel-hook:
+    runs-on: ubuntu-latest
+    steps:
+      - name: POST deploy hook
+        env:
+          HOOK_URL: ${{ secrets.VERCEL_DEPLOY_HOOK_URL }}
+        run: |
+          if [ -z "$HOOK_URL" ]; then
+            echo "::warning::Secret VERCEL_DEPLOY_HOOK_URL غير مضبوط — أضف Deploy Hook من Vercel (Settings → Git → Deploy Hooks) والصق الرابط في أسرار المستودع."
+            exit 0
+          fi
+          curl -fsS -X POST "$HOOK_URL"
+          echo "تم طلب نشر Production على Vercel."
