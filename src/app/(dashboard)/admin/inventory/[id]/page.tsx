@@ -5,6 +5,7 @@ import { db } from "@/lib/db/client";
 import { getCompanyId } from "@/lib/company";
 import { canAccess } from "@/lib/permissions";
 import { EditMinQuantity } from "./edit-min-quantity";
+import { EditItemBarcode } from "./edit-item-barcode";
 import { PrintBarcodeButton } from "./print-barcode-button";
 import { expiryUiStatus, formatExpiryArLabel } from "@/lib/item-expiry";
 
@@ -145,9 +146,9 @@ export default async function ItemReportPage({
                 <dd className="text-gray-900 font-medium">{item.code || "—"}</dd>
               </div>
               <div className="flex justify-between items-start gap-2">
-                <dt className="text-gray-500 shrink-0">الباركود</dt>
-                <dd className="text-gray-900 font-mono flex flex-col gap-2">
-                  <span>{item.barcode || "—"}</span>
+                <dt className="text-gray-500 shrink-0 pt-1">الباركود</dt>
+                <dd className="text-gray-900 flex flex-col gap-2 items-stretch min-w-0 flex-1 max-w-md">
+                  <EditItemBarcode itemId={id} currentBarcode={item.barcode} />
                   <PrintBarcodeButton
                     barcode={item.barcode || ""}
                     itemName={item.name}
