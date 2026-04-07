@@ -95,6 +95,7 @@ jobs:
           jq --arg p "${{ inputs.package_id }}" '.packageId = $p' "$TWA_DIR/twa-manifest.json" > /tmp/twa.json && mv /tmp/twa.json "$TWA_DIR/twa-manifest.json"
           echo "packageId=$(jq -r .packageId "$TWA_DIR/twa-manifest.json")"
 
+      # Gradle يطلب build-tools ويحتاج قبول تراخيص Google؛ في CI لا يوجد طرفية تفاعلية فيقبلها sdkmanager مسبقاً.
       - name: Bubblewrap update + build (Docker)
         env:
           BUBBLEWRAP_KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
@@ -105,15 +106,36 @@ jobs:
           if [ "${{ inputs.skip_pwa_validation }}" = "true" ]; then
             SKIP_FLAG="--skipPwaValidation"
           fi
-          # الصورة الرسمية: ENTRYPOINT قد يكون bubblewrap — نستخدم bash لتشغيل أمرين
           docker run --rm \
             --entrypoint /bin/bash \
             -v "${{ github.workspace }}:/workspace" \
             -w "/workspace/${TWA_DIR}" \
             -e BUBBLEWRAP_KEYSTORE_PASSWORD \
             -e BUBBLEWRAP_KEY_PASSWORD \
+            -e BW_SKIP_FLAG="$SKIP_FLAG" \
             ghcr.io/googlechromelabs/bubblewrap:latest \
-            -lc "set -e; bubblewrap update --manifest twa-manifest.json --skipVersionUpgrade && bubblewrap build --manifest twa-manifest.json ${SKIP_FLAG}"
+            -c 'set -e
+          export JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64
+          export PATH="$JAVA_HOME/bin:$PATH"
+          SDKM=$(find /root/.bubblewrap -name sdkmanager -type f 2>/dev/null | head -1)
+          if [ -n "$SDKM" ]; then
+            H=$(dirname "$SDKM")
+            ANDROID_HOME=""
+            while [ "$H" != "/" ]; do
+              if [ -d "$H/cmdline-tools" ]; then ANDROID_HOME="$H"; break; fi
+              H=$(dirname "$H")
+            done
+            if [ -z "$ANDROID_HOME" ]; then ANDROID_HOME=$(cd "$(dirname "$SDKM")/../../.." && pwd); fi
+            export ANDROID_HOME ANDROID_SDK_ROOT="$ANDROID_HOME"
+            chmod +x "$SDKM" 2>/dev/null || true
+            echo "Using ANDROID_HOME=$ANDROID_HOME sdkmanager=$SDKM"
+            yes | "$SDKM" --licenses >/dev/null 2>&1 || true
+            yes | "$SDKM" "platform-tools" "platforms;android-35" "build-tools;35.0.0" "build-tools;34.0.0" >/dev/null 2>&1 || true
+          else
+            echo "::warning::لم يُعثر على sdkmanager — قد يفشل Gradle بسبب التراخيص"
+          fi
+          bubblewrap update --manifest twa-manifest.json --skipVersionUpgrade
+          bubblewrap build --manifest twa-manifest.json $BW_SKIP_FLAG'
 
       - name: List outputs
         run: |
