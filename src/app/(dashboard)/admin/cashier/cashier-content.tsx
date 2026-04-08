@@ -7,6 +7,10 @@ import { InventoryCategoryFilter } from "@/components/inventory/inventory-catego
 import { BarcodeScanner } from "@/components/inventory/barcode-scanner";
 import { addToQueue } from "@/lib/offline-queue";
 import { DigitalWalletPaymentFields } from "@/components/payment/digital-wallet-fields";
+import {
+  loadInvoicePrintDisclaimerPrefs,
+  saveInvoicePrintDisclaimerPrefs,
+} from "@/lib/invoice-print-disclaimer-prefs";
 
 interface CartItem {
   item_id: string;
@@ -56,6 +60,7 @@ function loadCashierDraft(): Partial<{
   discountEnabled: boolean;
   discountType: "percent" | "fixed";
   discountValue: string;
+  printDisclaimerOnReceipt: boolean;
 }> | null {
   if (typeof window === "undefined") return null;
   try {
@@ -80,6 +85,7 @@ function saveCashierDraft(data: {
   discountEnabled: boolean;
   discountType: "percent" | "fixed";
   discountValue: string;
+  printDisclaimerOnReceipt: boolean;
 }) {
   if (typeof window === "undefined") return;
   try {
@@ -135,8 +141,14 @@ export function CashierContent({ showPurchaseCost = false }: CashierContentProps
   const [discountEnabled, setDiscountEnabled] = useState(false);
   const [discountType, setDiscountType] = useState<"percent" | "fixed">("percent");
   const [discountValue, setDiscountValue] = useState("");
+  /** يزامن مع صفحة الفاتورة عبر localStorage — لا يُرسل للخادم */
+  const [printDisclaimerOnReceipt, setPrintDisclaimerOnReceipt] = useState(false);
 
   const [itemCategoryFilter, setItemCategoryFilter] = useState("");
+
+  useEffect(() => {
+    setPrintDisclaimerOnReceipt(loadInvoicePrintDisclaimerPrefs().enabled);
+  }, []);
 
   async function fetchData() {
     try {
@@ -228,6 +240,10 @@ export function CashierContent({ showPurchaseCost = false }: CashierContentProps
       if (draft.discountEnabled) setDiscountEnabled(true);
       if (draft.discountType) setDiscountType(draft.discountType);
       if (draft.discountValue) setDiscountValue(draft.discountValue);
+      if (typeof draft.printDisclaimerOnReceipt === "boolean") {
+        setPrintDisclaimerOnReceipt(draft.printDisclaimerOnReceipt);
+        saveInvoicePrintDisclaimerPrefs({ enabled: draft.printDisclaimerOnReceipt });
+      }
       setRestoredFromDraft(true);
     }
     setDraftLoaded(true);
@@ -247,8 +263,9 @@ export function CashierContent({ showPurchaseCost = false }: CashierContentProps
       discountEnabled,
       discountType,
       discountValue,
+      printDisclaimerOnReceipt,
     });
-  }, [cart, customerId, paymentMethodId, paidAmount, referenceFrom, referenceTo, notes, taxEnabled, taxRate, discountEnabled, discountType, discountValue]);
+  }, [cart, customerId, paymentMethodId, paidAmount, referenceFrom, referenceTo, notes, taxEnabled, taxRate, discountEnabled, discountType, discountValue, printDisclaimerOnReceipt]);
 
   function findItemByBarcodeOrCode(value: string): InventoryItem | undefined {
     const v = String(value || "").trim().toLowerCase();
@@ -1128,6 +1145,24 @@ export function CashierContent({ showPurchaseCost = false }: CashierContentProps
                 <span className="text-sm text-gray-500">% = {taxAmount.toFixed(2)} ج.م</span>
               </div>
             )}
+            <label className="flex items-start gap-2 cursor-pointer pt-1">
+              <input
+                type="checkbox"
+                checked={printDisclaimerOnReceipt}
+                onChange={(e) => {
+                  const v = e.target.checked;
+                  setPrintDisclaimerOnReceipt(v);
+                  saveInvoicePrintDisclaimerPrefs({ enabled: v });
+                }}
+                className="mt-0.5 rounded border-gray-300 text-emerald-600"
+              />
+              <span>
+                <span className="text-sm font-medium text-gray-700">إظهار «بيان أعمال وليس فاتورة» على المطبوع</span>
+                <span className="block text-xs text-gray-500 mt-0.5">
+                  يظهر أسفل الفاتورة عند الطباعة أو PDF فقط — لا يغيّر الخدمة الرقمية أو المخزون أو الخزينة.
+                </span>
+              </span>
+            </label>
             <div className="flex justify-between text-sm">
               <span className="text-gray-700">الخدمة الرقمية</span>
               <span className="font-medium">{digitalFee.toFixed(2)} ج.م</span>
