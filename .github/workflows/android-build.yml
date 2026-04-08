@@ -106,6 +106,7 @@ jobs:
           if [ "${{ inputs.skip_pwa_validation }}" = "true" ]; then
             SKIP_FLAG="--skipPwaValidation"
           fi
+          KEYSTORE_ALIAS=$(jq -r '.signingKey.alias // "android"' "$TWA_DIR/twa-manifest.json")
           docker run --rm \
             --entrypoint /bin/bash \
             -v "${{ github.workspace }}:/workspace" \
@@ -113,6 +114,7 @@ jobs:
             -e BUBBLEWRAP_KEYSTORE_PASSWORD \
             -e BUBBLEWRAP_KEY_PASSWORD \
             -e BW_SKIP_FLAG="$SKIP_FLAG" \
+            -e KEYSTORE_ALIAS="$KEYSTORE_ALIAS" \
             ghcr.io/googlechromelabs/bubblewrap:latest \
             -c 'set -e
           export JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64
@@ -142,7 +144,30 @@ jobs:
           fi
           unset ANDROID_SDK_ROOT
           export ANDROID_HOME
-          bubblewrap build --manifest twa-manifest.json $BW_SKIP_FLAG'
+          bubblewrap build --manifest twa-manifest.json $BW_SKIP_FLAG
+          # Gradle يُخرج app-release-unsigned.apk — Android يرفض التثبيت بدون توقيع
+          ALIAS="${KEYSTORE_ALIAS:-android}"
+          UNSIGNED=$(find /workspace/android-twa/app/build/outputs/apk -name "*-unsigned.apk" -type f 2>/dev/null | head -1)
+          if [ -n "$UNSIGNED" ] && [ -f /workspace/android-twa/android.keystore ]; then
+            APKSIGNER=$(find "$ANDROID_HOME/build-tools" -name apksigner -type f 2>/dev/null | sort -V | tail -1)
+            if [ -z "$APKSIGNER" ]; then
+              echo "::error::لم يُعثر على apksigner في build-tools — لا يمكن توقيع APK"
+              exit 1
+            fi
+            OUT_DIR=$(dirname "$UNSIGNED")
+            SIGNED="$OUT_DIR/app-release-signed.apk"
+            rm -f "$SIGNED"
+            "$APKSIGNER" sign \
+              --ks "/workspace/android-twa/android.keystore" \
+              --ks-pass "pass:${BUBBLEWRAP_KEYSTORE_PASSWORD}" \
+              --key-pass "pass:${BUBBLEWRAP_KEY_PASSWORD}" \
+              --ks-key-alias "$ALIAS" \
+              --out "$SIGNED" \
+              "$UNSIGNED"
+            echo "Signed APK: $SIGNED"
+          else
+            echo "::warning::لم يُوجد APK غير موقّع أو الـ keystore مفقود — تخطي التوقيع"
+          fi'
 
       # Docker يعمل كـ root فيُنشئ app/build بصلاحيات root — runner لا يقرأها (EACCES عند رفع الـ artifact)
       - name: Fix permissions after Docker (chown to runner)
@@ -161,9 +186,9 @@ jobs:
           path: ${{ env.TWA_DIR }}/app/build/outputs/**/*.aab
           if-no-files-found: warn
 
-      - name: Upload signed APK (if present)
+      - name: Upload signed APK (موقّع — جاهز للتثبيت على الهاتف)
         uses: actions/upload-artifact@v4
         with:
           name: app-release-apk
-          path: ${{ env.TWA_DIR }}/app/build/outputs/**/*.apk
+          path: ${{ env.TWA_DIR }}/app/build/outputs/**/app-release-signed.apk
           if-no-files-found: ignore

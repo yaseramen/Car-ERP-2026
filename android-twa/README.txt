@@ -19,7 +19,10 @@ TWA / Android (Bubblewrap) — دليل مختصر (AAB + APK من GitHub Action
    Actions → "Android TWA (Bubblewrap AAB)" → Run workflow
    (إن رأيت سابقاً: «licenses have not been accepted» أو build-tools 34/35 — تم معالجته في الـ workflow
     عبر قبول تراخيص Android SDK تلقائياً داخل Docker قبل Gradle.)
-   - يُنزَّل من Artifacts: ملف .aab (Google Play) وقد يُرفع أيضاً .apk إن ولّده Bubblewrap.
+   - يُنزَّل من Artifacts:
+     • app-release-bundle → ملف .aab (Google Play)
+     • app-release-apk → app-release-signed.apk موقّع وجاهز للتثبيت على الهاتف
+   لا تثبّت ملف app-release-unsigned.apk — النظام يرفضه؛ استخدم الملف الموقّع من الـ artifact فقط.
    - في سجل الـ job يظهر مربع "متغيرات Vercel": انسخ ANDROID_TWA_PACKAGE_NAME و ANDROID_TWA_SHA256_FINGERPRINTS.
 
 د) وضع TWA احترافي (بدون شريط عنوان المتصفح)
