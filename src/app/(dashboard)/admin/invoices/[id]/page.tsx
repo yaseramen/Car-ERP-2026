@@ -11,6 +11,7 @@ import { ReturnButton } from "./return-button";
 import { CancelButton } from "./cancel-button";
 import { EditPurchaseInvoice } from "./edit-purchase-invoice";
 import { InvoicePaymentsList } from "./invoice-payments-list";
+import { InvoicePrintDisclaimer } from "./invoice-print-disclaimer";
 
 export default async function InvoiceDetailPage({
   params,
@@ -566,6 +567,8 @@ export default async function InvoiceDetailPage({
           <p className="text-gray-600 dark:text-gray-300 text-sm whitespace-pre-wrap">{data.notes}</p>
         </div>
       )}
+
+      <InvoicePrintDisclaimer invoiceType={data.type} />
 
       <div className="mt-8 pt-4 border-t border-gray-200 dark:border-gray-700 text-center text-sm text-gray-500 dark:text-gray-400 invoice-print-footer">
         <p className="font-medium text-gray-600 dark:text-gray-400">برمجة وتطوير البرنامج</p>
