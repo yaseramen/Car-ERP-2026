@@ -1,7 +1,9 @@
 /**
- * Vercel / CI build entry: runs migrations unless SKIP_DB_MIGRATE=1 (emergency only).
- * Turso 401 during migrate: fix TURSO_DATABASE_URL + TURSO_AUTH_TOKEN in project env,
- * or run `npm run db:migrate` locally / Turso shell with a valid token.
+ * Vercel / CI build: migrations are opt-in on Vercel so a bad Turso token does not
+ * block `next build`. Set RUN_DB_MIGRATE_ON_VERCEL=1 when build env has valid
+ * TURSO_* vars. Else run `npm run db:migrate` locally or from CI with secrets.
+ *
+ * SKIP_DB_MIGRATE=1 always skips (e.g. local builds without DB).
  */
 const { spawnSync } = require("child_process");
 
@@ -16,8 +18,17 @@ const skip =
   process.env.SKIP_DB_MIGRATE === "1" ||
   process.env.SKIP_DB_MIGRATE === "true";
 
+const onVercel = Boolean(process.env.VERCEL);
+const runMigrateOnVercel =
+  process.env.RUN_DB_MIGRATE_ON_VERCEL === "1" ||
+  process.env.RUN_DB_MIGRATE_ON_VERCEL === "true";
+
 if (skip) {
   console.warn("[build] SKIP_DB_MIGRATE: skipping db:migrate");
+} else if (onVercel && !runMigrateOnVercel) {
+  console.warn(
+    "[build] Vercel: skipping db:migrate (set RUN_DB_MIGRATE_ON_VERCEL=1 with valid TURSO_* to migrate at build time)"
+  );
 } else {
   runNpm("db:migrate");
 }
