@@ -66,6 +66,13 @@
    npm run dev
    ```
 
+5. **اختبارات تكامل المتصفح (Playwright) — اختياري:**
+   ```bash
+   npx playwright install chromium
+   npm run test:e2e
+   ```
+   يشغّل `next dev` تلقائياً مع متغيرات وهمية لـ Turso حتى لا تحتاج قاعدة حقيقية لاختبار صفحة تسجيل الدخول. للواجهة التفاعلية: `npm run test:e2e:ui`.
+
 **بيانات Super Admin الافتراضية:** santws1@gmail.com / `Admin@123`  
 لتغيير كلمة المرور: `SEED_SUPER_ADMIN_PASSWORD=الجديدة npm run db:seed`
 

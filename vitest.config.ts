@@ -6,5 +6,6 @@ export default defineConfig({
   plugins: [tsconfigPaths(), react()],
   test: {
     environment: "node",
+    exclude: ["**/node_modules/**", "**/e2e/**", "**/playwright-report/**", "**/dist/**"],
   },
 });

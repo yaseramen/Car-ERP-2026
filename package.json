@@ -5,6 +5,8 @@
   "scripts": {
     "dev": "next dev",
     "test": "vitest run",
+    "test:e2e": "playwright test",
+    "test:e2e:ui": "playwright test --ui",
     "test:watch": "vitest",
     "build": "node scripts/build.js",
     "generate-icons": "tsx scripts/generate-pwa-icons.ts",
@@ -32,6 +34,7 @@
     "xlsx": "^0.18.5"
   },
   "devDependencies": {
+    "@playwright/test": "^1.57.0",
     "@tailwindcss/postcss": "^4",
     "@types/bcryptjs": "^2.4.6",
     "@types/node": "^20",

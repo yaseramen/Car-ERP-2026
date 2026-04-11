@@ -60,7 +60,7 @@ function LoginForm() {
 
       <form onSubmit={handleSubmit} className="space-y-6">
         {(error || urlError) && (
-          <div className="space-y-2">
+          <div className="space-y-2" data-testid="login-error">
             <div className="p-3 rounded-lg bg-red-50 dark:bg-red-950/40 text-red-600 dark:text-red-300 text-sm">
               {error || (urlError === "Configuration" ? "خطأ في إعدادات الخادم. تأكد من إضافة AUTH_SECRET في Vercel." : "حدث خطأ. حاول مرة أخرى.")}
             </div>
@@ -75,6 +75,7 @@ function LoginForm() {
           </label>
           <input
             id="email"
+            data-testid="login-email"
             type="email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
@@ -93,6 +94,7 @@ function LoginForm() {
           <div className="relative">
             <input
               id="password"
+              data-testid="login-password"
               type={showPassword ? "text" : "password"}
               value={password}
               onChange={(e) => setPassword(e.target.value)}
@@ -139,6 +141,7 @@ function LoginForm() {
 
         <button
           type="submit"
+          data-testid="login-submit"
           disabled={loading}
           className="w-full py-3 px-4 bg-emerald-600 hover:bg-emerald-700 disabled:bg-emerald-400 text-white font-medium rounded-lg transition-colors"
         >
