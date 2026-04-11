@@ -43,8 +43,12 @@
    | `TURSO_AUTH_TOKEN` | ✅ | رمز مصادقة Turso |
    | `AUTH_SECRET` أو `NEXTAUTH_SECRET` | ✅ | سري الجلسات (مثلاً: `openssl rand -base64 32`) |
    | `NEXTAUTH_URL` أو `NEXT_PUBLIC_APP_URL` | للإنتاج | رابط التطبيق (مثل `https://car.aiverce.com`) |
+   | `NEXT_PUBLIC_SUPPORT_PHONE` | اختياري | يظهر في رسائل الخطأ وتسجيل الدخول (مثلاً `01001234567`) |
+   | `NEXT_PUBLIC_SUPPORT_EMAIL` | اختياري | بريد الدعم في نفس الرسائل |
 
    **ملاحظة:** `npm run build` على Vercel **لا** يتصل بقاعدة البيانات. لكن **التشغيل** (تسجيل الدخول والـ API) يحتاج `TURSO_*` صحيحة في متغيرات البيئة.
+
+   **للمالك بعد كل تحديث مهم من Git:** ادخل [Vercel → المشروع → Environment Variables](https://vercel.com/dashboard) وتأكد من المتغيرات، ثم من جهازك (مع `.env`) نفّذ `npm run db:migrate` إذا تغيّر مجلد `database/`.
 
 2. **تشغيل Migrations:**
    ```bash
@@ -71,6 +75,22 @@
 **لنطاق مخصص (مثل car.aiverce.com):** أضف `NEXT_PUBLIC_APP_URL=https://car.aiverce.com` في Vercel → Settings → Environment Variables → Production. هذا يمنع إعادة التوجيه إلى vercel.app ويُبقي تسجيل الدخول على نطاقك.
 
 **للتحقق من الإعداد:** افتح `/api/health` - إذا ظهر `auth: "missing_secret"` أضف AUTH_SECRET في Vercel → Settings → Environment Variables → Production
+
+### قائمة تحقق سريعة للنشر (للمالك)
+
+1. Turso: رابط القاعدة + Token صالحان في Vercel (`TURSO_DATABASE_URL`, `TURSO_AUTH_TOKEN`).
+2. `AUTH_SECRET` / `NEXTAUTH_SECRET` مضبوط.
+3. `NEXTAUTH_URL` و`NEXT_PUBLIC_APP_URL` **يساويان** الرابط الذي يفتحه المستخدمون (نطاق واحد؛ لا خلط `vercel.app` مع النطاق المخصص).
+4. بعد تحديث يغيّر قاعدة البيانات: `npm run db:migrate` من جهازك.
+5. أسبوعياً: Turso → **Top Queries** للتأكد من استقرار القراءات بعد التحسينات.
+
+### خطة تحسين تجربة المستخدم (مختصرة)
+
+| المرحلة | ما تم / المطلوب |
+|--------|------------------|
+| **1 — جاهز في الكود** | رسالة دعم اختيارية (`NEXT_PUBLIC_SUPPORT_*`)، نسخ الرابط لفتح خارج فيسبوك/إنستغرام، رسالة أبسط لموظف عند تعطل قاعدة البيانات، تبطئة استطلاع الإشعارات قليلاً. |
+| **2 — إعداد** | أضف في Vercel أرقام/بريد الدعم الفعلية لشركتك. |
+| **3 — لاحقاً** | اختبارات تكامل (Playwright) لمسارات تسجيل الدخول والفاتورة؛ تحسينات واجهة حسب ملاحظات المستخدمين. |
 
 ## ملاحظات تقنية
 

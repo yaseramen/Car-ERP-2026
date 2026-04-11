@@ -24,7 +24,7 @@ export default async function AdminDashboardPage() {
       }
     } catch (e) {
       console.error("Admin dashboard: permissions query failed", e);
-      return <DbUnavailableBlock />;
+      return <DbUnavailableBlock viewerRole={session.user.role} />;
     }
   }
 

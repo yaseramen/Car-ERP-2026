@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect } from "react";
+import { getSupportFooterSentence } from "@/lib/support-contact";
+import { OpenExternalBrowserHint } from "@/components/open-external-browser-hint";
 
 export default function GlobalError({
   error,
@@ -23,9 +25,11 @@ export default function GlobalError({
           <p className="text-gray-600 dark:text-gray-400 mb-6">
             حدث خطأ أثناء تحميل التطبيق. جرب إعادة المحاولة أو العودة لتسجيل الدخول.
           </p>
-          <p className="text-sm text-gray-500 dark:text-gray-500 mb-6">
+          <p className="text-sm text-gray-500 dark:text-gray-500 mb-4">
             نصيحة: إذا ظهر الخطأ عند فتح الرابط من فيسبوك أو إنستغرام، افتح الموقع من المتصفح العادي (Chrome أو Safari).
           </p>
+          <OpenExternalBrowserHint />
+          <p className="text-sm text-gray-600 dark:text-gray-400 mt-4 mb-6">{getSupportFooterSentence()}</p>
           <div className="flex flex-col sm:flex-row gap-3 justify-center">
             <button
               type="button"

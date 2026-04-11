@@ -33,7 +33,7 @@ export default async function AdminLayout({
     }
   } catch (e) {
     console.error("Admin layout: wallet check failed", e);
-    return <DbUnavailableBlock />;
+    return <DbUnavailableBlock viewerRole={session.user.role} />;
   }
 
   if (showChargeRequired) {
@@ -62,7 +62,7 @@ export default async function AdminLayout({
     }
   } catch (e) {
     console.error("Admin layout: company branding query failed", e);
-    return <DbUnavailableBlock />;
+    return <DbUnavailableBlock viewerRole={session.user.role} />;
   }
 
   return (

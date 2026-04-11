@@ -5,6 +5,8 @@ import Link from "next/link";
 import { signIn } from "next-auth/react";
 import { useSearchParams } from "next/navigation";
 import { getErrorMessage } from "@/lib/error-messages";
+import { getSupportFooterSentence } from "@/lib/support-contact";
+import { OpenExternalBrowserHint } from "@/components/open-external-browser-hint";
 
 function LoginForm() {
   const [email, setEmail] = useState("");
@@ -58,8 +60,12 @@ function LoginForm() {
 
       <form onSubmit={handleSubmit} className="space-y-6">
         {(error || urlError) && (
-          <div className="p-3 rounded-lg bg-red-50 text-red-600 text-sm">
-            {error || (urlError === "Configuration" ? "خطأ في إعدادات الخادم. تأكد من إضافة AUTH_SECRET في Vercel." : "حدث خطأ. حاول مرة أخرى.")}
+          <div className="space-y-2">
+            <div className="p-3 rounded-lg bg-red-50 dark:bg-red-950/40 text-red-600 dark:text-red-300 text-sm">
+              {error || (urlError === "Configuration" ? "خطأ في إعدادات الخادم. تأكد من إضافة AUTH_SECRET في Vercel." : "حدث خطأ. حاول مرة أخرى.")}
+            </div>
+            <p className="text-xs text-gray-500 dark:text-gray-400 text-center">{getSupportFooterSentence()}</p>
+            <OpenExternalBrowserHint />
           </div>
         )}
 

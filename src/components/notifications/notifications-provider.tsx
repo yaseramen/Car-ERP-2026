@@ -20,7 +20,7 @@ type NotificationsContextType = {
 
 const NotificationsContext = createContext<NotificationsContextType | null>(null);
 
-const POLL_INTERVAL_MS = 5 * 60 * 1000; // 5 minutes
+const POLL_INTERVAL_MS = 8 * 60 * 1000; // 8 minutes — أخف على Turso مع التخزين المؤقت للملخص
 const STORAGE_KEY = "alameen-notifications-last";
 const RELEASE_SEEN_KEY = "alameen-release-notifs-seen";
 const MAX_RELEASE_TOASTS = 5;

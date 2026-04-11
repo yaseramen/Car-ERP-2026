@@ -57,7 +57,7 @@
 
 ### قاعدة البيانات والنشر
 
-- **مخطط + ترحيلات** في `database/`؛ **`npm run db:migrate`** ضمن `npm run build` على Vercel (فشل الترحيل يفشل النشر).
+- **مخطط + ترحيلات** في `database/`؛ **`npm run build` على Vercel لا يشغّل الترحيل** — بعد تغيير المخطط شغّل **`npm run db:migrate`** من جهازك (`.env` + Turso) أو من Turso CLI.
 - **ترحيل مخطط `schema.sql` جملة جملة** لتفادي فشل Turso على دفعات ضخمة.
 
 ### اختبارات وصيانة
