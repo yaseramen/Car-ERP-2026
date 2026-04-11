@@ -627,6 +627,7 @@ CREATE INDEX IF NOT EXISTS idx_item_warehouse_stock_warehouse ON item_warehouse_
 CREATE INDEX IF NOT EXISTS idx_stock_movements_item ON stock_movements(item_id);
 CREATE INDEX IF NOT EXISTS idx_stock_movements_warehouse ON stock_movements(warehouse_id);
 CREATE INDEX IF NOT EXISTS idx_invoices_company ON invoices(company_id);
+CREATE INDEX IF NOT EXISTS idx_invoices_company_type_status_created ON invoices(company_id, type, status, created_at);
 CREATE INDEX IF NOT EXISTS idx_invoices_customer ON invoices(customer_id);
 CREATE INDEX IF NOT EXISTS idx_invoices_supplier ON invoices(supplier_id);
 CREATE INDEX IF NOT EXISTS idx_invoices_created ON invoices(created_at);
