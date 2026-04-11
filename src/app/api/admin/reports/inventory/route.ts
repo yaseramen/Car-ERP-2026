@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { db } from "@/lib/db/client";
 import { getCompanyId } from "@/lib/company";
+import { ITEM_STOCK_SUM_SUBQUERY } from "@/lib/item-stock-subquery";
 
 const ALLOWED_ROLES = ["super_admin", "tenant_owner", "employee"] as const;
 
@@ -19,11 +20,11 @@ export async function GET(request: Request) {
 
   try {
     const lowStockResult = await db.execute({
-      sql: `SELECT i.id, i.name, i.code, i.min_quantity,
-            COALESCE((SELECT SUM(quantity) FROM item_warehouse_stock WHERE item_id = i.id), 0) as quantity
+      sql: `SELECT i.id, i.name, i.code, i.min_quantity, COALESCE(s.stock_qty, 0) as quantity
             FROM items i
+            LEFT JOIN ${ITEM_STOCK_SUM_SUBQUERY} s ON s.item_id = i.id
             WHERE i.company_id = ? AND i.is_active = 1 AND i.min_quantity > 0
-            AND COALESCE((SELECT SUM(quantity) FROM item_warehouse_stock WHERE item_id = i.id), 0) < i.min_quantity
+            AND COALESCE(s.stock_qty, 0) < i.min_quantity
             ORDER BY quantity ASC`,
       args: [companyId],
     });
@@ -47,9 +48,9 @@ export async function GET(request: Request) {
     });
 
     const valuationResult = await db.execute({
-      sql: `SELECT i.id, i.name, i.code, i.purchase_price,
-            COALESCE((SELECT SUM(quantity) FROM item_warehouse_stock WHERE item_id = i.id), 0) as quantity
+      sql: `SELECT i.id, i.name, i.code, i.purchase_price, COALESCE(s.stock_qty, 0) as quantity
             FROM items i
+            LEFT JOIN ${ITEM_STOCK_SUM_SUBQUERY} s ON s.item_id = i.id
             WHERE i.company_id = ? AND i.is_active = 1
             ORDER BY i.name`,
       args: [companyId],

@@ -6,6 +6,7 @@ import { ensureCompanyWarehouse } from "@/lib/warehouse";
 import { getDistributionContext } from "@/lib/distribution";
 import { randomUUID } from "crypto";
 import { normalizeExpiryInput } from "@/lib/item-expiry-api";
+import { ITEM_STOCK_SUM_SUBQUERY } from "@/lib/item-stock-subquery";
 
 const ALLOWED_ROLES = ["super_admin", "tenant_owner", "employee"] as const;
 
@@ -40,17 +41,22 @@ export async function GET(request: Request) {
     const dist = await getDistributionContext(session.user.id, companyId);
     const qtyExpr = dist
       ? `(SELECT COALESCE(quantity, 0) FROM item_warehouse_stock WHERE item_id = items.id AND warehouse_id = ?)`
-      : `COALESCE((SELECT SUM(quantity) FROM item_warehouse_stock WHERE item_id = items.id), 0)`;
+      : `COALESCE(s.stock_qty, 0)`;
 
     const stockPositive = dist
       ? `(SELECT COALESCE(quantity, 0) FROM item_warehouse_stock WHERE item_id = items.id AND warehouse_id = ?) > 0`
-      : `COALESCE((SELECT SUM(quantity) FROM item_warehouse_stock WHERE item_id = items.id), 0) > 0`;
+      : `COALESCE(s.stock_qty, 0) > 0`;
 
-    let sql = `SELECT id, name, code, barcode, category, unit, purchase_price, sale_price, min_quantity,
-            IFNULL(has_expiry, 0) as has_expiry, expiry_date,
+    const fromClause = dist
+      ? `FROM items`
+      : `FROM items
+            LEFT JOIN ${ITEM_STOCK_SUM_SUBQUERY} s ON s.item_id = items.id`;
+
+    let sql = `SELECT items.id, items.name, items.code, items.barcode, items.category, items.unit, items.purchase_price, items.sale_price, items.min_quantity,
+            IFNULL(items.has_expiry, 0) as has_expiry, items.expiry_date,
             ${qtyExpr} as quantity
-            FROM items 
-            WHERE company_id = ? AND is_active = 1`;
+            ${fromClause}
+            WHERE items.company_id = ? AND items.is_active = 1`;
     const args: (string | number)[] = [];
     if (dist) {
       args.push(dist.assignedWarehouseId);
@@ -63,30 +69,33 @@ export async function GET(request: Request) {
       }
     }
     if (categoryParam === "__uncategorized__") {
-      sql += ` AND (category IS NULL OR TRIM(category) = '')`;
+      sql += ` AND (items.category IS NULL OR TRIM(items.category) = '')`;
     } else if (categoryParam) {
-      sql += ` AND LOWER(TRIM(COALESCE(category,''))) = LOWER(?)`;
+      sql += ` AND LOWER(TRIM(COALESCE(items.category,''))) = LOWER(?)`;
       args.push(categoryParam);
     }
     if (search) {
-      sql += ` AND (LOWER(name) LIKE ? OR LOWER(COALESCE(code,'')) LIKE ? OR LOWER(COALESCE(barcode,'')) LIKE ? OR LOWER(COALESCE(category,'')) LIKE ?)`;
+      sql += ` AND (LOWER(items.name) LIKE ? OR LOWER(COALESCE(items.code,'')) LIKE ? OR LOWER(COALESCE(items.barcode,'')) LIKE ? OR LOWER(COALESCE(items.category,'')) LIKE ?)`;
       const q = `%${search.toLowerCase()}%`;
       args.push(q, q, q, q);
     }
     if (expiryFilter === "tracked") {
-      sql += ` AND IFNULL(has_expiry, 0) = 1`;
+      sql += ` AND IFNULL(items.has_expiry, 0) = 1`;
     } else if (expiryFilter === "expired") {
-      sql += ` AND IFNULL(has_expiry, 0) = 1 AND expiry_date IS NOT NULL AND date(expiry_date) < date('now')`;
+      sql += ` AND IFNULL(items.has_expiry, 0) = 1 AND items.expiry_date IS NOT NULL AND date(items.expiry_date) < date('now')`;
     } else if (expiryFilter === "soon") {
-      sql += ` AND IFNULL(has_expiry, 0) = 1 AND expiry_date IS NOT NULL AND date(expiry_date) >= date('now') AND date(expiry_date) <= date('now', '+30 days')`;
+      sql += ` AND IFNULL(items.has_expiry, 0) = 1 AND items.expiry_date IS NOT NULL AND date(items.expiry_date) >= date('now') AND date(items.expiry_date) <= date('now', '+30 days')`;
     }
-    sql += ` ORDER BY created_at DESC LIMIT ? OFFSET ?`;
+    sql += ` ORDER BY items.created_at DESC LIMIT ? OFFSET ?`;
     args.push(limit, offset);
 
     let total = 0;
     if (usePagination) {
       const countArgs: (string | number)[] = [];
-      let countWhere = "company_id = ? AND is_active = 1";
+      const countFrom = dist
+        ? "FROM items"
+        : `FROM items LEFT JOIN ${ITEM_STOCK_SUM_SUBQUERY} s ON s.item_id = items.id`;
+      let countWhere = "items.company_id = ? AND items.is_active = 1";
       countArgs.push(companyId);
       if (inStockOnly) {
         countWhere += ` AND ${stockPositive}`;
@@ -95,25 +104,25 @@ export async function GET(request: Request) {
         }
       }
       if (categoryParam === "__uncategorized__") {
-        countWhere += " AND (category IS NULL OR TRIM(category) = '')";
+        countWhere += " AND (items.category IS NULL OR TRIM(items.category) = '')";
       } else if (categoryParam) {
-        countWhere += " AND LOWER(TRIM(COALESCE(category,''))) = LOWER(?)";
+        countWhere += " AND LOWER(TRIM(COALESCE(items.category,''))) = LOWER(?)";
         countArgs.push(categoryParam);
       }
       if (search) {
-        countWhere += ` AND (LOWER(name) LIKE ? OR LOWER(COALESCE(code,'')) LIKE ? OR LOWER(COALESCE(barcode,'')) LIKE ? OR LOWER(COALESCE(category,'')) LIKE ?)`;
+        countWhere += ` AND (LOWER(items.name) LIKE ? OR LOWER(COALESCE(items.code,'')) LIKE ? OR LOWER(COALESCE(items.barcode,'')) LIKE ? OR LOWER(COALESCE(items.category,'')) LIKE ?)`;
         const q = `%${search.toLowerCase()}%`;
         countArgs.push(q, q, q, q);
       }
       if (expiryFilter === "tracked") {
-        countWhere += ` AND IFNULL(has_expiry, 0) = 1`;
+        countWhere += ` AND IFNULL(items.has_expiry, 0) = 1`;
       } else if (expiryFilter === "expired") {
-        countWhere += ` AND IFNULL(has_expiry, 0) = 1 AND expiry_date IS NOT NULL AND date(expiry_date) < date('now')`;
+        countWhere += ` AND IFNULL(items.has_expiry, 0) = 1 AND items.expiry_date IS NOT NULL AND date(items.expiry_date) < date('now')`;
       } else if (expiryFilter === "soon") {
-        countWhere += ` AND IFNULL(has_expiry, 0) = 1 AND expiry_date IS NOT NULL AND date(expiry_date) >= date('now') AND date(expiry_date) <= date('now', '+30 days')`;
+        countWhere += ` AND IFNULL(items.has_expiry, 0) = 1 AND items.expiry_date IS NOT NULL AND date(items.expiry_date) >= date('now') AND date(items.expiry_date) <= date('now', '+30 days')`;
       }
       const countResult = await db.execute({
-        sql: `SELECT COUNT(*) as cnt FROM items WHERE ${countWhere}`,
+        sql: `SELECT COUNT(*) as cnt ${countFrom} WHERE ${countWhere}`,
         args: countArgs,
       });
       total = Number(countResult.rows[0]?.cnt ?? 0);
