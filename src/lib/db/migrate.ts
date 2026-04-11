@@ -57,17 +57,6 @@ export async function runMigrations() {
     return;
   }
 
-  const onVercel = Boolean(process.env.VERCEL);
-  const runOnVercel =
-    process.env.RUN_DB_MIGRATE_ON_VERCEL === "1" ||
-    process.env.RUN_DB_MIGRATE_ON_VERCEL === "true";
-  if (onVercel && !runOnVercel) {
-    console.warn(
-      "[EFCT] تخطي ترحيل قاعدة البيانات على Vercel (فعّل RUN_DB_MIGRATE_ON_VERCEL=1 مع TURSO_* صحيحة، أو شغّل db:migrate محلياً)."
-    );
-    return;
-  }
-
   console.log("[EFCT] بدء ترحيل قاعدة البيانات…");
   const schemaPath = join(process.cwd(), "database", "schema.sql");
   const schema = readFileSync(schemaPath, "utf-8");

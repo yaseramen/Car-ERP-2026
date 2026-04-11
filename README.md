@@ -44,13 +44,13 @@
    | `AUTH_SECRET` أو `NEXTAUTH_SECRET` | ✅ | سري الجلسات (مثلاً: `openssl rand -base64 32`) |
    | `NEXTAUTH_URL` أو `NEXT_PUBLIC_APP_URL` | للإنتاج | رابط التطبيق (مثل `https://car.aiverce.com`) |
 
-   **ملاحظة:** بدون `TURSO_DATABASE_URL` و `TURSO_AUTH_TOKEN` يفشل البناء والتشغيل.
+   **ملاحظة:** `npm run build` على Vercel **لا** يتصل بقاعدة البيانات. لكن **التشغيل** (تسجيل الدخول والـ API) يحتاج `TURSO_*` صحيحة في متغيرات البيئة.
 
 2. **تشغيل Migrations:**
    ```bash
    npm run db:migrate
    ```
-   **على Vercel:** لا حاجة لجهاز سطح مكتب — أمر `npm run build` يشغّل `db:migrate` تلقائياً باستخدام نفس `TURSO_DATABASE_URL` و`TURSO_AUTH_TOKEN` المضبوطين في المشروع. إن فشل الترحيل يفشل النشر وتجد التفاصيل في **Deployments → Build Logs**.
+   **بعد كل تحديث للمخطط أو ملفات `database/migrations/`:** شغّل الأمر أعلاه **من جهازك** (مع `.env` يحتوي `TURSO_*` صحيحة) أو عبر واجهة Turso / CLI. الترحيل **ليس** جزءاً من `npm run build` حتى لا يفشل النشر عند انتهاء صلاحية الرمز أو خطأ 401.
 
 3. **إضافة Super Admin (اختياري):**
    ```bash
@@ -66,7 +66,7 @@
 لتغيير كلمة المرور: `SEED_SUPER_ADMIN_PASSWORD=الجديدة npm run db:seed`
 
 **متغيرات Vercel المطلوبة:** `TURSO_DATABASE_URL`, `TURSO_AUTH_TOKEN`, `AUTH_SECRET`, `NEXTAUTH_URL`  
-*(بدون TURSO_DATABASE_URL و TURSO_AUTH_TOKEN يفشل البناء)*
+*(بدون Turso في وقت التشغيل لن يعمل تسجيل الدخول والبيانات؛ البناء نفسه لا يعتمد عليها)*
 
 **لنطاق مخصص (مثل car.aiverce.com):** أضف `NEXT_PUBLIC_APP_URL=https://car.aiverce.com` في Vercel → Settings → Environment Variables → Production. هذا يمنع إعادة التوجيه إلى vercel.app ويُبقي تسجيل الدخول على نطاقك.
 
