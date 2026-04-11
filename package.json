@@ -6,7 +6,7 @@
     "dev": "next dev",
     "test": "vitest run",
     "test:watch": "vitest",
-    "build": "npm run db:migrate && (npm run generate-icons || true) && next build",
+    "build": "node scripts/build.js",
     "generate-icons": "tsx scripts/generate-pwa-icons.ts",
     "start": "next start",
     "lint": "eslint",

@@ -50,6 +50,13 @@ async function applySchemaStatements(statements: string[]) {
 }
 
 export async function runMigrations() {
+  if (process.env.SKIP_DB_MIGRATE === "1" || process.env.SKIP_DB_MIGRATE === "true") {
+    console.warn(
+      "[EFCT] تخطي ترحيل قاعدة البيانات (SKIP_DB_MIGRATE). طبّق الترحيلات يدوياً على Turso إذا لزم."
+    );
+    return;
+  }
+
   console.log("[EFCT] بدء ترحيل قاعدة البيانات…");
   const schemaPath = join(process.cwd(), "database", "schema.sql");
   const schema = readFileSync(schemaPath, "utf-8");
