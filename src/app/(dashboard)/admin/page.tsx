@@ -4,6 +4,7 @@ import Link from "next/link";
 import { DashboardContent } from "./dashboard-content";
 import { canAccess, getFirstAllowedRoute } from "@/lib/permissions";
 import { getCompanyId } from "@/lib/company";
+import { DbUnavailableBlock } from "@/components/db-unavailable-block";
 
 export default async function AdminDashboardPage() {
   const session = await auth();
@@ -15,10 +16,15 @@ export default async function AdminDashboardPage() {
   if (!companyId) redirect("/login");
 
   if (session.user.role === "employee") {
-    const allowed = await canAccess(session.user.id, "employee", companyId, "dashboard", "read");
-    if (!allowed) {
-      const firstRoute = await getFirstAllowedRoute(session.user.id);
-      if (firstRoute) redirect(firstRoute);
+    try {
+      const allowed = await canAccess(session.user.id, "employee", companyId, "dashboard", "read");
+      if (!allowed) {
+        const firstRoute = await getFirstAllowedRoute(session.user.id);
+        if (firstRoute) redirect(firstRoute);
+      }
+    } catch (e) {
+      console.error("Admin dashboard: permissions query failed", e);
+      return <DbUnavailableBlock />;
     }
   }
 
