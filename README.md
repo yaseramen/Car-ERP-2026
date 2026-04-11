@@ -66,12 +66,15 @@
    npm run dev
    ```
 
-5. **اختبارات تكامل المتصفح (Playwright) — اختياري:**
-   ```bash
-   npx playwright install chromium
-   npm run test:e2e
-   ```
-   يشغّل `next dev` تلقائياً مع متغيرات وهمية لـ Turso حتى لا تحتاج قاعدة حقيقية لاختبار صفحة تسجيل الدخول. للواجهة التفاعلية: `npm run test:e2e:ui`.
+5. **اختبارات تكامل المتصفح (Playwright):**
+   - **بدون جهازك:** بعد كل دفع إلى `main` يشغّل GitHub تلقائياً سير **E2E (Playwright)** (تبويب **Actions** في المستودع). لا تحتاج تثبيت شيء على الكمبيوتر.
+   - **محلياً (للمطورين فقط):** `npx playwright install chromium` ثم `npm run test:e2e` أو `npm run test:e2e:ui`.
+   - **اختبار دخول كامل (اختياري):** في GitHub → المستودع → **Settings** → **Secrets and variables** → **Actions** أضف الأسرار التالية؛ عندها يُنفَّذ أيضاً اختبار «دخول حقيقي → /admin»:
+     - `TURSO_DATABASE_URL` — نفس قاعدة الإنتاج أو قاعدة اختبار
+     - `TURSO_AUTH_TOKEN`
+     - `E2E_LOGIN_EMAIL` — بريد مستخدم موجود في تلك القاعدة
+     - `E2E_LOGIN_PASSWORD` — كلمة مرور ذلك المستخدم  
+     ⚠️ الأسرار حساسة؛ استخدم حساب اختبار أو قاعدة منفصلة إن أمكن.
 
 **بيانات Super Admin الافتراضية:** santws1@gmail.com / `Admin@123`  
 لتغيير كلمة المرور: `SEED_SUPER_ADMIN_PASSWORD=الجديدة npm run db:seed`
