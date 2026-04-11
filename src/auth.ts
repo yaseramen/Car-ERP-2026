@@ -45,26 +45,51 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       async authorize(credentials) {
         if (!credentials?.email || !credentials?.password) return null;
 
-        const result = await db.execute({
-          sql: `SELECT u.id, u.email, u.name, u.password_hash, u.role, u.company_id, u.is_active, u.is_blocked,
+        const emailNorm = String(credentials.email).toLowerCase().trim();
+
+        let result;
+        try {
+          result = await db.execute({
+            sql: `SELECT u.id, u.email, u.name, u.password_hash, u.role, u.company_id, u.is_active, u.is_blocked,
                 c.business_type, c.name as company_name, c.is_active as company_is_active,
                 COALESCE(c.marketplace_enabled, 1) as marketplace_enabled,
                 COALESCE(c.ads_globally_disabled, 0) as ads_globally_disabled
                 FROM users u
                 LEFT JOIN companies c ON c.id = u.company_id
                 WHERE u.email = ?`,
-          args: [String(credentials.email).toLowerCase().trim()],
-        });
+            args: [emailNorm],
+          });
+        } catch (e) {
+          console.error("[auth] login DB error (check TURSO_* on Vercel):", e);
+          return null;
+        }
 
         const user = result.rows[0];
-        if (!user || user.is_active !== 1 || user.is_blocked === 1) return null;
-        if (user.company_id && user.role !== "super_admin" && Number(user.company_is_active ?? 1) !== 1) return null;
+        if (!user) {
+          console.warn("[auth] login failed: no user for email", emailNorm);
+          return null;
+        }
+        if (user.is_active !== 1) {
+          console.warn("[auth] login failed: user inactive", emailNorm);
+          return null;
+        }
+        if (user.is_blocked === 1) {
+          console.warn("[auth] login failed: user blocked", emailNorm);
+          return null;
+        }
+        if (user.company_id && user.role !== "super_admin" && Number(user.company_is_active ?? 1) !== 1) {
+          console.warn("[auth] login failed: company inactive", emailNorm);
+          return null;
+        }
 
         const valid = await bcrypt.compare(
           String(credentials.password),
           String(user.password_hash)
         );
-        if (!valid) return null;
+        if (!valid) {
+          console.warn("[auth] login failed: wrong password", emailNorm);
+          return null;
+        }
 
         return {
           id: String(user.id),
