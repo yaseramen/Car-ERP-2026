@@ -547,6 +547,7 @@ export function WalletsContent({ readOnly = false }: { readOnly?: boolean }) {
                     {mine.balance.toFixed(2)}{" "}
                     <span className="text-lg font-semibold text-gray-600 dark:text-gray-400">ج.م</span>
                   </p>
+                  <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">هذا هو الرصيد الباقي في محفظة شركتك الآن.</p>
                   <p className="text-sm text-gray-500 dark:text-gray-400 mt-2">{mine.name}</p>
                 </>
               )}
@@ -795,6 +796,23 @@ export function WalletsContent({ readOnly = false }: { readOnly?: boolean }) {
         شركات «مورّد» الجديدة تُسجَّل مع السوق معطّل حتى تفعّله السوبر أدمن بعد المراجعة.
       </div>
 
+      {companies.length > 0 && (
+        <div className="rounded-xl border border-emerald-200 dark:border-emerald-800 bg-emerald-50/80 dark:bg-emerald-950/30 px-4 py-4 text-sm text-emerald-900 dark:text-emerald-100">
+          <p className="font-medium text-emerald-950 dark:text-emerald-50 mb-1">ملخص أرصدة المحافظ</p>
+          <p className="tabular-nums">
+            <strong className="text-lg">
+              {companies.reduce((s, c) => s + c.balance, 0).toFixed(2)} ج.م
+            </strong>
+            <span className="text-emerald-800/90 dark:text-emerald-200/90 mr-2">
+              — إجمالي الرصيد الباقي في محافظ الشركات المعروضة ({companies.length} شركة)
+            </span>
+          </p>
+          <p className="text-xs text-emerald-800/80 dark:text-emerald-200/70 mt-2">
+            عمود «رصيد المحفظة» في الجدول يعرض الرصيد الباقي لكل شركة على حدة (ما تبقّى بعد الخصومات والخدمات).
+          </p>
+        </div>
+      )}
+
       <div className="flex justify-between items-center">
         <h2 className="font-medium text-gray-900 dark:text-gray-100">الشركات والمحافظ</h2>
         <button
@@ -815,7 +833,9 @@ export function WalletsContent({ readOnly = false }: { readOnly?: boolean }) {
                 <th className="text-right px-4 py-3 text-sm font-medium text-gray-600 dark:text-gray-300">السوق</th>
                 <th className="text-right px-4 py-3 text-sm font-medium text-gray-600 dark:text-gray-300">الحالة</th>
                 <th className="text-right px-4 py-3 text-sm font-medium text-gray-600 dark:text-gray-300">الهاتف</th>
-                <th className="text-right px-4 py-3 text-sm font-medium text-gray-600 dark:text-gray-300">الرصيد</th>
+                <th className="text-right px-4 py-3 text-sm font-medium text-gray-600 dark:text-gray-300 whitespace-nowrap">
+                  رصيد المحفظة (الباقي)
+                </th>
                 <th className="text-right px-4 py-3 text-sm font-medium text-gray-600 dark:text-gray-300">إجراءات</th>
                 <th className="text-right px-4 py-3 text-sm font-medium text-gray-600 dark:text-gray-300">تخصيص</th>
               </tr>
