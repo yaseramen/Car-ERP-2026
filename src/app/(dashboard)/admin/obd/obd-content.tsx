@@ -182,7 +182,7 @@ export function ObdContent({ isSuperAdmin = false }: { isSuperAdmin?: boolean })
           vehicle: data.vehicle,
           integrated_analysis: data.integrated_analysis ?? null,
         });
-        setMode("logs");
+        setMode("manualBatch");
       }
     } catch (err) {
       alert(err instanceof Error ? err.message : "حدث خطأ");
@@ -234,7 +234,7 @@ export function ObdContent({ isSuperAdmin = false }: { isSuperAdmin?: boolean })
           vehicle: data.vehicle,
           integrated_analysis: data.integrated_analysis ?? null,
         });
-        setMode("logs");
+        setMode("upload");
       }
     } catch (err) {
       const msg = err instanceof Error ? err.message : "حدث خطأ";
@@ -946,6 +946,9 @@ export function ObdContent({ isSuperAdmin = false }: { isSuperAdmin?: boolean })
 
       {analyzeResults && (
         <div id="obd-print-area" className="space-y-4">
+          <div className="bg-emerald-50/90 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 rounded-lg px-4 py-2 text-sm text-emerald-900 dark:text-emerald-100 no-print">
+            ✓ تم حفظ التقرير في السجلات. لمراجعة التقارير السابقة اضغط تبويب «سجلات التحليل» (للسوبر أدمن).
+          </div>
           <div className="flex flex-wrap justify-between items-center gap-3 bg-emerald-50 dark:bg-emerald-900/30 rounded-lg px-4 py-3 border border-emerald-100 dark:border-emerald-800">
             <span className="font-medium text-gray-900 dark:text-gray-100">
               تم العثور على {analyzeResults.codesFound} كود — إجمالي التكلفة: {analyzeResults.totalCost} ج.م
@@ -1486,12 +1489,35 @@ function ObdManage({ inputClass }: { inputClass: string }) {
   );
 }
 
+function formatReportCodesPreview(codesExtracted: string, codesCount: number): { short: string; full: string } {
+  let full = "";
+  try {
+    const arr = JSON.parse(codesExtracted);
+    if (Array.isArray(arr) && arr.length > 0) {
+      full = arr.map(String).join(", ");
+    }
+  } catch {
+    /* ignore */
+  }
+  if (!full) full = String(codesCount);
+  const parts = full.split(",").map((s) => s.trim()).filter(Boolean);
+  if (parts.length <= 5) return { short: full, full };
+  const short = `${parts.slice(0, 5).join(", ")} … (+${parts.length - 5})`;
+  return { short, full };
+}
+
+function truncateFileName(name: string, max = 40): string {
+  if (name.length <= max) return name;
+  return `${name.slice(0, max - 1)}…`;
+}
+
 function ObdLogs({ justAnalyzed }: { justAnalyzed?: boolean }) {
   const [data, setData] = useState<{
     reports: { id: string; file_name: string; vehicle_brand: string | null; vehicle_model: string | null; vehicle_year: number | null; codes_count: number; total_cost: number; codes_extracted: string; created_at: string }[];
     stats: { reports_count: number; codes_count: number; searches_count: number };
   } | null>(null);
   const [loading, setLoading] = useState(true);
+  const [showReportsTable, setShowReportsTable] = useState(true);
 
   async function fetchLogs() {
     setLoading(true);
@@ -1537,57 +1563,71 @@ function ObdLogs({ justAnalyzed }: { justAnalyzed?: boolean }) {
         </div>
       </div>
       <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden">
-        <div className="p-4 border-b border-gray-100 dark:border-gray-700 flex justify-between items-center">
-          <h3 className="font-bold text-gray-900 dark:text-gray-100">آخر التقارير المرفوعة</h3>
-          <button onClick={fetchLogs} className="text-sm text-emerald-600 dark:text-emerald-400 hover:underline">
-            تحديث
-          </button>
+        <div className="p-4 border-b border-gray-100 dark:border-gray-700 flex flex-wrap justify-between items-center gap-2">
+          <div>
+            <h3 className="font-bold text-gray-900 dark:text-gray-100">آخر التقارير المرفوعة</h3>
+            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+              الجدول للمراجعة السريعة؛ عمود الأكواد يُختصر تلقائياً — مرّر المؤشر لرؤية القائمة كاملة.
+            </p>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setShowReportsTable((v) => !v)}
+              className="text-sm px-3 py-1.5 rounded-lg border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700"
+            >
+              {showReportsTable ? "إخفاء الجدول" : "عرض الجدول"}
+            </button>
+            <button type="button" onClick={fetchLogs} className="text-sm text-emerald-600 dark:text-emerald-400 hover:underline">
+              تحديث
+            </button>
+          </div>
         </div>
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="bg-gray-50 dark:bg-gray-700/50 text-right">
-                <th className="p-3 font-medium text-gray-600 dark:text-gray-300">الملف</th>
-                <th className="p-3 font-medium text-gray-600 dark:text-gray-300">المركبة</th>
-                <th className="p-3 font-medium text-gray-600 dark:text-gray-300">الأكواد</th>
-                <th className="p-3 font-medium text-gray-600 dark:text-gray-300">التكلفة</th>
-                <th className="p-3 font-medium text-gray-600 dark:text-gray-300">التاريخ</th>
-              </tr>
-            </thead>
-            <tbody>
-              {reports.length === 0 ? (
-                <tr>
-                  <td colSpan={5} className="p-6 text-center text-gray-500 dark:text-gray-400">
-                    لا توجد تقارير مسجلة بعد
-                  </td>
+        {showReportsTable && (
+          <div className="overflow-x-auto max-h-[min(70vh,28rem)] overflow-y-auto">
+            <table className="w-full text-sm">
+              <thead className="sticky top-0 z-10 bg-gray-50 dark:bg-gray-700/95 shadow-sm">
+                <tr className="text-right">
+                  <th className="p-3 font-medium text-gray-600 dark:text-gray-300">الملف</th>
+                  <th className="p-3 font-medium text-gray-600 dark:text-gray-300">المركبة</th>
+                  <th className="p-3 font-medium text-gray-600 dark:text-gray-300 max-w-[14rem]">الأكواد</th>
+                  <th className="p-3 font-medium text-gray-600 dark:text-gray-300 whitespace-nowrap">التكلفة</th>
+                  <th className="p-3 font-medium text-gray-600 dark:text-gray-300 whitespace-nowrap">التاريخ</th>
                 </tr>
-              ) : (
-                reports.map((r) => (
-                  <tr key={r.id} className="border-t border-gray-100 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/30">
-                    <td className="p-3 text-gray-900 dark:text-gray-100">{r.file_name}</td>
-                    <td className="p-3 text-gray-700 dark:text-gray-300">
-                      {[r.vehicle_brand, r.vehicle_model, r.vehicle_year].filter(Boolean).join(" · ") || "—"}
+              </thead>
+              <tbody>
+                {reports.length === 0 ? (
+                  <tr>
+                    <td colSpan={5} className="p-6 text-center text-gray-500 dark:text-gray-400">
+                      لا توجد تقارير مسجلة بعد
                     </td>
-                    <td className="p-3 text-gray-700 dark:text-gray-300" dir="ltr">
-                      {r.codes_extracted
-                        ? (() => {
-                            try {
-                              const arr = JSON.parse(r.codes_extracted);
-                              return Array.isArray(arr) ? arr.join(", ") : r.codes_count;
-                            } catch {
-                              return r.codes_count;
-                            }
-                          })()
-                        : r.codes_count}
-                    </td>
-                    <td className="p-3 text-gray-700 dark:text-gray-300">{r.total_cost} ج.م</td>
-                    <td className="p-3 text-gray-500 dark:text-gray-400">{new Date(r.created_at).toLocaleDateString("ar-EG")}</td>
                   </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
+                ) : (
+                  reports.map((r) => {
+                    const { short, full } = formatReportCodesPreview(r.codes_extracted ?? "", r.codes_count);
+                    return (
+                      <tr key={r.id} className="border-t border-gray-100 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/30 align-top">
+                        <td className="p-3 text-gray-900 dark:text-gray-100 max-w-[12rem] break-all" title={r.file_name}>
+                          {truncateFileName(r.file_name)}
+                        </td>
+                        <td className="p-3 text-gray-700 dark:text-gray-300 whitespace-nowrap">
+                          {[r.vehicle_brand, r.vehicle_model, r.vehicle_year].filter(Boolean).join(" · ") || "—"}
+                        </td>
+                        <td className="p-3 text-gray-700 dark:text-gray-300 font-mono text-xs max-w-[14rem]" dir="ltr" title={full}>
+                          {short}
+                        </td>
+                        <td className="p-3 text-gray-700 dark:text-gray-300 tabular-nums">{r.total_cost} ج.م</td>
+                        <td className="p-3 text-gray-500 dark:text-gray-400 whitespace-nowrap">
+                          {new Date(r.created_at).toLocaleDateString("ar-EG")}
+                        </td>
+                      </tr>
+                    );
+                  })
+                )}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
     </div>
   );
