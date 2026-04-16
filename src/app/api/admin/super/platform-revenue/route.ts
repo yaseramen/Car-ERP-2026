@@ -28,7 +28,7 @@ export async function GET(request: Request) {
       sql: `SELECT COALESCE(SUM(wt.amount), 0) as total
             FROM wallet_transactions wt
             JOIN company_wallets cw ON wt.wallet_id = cw.id
-            WHERE wt.type IN ('digital_service', 'obd_search')
+            WHERE wt.type IN ('digital_service', 'obd_search', 'ac_specs_lookup')
               AND cw.company_id NOT IN (${ph})
               AND date(wt.created_at) >= date(?)
               AND date(wt.created_at) <= date(?)`,
@@ -42,7 +42,7 @@ export async function GET(request: Request) {
             FROM wallet_transactions wt
             JOIN company_wallets cw ON wt.wallet_id = cw.id
             JOIN companies c ON cw.company_id = c.id
-            WHERE wt.type IN ('digital_service', 'obd_search')
+            WHERE wt.type IN ('digital_service', 'obd_search', 'ac_specs_lookup')
               AND cw.company_id NOT IN (${ph})
               AND date(wt.created_at) >= date(?)
               AND date(wt.created_at) <= date(?)
@@ -62,7 +62,7 @@ export async function GET(request: Request) {
       sql: `SELECT wt.type, COALESCE(SUM(wt.amount), 0) as subtotal
             FROM wallet_transactions wt
             JOIN company_wallets cw ON wt.wallet_id = cw.id
-            WHERE wt.type IN ('digital_service', 'obd_search')
+            WHERE wt.type IN ('digital_service', 'obd_search', 'ac_specs_lookup')
               AND cw.company_id NOT IN (${ph})
               AND date(wt.created_at) >= date(?)
               AND date(wt.created_at) <= date(?)
@@ -70,15 +70,17 @@ export async function GET(request: Request) {
       args: [...EXCLUDED_COMPANIES, from, to],
     });
 
-    const breakdown: { digital_service: number; obd_search: number } = {
+    const breakdown: { digital_service: number; obd_search: number; ac_specs_lookup: number } = {
       digital_service: 0,
       obd_search: 0,
+      ac_specs_lookup: 0,
     };
     for (const row of breakdownRes.rows) {
       const t = String(row.type ?? "");
       const v = Number(row.subtotal ?? 0);
       if (t === "digital_service") breakdown.digital_service = v;
       if (t === "obd_search") breakdown.obd_search = v;
+      if (t === "ac_specs_lookup") breakdown.ac_specs_lookup = v;
     }
 
     return NextResponse.json({

@@ -4,8 +4,9 @@ import { useState, type FormEvent } from "react";
 
 type AcSpecResponse = {
   source: "local" | "ai";
+  charged: boolean;
+  cost_egp: number;
   spec: {
-    id: string;
     make: string;
     model: string;
     year_from: number;
@@ -68,7 +69,9 @@ export function WorkshopAcSpecsLookup() {
     <div className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-sm border border-gray-100 dark:border-gray-700">
       <h2 className="font-bold text-gray-900 dark:text-gray-100 mb-1">استعلام مواصفات التكييف (A/C)</h2>
       <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
-        بحث في القاعدة المحلية أولاً؛ عند عدم وجود سجل يُستدعى الذكاء الاصطناعي ثم يُحفظ السجل للمرات القادمة. للمرجعية داخل الورشة فقط — لا يُربط بأمر الإصلاح.
+        إن وُجدت بيانات في الذاكرة المشتركة للمنصة تُعرض مجاناً. عند الحاجة لاستدعاء الذكاء الاصطناعي يُخصم{" "}
+        <strong>1 ج.م</strong> من رصيد محفظة شركتك تحت مسمى «رسوم استعلام فني - تكييف». النتيجة للعرض فقط ولا تُربط
+        بملف عميل أو أمر إصلاح.
       </p>
       <form onSubmit={handleLookup} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 items-end">
         <div>
@@ -132,8 +135,13 @@ export function WorkshopAcSpecsLookup() {
           <div className="p-4 bg-gray-50/80 dark:bg-gray-900/40">
             <div className="flex flex-wrap items-center gap-2 mb-3">
               <span className="text-xs font-medium px-2 py-0.5 rounded bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200">
-                {result.source === "local" ? "من القاعدة المحلية" : "مُحدَّث عبر الذكاء الاصطناعي"}
+                {result.source === "local" ? "من الذاكرة المشتركة (بدون رسوم)" : "عبر الذكاء الاصطناعي"}
               </span>
+              {result.charged && (
+                <span className="text-xs font-medium px-2 py-0.5 rounded bg-cyan-100 dark:bg-cyan-900/40 text-cyan-900 dark:text-cyan-100">
+                  تم خصم {result.cost_egp} ج.م
+                </span>
+              )}
             </div>
             <dl className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-2 text-sm">
               <div className="flex justify-between gap-2">
@@ -172,7 +180,7 @@ export function WorkshopAcSpecsLookup() {
                 </dd>
               </div>
               <div className="flex justify-between gap-2 sm:col-span-2">
-                <dt className="text-gray-500 dark:text-gray-400">آخر تحديث</dt>
+                <dt className="text-gray-500 dark:text-gray-400">آخر تحديث للمرجع</dt>
                 <dd className="text-gray-700 dark:text-gray-300 text-xs">{result.spec.last_updated}</dd>
               </div>
             </dl>

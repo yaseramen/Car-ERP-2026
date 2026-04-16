@@ -1,10 +1,40 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
-import { getCompanyId } from "@/lib/company";
+import { getCompanyId, isPlatformOwnerCompany } from "@/lib/company";
 import { canAccess } from "@/lib/permissions";
-import { resolveAcSpecs } from "@/lib/ac-specs-resolve";
+import { findAcSpecLocal, normalizeKey, resolveAcSpecsAiPathOnly } from "@/lib/ac-specs-resolve";
+import {
+  AC_SPECS_LOOKUP_COST_EGP,
+  chargeAcSpecsLookup,
+  refundAcSpecsLookup,
+} from "@/lib/ac-specs-wallet";
 
 const ALLOWED_ROLES = ["super_admin", "tenant_owner", "employee"] as const;
+
+/** بيانات للعرض فقط — بدون معرف داخلي ولا ربط بملف شخصي */
+function specForClient(row: {
+  make: string;
+  model: string;
+  year_from: number;
+  year_to: number | null;
+  refrigerant_type: string;
+  refrigerant_weight: number | null;
+  oil_type: string | null;
+  oil_amount: number | null;
+  last_updated: string;
+}) {
+  return {
+    make: row.make,
+    model: row.model,
+    year_from: row.year_from,
+    year_to: row.year_to,
+    refrigerant_type: row.refrigerant_type,
+    refrigerant_weight: row.refrigerant_weight,
+    oil_type: row.oil_type,
+    oil_amount: row.oil_amount,
+    last_updated: row.last_updated,
+  };
+}
 
 export async function POST(request: Request) {
   const session = await auth();
@@ -37,27 +67,60 @@ export async function POST(request: Request) {
     if (Number.isFinite(y)) year = Math.trunc(y);
   }
 
+  const makeKey = normalizeKey(make);
+  const modelKey = normalizeKey(model);
+  const skipWallet = isPlatformOwnerCompany(companyId);
+
+  let walletId: string | null = null;
+  let chargeTxId: string | null = null;
+
   try {
-    const { row, error } = await resolveAcSpecs(make, model, year);
+    const local = await findAcSpecLocal(makeKey, modelKey, year);
+    if (local) {
+      return NextResponse.json({
+        source: "local" as const,
+        charged: false,
+        cost_egp: 0,
+        spec: specForClient(local),
+      });
+    }
+
+    if (!skipWallet) {
+      const charge = await chargeAcSpecsLookup(companyId, session.user.id);
+      if (!charge.ok) {
+        return NextResponse.json({ error: "رصيدك غير كافٍ" }, { status: 402 });
+      }
+      walletId = charge.data.walletId;
+      chargeTxId = charge.data.transactionId;
+    }
+
+    const { row, error } = await resolveAcSpecsAiPathOnly(make, model, year);
+
     if (!row) {
+      if (walletId && chargeTxId) {
+        try {
+          await refundAcSpecsLookup(walletId, chargeTxId, session.user.id);
+        } catch (re) {
+          console.error("[ac-specs lookup] refund failed", re);
+        }
+      }
       return NextResponse.json({ error: error ?? "لا توجد بيانات" }, { status: 404 });
     }
+
     return NextResponse.json({
       source: row.source,
-      spec: {
-        id: row.id,
-        make: row.make,
-        model: row.model,
-        year_from: row.year_from,
-        year_to: row.year_to,
-        refrigerant_type: row.refrigerant_type,
-        refrigerant_weight: row.refrigerant_weight,
-        oil_type: row.oil_type,
-        oil_amount: row.oil_amount,
-        last_updated: row.last_updated,
-      },
+      charged: !skipWallet,
+      cost_egp: skipWallet ? 0 : AC_SPECS_LOOKUP_COST_EGP,
+      spec: specForClient(row),
     });
   } catch (e) {
+    if (walletId && chargeTxId) {
+      try {
+        await refundAcSpecsLookup(walletId, chargeTxId, session.user.id);
+      } catch (re) {
+        console.error("[ac-specs lookup] refund after error failed", re);
+      }
+    }
     console.error("[ac-specs lookup]", e);
     return NextResponse.json({ error: "تعذّر تنفيذ الاستعلام" }, { status: 500 });
   }

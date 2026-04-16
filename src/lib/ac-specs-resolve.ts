@@ -138,21 +138,14 @@ async function insertAcSpec(row: {
   return mapRow(r as Record<string, unknown>, "ai");
 }
 
-/**
- * يبحث محلياً ثم يستدعي الذكاء الاصطناعي عند غياب السجل، ويُدرج قبل الإرجاع.
- */
-export async function resolveAcSpecs(
+/** مسار الذكاء الاصطناعي + الإدراج في ac_specs فقط (بدون بحث محلي مسبق) — للاستدعاء بعد التحقق من المحفظة */
+export async function resolveAcSpecsAiPathOnly(
   makeRaw: string,
   modelRaw: string,
   year: number | null
 ): Promise<{ row: AcSpecsRow | null; error?: string }> {
   const make = makeRaw.trim() || "غير محدد";
   const model = modelRaw.trim() || "غير محدد";
-  const make_key = normalizeKey(make);
-  const model_key = normalizeKey(model);
-
-  const local = await findAcSpecLocal(make_key, model_key, year);
-  if (local) return { row: local };
 
   const ai = await fetchAcSpecsWithAi(make, model, year);
   if (!ai) {
@@ -185,6 +178,26 @@ export async function resolveAcSpecs(
     if (retry) return { row: { ...retry, source: "local" } };
     return { row: null, error: "تعذّر حفظ بيانات التكييف في القاعدة." };
   }
+}
+
+/**
+ * يبحث محلياً ثم يستدعي الذكاء الاصطناعي عند غياب السجل، ويُدرج قبل الإرجاع.
+ * ملاحظة: الرسوم والتحقق من المحفظة يُنفَّذان في مسار الـ API قبل استدعاء مسار الذكاء الاصطناعي عند الحاجة.
+ */
+export async function resolveAcSpecs(
+  makeRaw: string,
+  modelRaw: string,
+  year: number | null
+): Promise<{ row: AcSpecsRow | null; error?: string }> {
+  const make = makeRaw.trim() || "غير محدد";
+  const model = modelRaw.trim() || "غير محدد";
+  const make_key = normalizeKey(make);
+  const model_key = normalizeKey(model);
+
+  const local = await findAcSpecLocal(make_key, model_key, year);
+  if (local) return { row: local };
+
+  return resolveAcSpecsAiPathOnly(makeRaw, modelRaw, year);
 }
 
 export { normalizeKey };
