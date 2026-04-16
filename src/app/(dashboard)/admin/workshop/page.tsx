@@ -1,6 +1,7 @@
 import { auth } from "@/auth";
 import { redirect } from "next/navigation";
 import { WorkshopContent } from "./workshop-content";
+import { WorkshopAcSpecsLookup } from "./workshop-ac-specs-lookup";
 import { canAccess } from "@/lib/permissions";
 import { getCompanyId } from "@/lib/company";
 
@@ -30,6 +31,8 @@ export default async function WorkshopPage() {
           دورة السيارة: استلام → فحص → صيانة → جاهزة → فاتورة وخروج
         </p>
       </div>
+
+      <WorkshopAcSpecsLookup />
 
       <WorkshopContent showPurchaseCost={showPurchaseCost} />
     </div>

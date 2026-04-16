@@ -533,6 +533,26 @@ CREATE TABLE IF NOT EXISTS repair_order_services (
     FOREIGN KEY (repair_order_id) REFERENCES repair_orders(id) ON DELETE CASCADE
 );
 
+-- بيانات تكييف مرجعية (ذاكرة مشتركة — استعلام الورشة)
+CREATE TABLE IF NOT EXISTS ac_specs (
+    id TEXT PRIMARY KEY,
+    make TEXT NOT NULL,
+    model TEXT NOT NULL,
+    make_key TEXT NOT NULL,
+    model_key TEXT NOT NULL,
+    year_from INTEGER NOT NULL,
+    year_to INTEGER,
+    refrigerant_type TEXT NOT NULL,
+    refrigerant_weight REAL,
+    oil_type TEXT,
+    oil_amount REAL,
+    last_updated TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE INDEX IF NOT EXISTS idx_ac_specs_make_model ON ac_specs(make_key, model_key);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_ac_specs_unique_vehicle
+ON ac_specs(make_key, model_key, year_from, ifnull(year_to, -999999));
+
 -- ==================== 8. OBD والتشخيص الذكي ====================
 
 -- أكواد OBD المخزنة
