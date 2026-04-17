@@ -2,18 +2,18 @@
  * جلب مواصفات التكييف عبر نفس مزودي الذكاء الاصطناعي المستخدمين في OBD.
  */
 
-const AC_SYSTEM = `أنت مساعد فني لورش سيارات. أجب بصيغة JSON صالحة فقط (بدون markdown).
-الحقول المطلوبة بالضبط:
-- make: اسم الماركة بالإنجليزية أو العربية كما تعرفها للسيارة
-- model: اسم الموديل/الفئة
-- year_from: سنة بداية التطبيق (رقم صحيح)
-- year_to: سنة نهاية التطبيق أو null إذا غير معروفة أو ما زالت مستمرة
-- refrigerant_type: واحدة فقط من: R134a | R1234yf | R12 | unknown
-- refrigerant_weight: كمية الفريون بالجرام (رقم) أو null إذا غير متأكد
-- oil_type: نوع زيت التكييف (مثل PAG 46، PAG 100، POE) أو null
-- oil_amount: كمية الزيت بالمليلتر ml (رقم) أو null إذا غير متأكد
+const AC_SYSTEM = `أنت مساعد فني لورش سيارات. أجب بكائن JSON واحد فقط (بدون markdown وبدون نص قبل أو بعد JSON).
+الحقول المطلوبة:
+- make: اسم الماركة
+- model: اسم الموديل أو الفئة
+- year_from: سنة بداية تطبيق هذه المواصفات (رقم صحيح). إن لم تكن متأكداً استخدم سنة الصنع التي ذكرها المستخدم إن وُجدت، وإلا تقديراً معقولاً للجيل.
+- year_to: سنة نهاية أو null إن استمرت أو غير معروفة
+- refrigerant_type: واحدة فقط: R134a | R1234yf | R12 | unknown
+- refrigerant_weight: كمية الفريون بالجرام (رقم) أو null
+- oil_type: نوع زيت التكييف (مثل PAG 46) أو null
+- oil_amount: كمية الزيت بالمليلتر (رقم) أو null
 
-إذا لم تستطع التأكد من قيمة، استخدم null أو unknown حسب الحقل. لا تخترع أرقاماً دقيقة إن لم تكن لديك معرفة معقولة بالطراز.`;
+لا تخترع أرقاماً دقيقة للفريون إن لم تكن لديك معرفة معقولة بالطراز؛ استخدم null في الحقل.`;
 
 function acUserPrompt(make: string, model: string, year: number | null): string {
   const y = year != null && Number.isFinite(year) ? String(Math.trunc(year)) : "غير محدد";
@@ -22,8 +22,8 @@ function acUserPrompt(make: string, model: string, year: number | null): string 
 الموديل: ${model}
 سنة الصنع المرجعية للعميل: ${y}
 
-أعد JSON فقط بهذا الشكل:
-{"make":"...","model":"...","year_from":2010,"year_to":null,"refrigerant_type":"R134a","refrigerant_weight":450,"oil_type":"PAG 46","oil_amount":120}`;
+أعد JSON واحداً فقط مثل:
+{"make":"Toyota","model":"Corolla","year_from":2014,"year_to":2019,"refrigerant_type":"R134a","refrigerant_weight":450,"oil_type":"PAG 46","oil_amount":120}`;
 }
 
 export type AcSpecsAiPayload = {
@@ -45,49 +45,132 @@ function stripJsonFence(text: string): string {
   return t;
 }
 
-export function parseAcSpecsJson(text: string): AcSpecsAiPayload | null {
+/** يستخرج أول كائن JSON يبدو متوازناً من النص */
+function extractJsonObject(text: string): string | null {
   const cleaned = stripJsonFence(text);
-  const match = cleaned.match(/\{[\s\S]*\}/);
-  if (!match) return null;
+  const start = cleaned.indexOf("{");
+  if (start < 0) return null;
+  let depth = 0;
+  let inStr = false;
+  let esc = false;
+  for (let i = start; i < cleaned.length; i++) {
+    const c = cleaned[i];
+    if (inStr) {
+      if (esc) {
+        esc = false;
+        continue;
+      }
+      if (c === "\\") {
+        esc = true;
+        continue;
+      }
+      if (c === '"') inStr = false;
+      continue;
+    }
+    if (c === '"') {
+      inStr = true;
+      continue;
+    }
+    if (c === "{") depth++;
+    else if (c === "}") {
+      depth--;
+      if (depth === 0) return cleaned.slice(start, i + 1);
+    }
+  }
+  const loose = cleaned.match(/\{[\s\S]*\}/);
+  return loose ? loose[0] : null;
+}
+
+function numField(v: unknown): number | null {
+  if (v == null || v === "") return null;
+  if (typeof v === "number" && Number.isFinite(v)) return v;
+  if (typeof v === "string") {
+    const t = v.replace(/,/g, ".").replace(/[^\d.-]/g, "").trim();
+    if (!t) return null;
+    const n = Number(t);
+    return Number.isFinite(n) ? n : null;
+  }
+  return null;
+}
+
+function strField(v: unknown): string {
+  return typeof v === "string" ? v.trim() : "";
+}
+
+/** يدعم مفاتيح إنجليزية/عربية شائعة من النماذج */
+function pickRecord(p: Record<string, unknown>): Record<string, unknown> {
+  const out: Record<string, unknown> = { ...p };
+  const alias = (from: string, to: string) => {
+    if (out[to] == null && out[from] != null) out[to] = out[from];
+  };
+  alias("Year", "year_from");
+  alias("yearFrom", "year_from");
+  alias("سنة_البداية", "year_from");
+  alias("سنة_من", "year_from");
+  alias("year_end", "year_to");
+  alias("yearTo", "year_to");
+  alias("سنة_النهاية", "year_to");
+  alias("سنة_إلى", "year_to");
+  alias("refrigerant", "refrigerant_type");
+  alias("نوع_الفريون", "refrigerant_type");
+  alias("فريون", "refrigerant_type");
+  alias("gas_type", "refrigerant_type");
+  alias("weight_g", "refrigerant_weight");
+  alias("refrigerant_charge_g", "refrigerant_weight");
+  alias("كمية_الفريون", "refrigerant_weight");
+  alias("كمية_الفريون_جرام", "refrigerant_weight");
+  alias("oil", "oil_type");
+  alias("نوع_الزيت", "oil_type");
+  alias("كمية_الزيت", "oil_amount");
+  return out;
+}
+
+function normalizeRefrigerant(raw: string): string {
+  let ref = raw.trim().toUpperCase().replace(/\s+/g, "").replace(/-/g, "");
+  if (ref === "134A" || ref === "R134") ref = "R134A";
+  if (ref === "1234YF" || ref === "R1234") ref = "R1234YF";
+  const allowed = ["R134A", "R1234YF", "R12", "UNKNOWN"];
+  if (!allowed.includes(ref)) ref = "UNKNOWN";
+  if (ref === "R134A") return "R134a";
+  if (ref === "R1234YF") return "R1234yf";
+  if (ref === "R12") return "R12";
+  return "unknown";
+}
+
+export function parseAcSpecsJson(text: string, customerYear: number | null): AcSpecsAiPayload | null {
+  const blob = extractJsonObject(text);
+  if (!blob) return null;
   try {
-    const p = JSON.parse(match[0]) as Record<string, unknown>;
-    const make = typeof p.make === "string" ? p.make.trim() : "";
-    const model = typeof p.model === "string" ? p.model.trim() : "";
-    const yearFrom = typeof p.year_from === "number" ? p.year_from : Number(p.year_from);
-    if (!make || !model || !Number.isFinite(yearFrom)) return null;
+    const raw = JSON.parse(blob) as Record<string, unknown>;
+    const p = pickRecord(raw);
+    const make = strField(p.make);
+    const model = strField(p.model);
+    if (!make || !model) return null;
 
-    let yearTo: number | null = null;
-    if (p.year_to != null && p.year_to !== "") {
-      const yt = typeof p.year_to === "number" ? p.year_to : Number(p.year_to);
-      if (Number.isFinite(yt)) yearTo = Math.trunc(yt);
+    let yearFrom = numField(p.year_from);
+    if (yearFrom == null || !Number.isFinite(yearFrom)) {
+      if (customerYear != null && Number.isFinite(customerYear)) yearFrom = Math.trunc(customerYear);
+      else yearFrom = new Date().getFullYear();
     }
+    yearFrom = Math.trunc(yearFrom);
 
-    let ref = typeof p.refrigerant_type === "string" ? p.refrigerant_type.trim().toUpperCase() : "UNKNOWN";
-    ref = ref.replace(/\s+/g, "");
-    const allowed = ["R134A", "R1234YF", "R12", "UNKNOWN"];
-    if (!allowed.includes(ref)) ref = "UNKNOWN";
-    const refrigerant_type =
-      ref === "R134A" ? "R134a" : ref === "R1234YF" ? "R1234yf" : ref === "R12" ? "R12" : "unknown";
+    let yearTo: number | null = numField(p.year_to);
+    if (yearTo != null) yearTo = Math.trunc(yearTo);
 
-    let rw: number | null = null;
-    if (p.refrigerant_weight != null && p.refrigerant_weight !== "") {
-      const n = typeof p.refrigerant_weight === "number" ? p.refrigerant_weight : Number(p.refrigerant_weight);
-      if (Number.isFinite(n) && n > 0) rw = n;
-    }
+    const refrigerant_type = normalizeRefrigerant(strField(p.refrigerant_type) || "unknown");
 
-    const oil_type =
-      typeof p.oil_type === "string" && p.oil_type.trim() ? p.oil_type.trim() : null;
+    let rw = numField(p.refrigerant_weight);
+    if (rw != null && rw <= 0) rw = null;
 
-    let oa: number | null = null;
-    if (p.oil_amount != null && p.oil_amount !== "") {
-      const n = typeof p.oil_amount === "number" ? p.oil_amount : Number(p.oil_amount);
-      if (Number.isFinite(n) && n >= 0) oa = n;
-    }
+    const oil_type = strField(p.oil_type) || null;
+
+    let oa = numField(p.oil_amount);
+    if (oa != null && oa < 0) oa = null;
 
     return {
       make,
       model,
-      year_from: Math.trunc(yearFrom),
+      year_from: yearFrom,
       year_to: yearTo,
       refrigerant_type,
       refrigerant_weight: rw,
@@ -99,10 +182,30 @@ export function parseAcSpecsJson(text: string): AcSpecsAiPayload | null {
   }
 }
 
+type GeminiGenResponse = {
+  candidates?: Array<{
+    content?: { parts?: Array<{ text?: string }> };
+    finishReason?: string;
+  }>;
+  promptFeedback?: { blockReason?: string };
+  error?: { message?: string; code?: number };
+};
+
+function extractGeminiText(data: GeminiGenResponse): string {
+  const parts = data.candidates?.[0]?.content?.parts;
+  if (!Array.isArray(parts)) return "";
+  const texts: string[] = [];
+  for (const part of parts) {
+    if (part && typeof part.text === "string") texts.push(part.text);
+  }
+  return texts.join("\n").trim();
+}
+
 async function fetchGeminiAcSpecs(make: string, model: string, year: number | null): Promise<AcSpecsAiPayload | null> {
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) return null;
-  const models = ["gemini-2.5-flash", "gemini-2.0-flash", "gemini-1.5-flash"];
+  /** ترتيب مطابق لمسارات OBD التي تُثبت عملها على الإنتاج */
+  const models = ["gemini-2.0-flash", "gemini-1.5-flash", "gemini-2.5-flash"];
   const user = acUserPrompt(make, model, year);
   for (const modelName of models) {
     try {
@@ -114,14 +217,19 @@ async function fetchGeminiAcSpecs(make: string, model: string, year: number | nu
           body: JSON.stringify({
             systemInstruction: { parts: [{ text: AC_SYSTEM }] },
             contents: [{ parts: [{ text: user }] }],
-            generationConfig: { temperature: 0.2 },
+            generationConfig: {
+              temperature: 0.2,
+              maxOutputTokens: 1024,
+              responseMimeType: "application/json",
+            },
           }),
         }
       );
       if (!res.ok) continue;
-      const data = (await res.json()) as { candidates?: { content?: { parts?: { text?: string }[] } }[] };
-      const text = data.candidates?.[0]?.content?.parts?.[0]?.text ?? "";
-      const parsed = parseAcSpecsJson(text);
+      const data = (await res.json()) as GeminiGenResponse;
+      if (data.error?.message) continue;
+      const text = extractGeminiText(data);
+      const parsed = parseAcSpecsJson(text, year);
       if (parsed) return parsed;
     } catch {
       // next model
@@ -147,12 +255,13 @@ async function fetchGroqAcSpecs(make: string, model: string, year: number | null
             { role: "user", content: user },
           ],
           temperature: 0.2,
+          response_format: { type: "json_object" },
         }),
       });
       if (!res.ok) continue;
       const data = (await res.json()) as { choices?: { message?: { content?: string } }[] };
       const text = data.choices?.[0]?.message?.content ?? "";
-      const parsed = parseAcSpecsJson(text);
+      const parsed = parseAcSpecsJson(text, year);
       if (parsed) return parsed;
     } catch {
       // next
@@ -176,12 +285,13 @@ async function fetchOpenAiAcSpecs(make: string, model: string, year: number | nu
           { role: "user", content: user },
         ],
         temperature: 0.2,
+        response_format: { type: "json_object" },
       }),
     });
     if (!res.ok) return null;
     const data = (await res.json()) as { choices?: { message?: { content?: string } }[] };
     const text = data.choices?.[0]?.message?.content ?? "";
-    return parseAcSpecsJson(text);
+    return parseAcSpecsJson(text, year);
   } catch {
     return null;
   }
