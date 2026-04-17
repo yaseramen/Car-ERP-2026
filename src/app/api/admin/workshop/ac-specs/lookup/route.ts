@@ -11,6 +11,29 @@ import {
 
 const ALLOWED_ROLES = ["super_admin", "tenant_owner", "employee"] as const;
 
+function errorChainText(err: unknown): string {
+  const parts: string[] = [];
+  let cur: unknown = err;
+  let depth = 0;
+  while (cur != null && depth < 6) {
+    if (cur instanceof Error) {
+      parts.push(cur.message);
+      const proto = cur as Error & { proto?: { message?: string } };
+      if (proto.proto?.message) parts.push(String(proto.proto.message));
+      cur = cur.cause;
+    } else {
+      parts.push(String(cur));
+      break;
+    }
+    depth++;
+  }
+  return parts.join(" ");
+}
+
+function isMissingAcSpecsTable(err: unknown): boolean {
+  return /no such table:\s*ac_specs/i.test(errorChainText(err));
+}
+
 /** بيانات للعرض فقط — بدون معرف داخلي ولا ربط بملف شخصي */
 function specForClient(row: {
   make: string;
@@ -122,6 +145,15 @@ export async function POST(request: Request) {
       }
     }
     console.error("[ac-specs lookup]", e);
+    if (isMissingAcSpecsTable(e)) {
+      return NextResponse.json(
+        {
+          error:
+            "قاعدة البيانات لم تُحدَّث بعد: جدول مواصفات التكييف غير موجود. من جهاز يملك صلاحية Turso نفّذ: npm run db:migrate (بنفس متغيرات TURSO للإنتاج)، أو نفّذ ملف الترحيل 041_ac_specs.sql من لوحة Turso → SQL.",
+        },
+        { status: 503 }
+      );
+    }
     return NextResponse.json({ error: "تعذّر تنفيذ الاستعلام" }, { status: 500 });
   }
 }
