@@ -1,0 +1,47 @@
+# تشغيل ترحيلات قاعدة Turso من GitHub (بدون جهازك المحلي).
+#
+# الإعداد مرة واحدة فقط:
+#   1) GitHub → المستودع → Settings → Secrets and variables → Actions → New repository secret
+#   2) أنشئ سرّين بنفس الأسماء والقيم من Vercel (Production):
+#        TURSO_DATABASE_URL   = نسخ كامل من Vercel
+#        TURSO_AUTH_TOKEN     = نسخ كامل من Vercel
+#
+# التشغيل عند الحاجة:
+#   GitHub → Actions → «Migrate Turso database» → Run workflow → Run workflow (الأخضر)
+#
+# آمن: يشغّل فقط npm run db:migrate (نفس السكربت المحلي). الترحيلات المُنفَّذة مسبقاً تُتخطّى.
+
+name: Migrate Turso database
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  migrate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run migrations on Turso
+        env:
+          TURSO_DATABASE_URL: ${{ secrets.TURSO_DATABASE_URL }}
+          TURSO_AUTH_TOKEN: ${{ secrets.TURSO_AUTH_TOKEN }}
+        run: |
+          if [ -z "$TURSO_DATABASE_URL" ] || [ -z "$TURSO_AUTH_TOKEN" ]; then
+            echo "::error::غير مضبوط: أضف أسرار GitHub TURSO_DATABASE_URL و TURSO_AUTH_TOKEN (انسخهما من Vercel → Environment Variables)."
+            exit 1
+          fi
+          npm run db:migrate
