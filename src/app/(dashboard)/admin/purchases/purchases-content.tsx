@@ -21,6 +21,7 @@ interface InventoryItem {
   id: string;
   name: string;
   code?: string | null;
+  barcode?: string | null;
   category?: string | null;
   purchase_price: number;
   sale_price: number;
@@ -656,12 +657,12 @@ export function PurchasesContent({
           </div>
           <div className="flex flex-wrap gap-2 items-end">
             <div className="flex-1 min-w-[200px]">
-              <label className="block text-xs text-gray-500 mb-1">الصنف (ابحث بالاسم أو الكود)</label>
+              <label className="block text-xs text-gray-500 mb-1">الصنف (ابحث بالاسم أو الكود أو الباركود)</label>
               <SearchableSelect
                 options={items.map((i) => ({
                   id: i.id,
                   label: i.name,
-                  searchText: [i.code, i.category, i.name].filter(Boolean).join(" "),
+                  searchText: [i.code, i.barcode, i.category, i.name].filter(Boolean).join(" "),
                 }))}
                 value={addItemId}
                 onChange={(id) => {
@@ -670,7 +671,7 @@ export function PurchasesContent({
                   if (item) setAddPrice(String(item.purchase_price));
                   setItemSuppliers([]);
                 }}
-                placeholder="ابحث بالاسم أو الكود..."
+                placeholder="ابحث بالاسم أو الكود أو الباركود..."
                 addNewLabel="+ إضافة صنف جديد"
                 addNewFirst
                 onAddNew={() => {

@@ -20,6 +20,7 @@ type InventoryRow = {
   id: string;
   name: string;
   code?: string | null;
+  barcode?: string | null;
   category?: string | null;
   purchase_price: number;
   sale_price: number;
@@ -91,7 +92,7 @@ export function EditPurchaseInvoice({
       inventory.map((i) => ({
         id: i.id,
         label: i.name,
-        searchText: [i.code, i.category, i.name].filter(Boolean).join(" "),
+        searchText: [i.code, i.barcode, i.category, i.name].filter(Boolean).join(" "),
       })),
     [inventory]
   );
