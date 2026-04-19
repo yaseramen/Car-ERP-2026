@@ -8,6 +8,7 @@ import { AssistantWidget } from "./assistant-widget";
 import { ReleaseNotesBanner } from "./release-notes-banner";
 import { OfflineStatusBar } from "@/components/offline/offline-status-bar";
 import { MarketplaceExpiryBanner } from "@/components/dashboard/marketplace-expiry-banner";
+import { AdminIdleLock } from "@/components/dashboard/admin-idle-lock";
 
 export function AdminLayoutClient({
   children,
@@ -72,6 +73,7 @@ export function AdminLayoutClient({
         </main>
       </div>
       <AssistantWidget />
+      <AdminIdleLock />
     </div>
   );
 }
