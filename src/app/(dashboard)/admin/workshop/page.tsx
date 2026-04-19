@@ -23,6 +23,8 @@ export default async function WorkshopPage() {
   const showPurchaseCost =
     session.user.role === "tenant_owner" || session.user.role === "super_admin";
 
+  const acSpecsLookupUiEnabled = process.env.NEXT_PUBLIC_AC_SPECS_LOOKUP_ENABLED === "1";
+
   return (
     <div className="p-4 md:p-8">
       <div className="mb-8">
@@ -32,7 +34,7 @@ export default async function WorkshopPage() {
         </p>
       </div>
 
-      <WorkshopAcSpecsLookup />
+      {acSpecsLookupUiEnabled ? <WorkshopAcSpecsLookup /> : null}
 
       <WorkshopContent showPurchaseCost={showPurchaseCost} />
     </div>
