@@ -5,6 +5,7 @@ import { db } from "@/lib/db/client";
 import { ensureTreasuries } from "@/lib/treasuries";
 import { getCompanyId } from "@/lib/company";
 import { getUserPermissions } from "@/lib/permissions";
+import { withApiTiming } from "@/lib/api-request-log";
 
 const SUMMARY_CACHE_SECONDS = 60;
 
@@ -164,41 +165,43 @@ const getCachedSummaryMetrics = unstable_cache(
 );
 
 export async function GET() {
-  const session = await auth();
-  if (!session?.user || !["super_admin", "tenant_owner", "employee"].includes(session.user.role ?? "")) {
-    return NextResponse.json({ error: "غير مصرح" }, { status: 401 });
-  }
+  return withApiTiming("/api/admin/reports/summary", async () => {
+    const session = await auth();
+    if (!session?.user || !["super_admin", "tenant_owner", "employee"].includes(session.user.role ?? "")) {
+      return NextResponse.json({ error: "غير مصرح" }, { status: 401 });
+    }
 
-  const companyId = getCompanyId(session);
-  if (!companyId) return NextResponse.json({ error: "غير مصرح" }, { status: 401 });
+    const companyId = getCompanyId(session);
+    if (!companyId) return NextResponse.json({ error: "غير مصرح" }, { status: 401 });
 
-  const isFullAccess = session.user.role === "super_admin" || session.user.role === "tenant_owner";
-  const perms = !isFullAccess ? await getUserPermissions(session.user.id) : null;
-  const canSeeSales = isFullAccess || perms?.invoices?.read || perms?.cashier?.read || perms?.reports?.read;
-  const canSeeTreasuries = isFullAccess || perms?.treasuries?.read;
-  const canSeeWorkshop = isFullAccess || perms?.workshop?.read;
-  const canSeeInventory = isFullAccess || perms?.inventory?.read;
+    const isFullAccess = session.user.role === "super_admin" || session.user.role === "tenant_owner";
+    const perms = !isFullAccess ? await getUserPermissions(session.user.id) : null;
+    const canSeeSales = isFullAccess || perms?.invoices?.read || perms?.cashier?.read || perms?.reports?.read;
+    const canSeeTreasuries = isFullAccess || perms?.treasuries?.read;
+    const canSeeWorkshop = isFullAccess || perms?.workshop?.read;
+    const canSeeInventory = isFullAccess || perms?.inventory?.read;
 
-  try {
-    const m = await getCachedSummaryMetrics(companyId);
+    try {
+      const m = await getCachedSummaryMetrics(companyId);
 
-    return NextResponse.json({
-      canSee: { sales: canSeeSales, treasuries: canSeeTreasuries, workshop: canSeeWorkshop, inventory: canSeeInventory },
-      sales: canSeeSales
-        ? {
-            today: m.salesToday,
-            week: m.salesWeek,
-            month: m.salesMonth,
-          }
-        : { today: { total: 0, count: 0 }, week: { total: 0, count: 0 }, month: { total: 0, count: 0 } },
-      workshop: canSeeWorkshop ? m.workshopByStage : {},
-      lowStockCount: canSeeInventory ? m.lowStockCount : 0,
-      pendingInvoices: canSeeSales ? m.pendingInvoices : { count: 0, remaining: 0 },
-      treasuries: canSeeTreasuries ? m.treasuryBalances : {},
-      dailySales: canSeeSales ? m.dailySales : [],
-    });
-  } catch (error) {
-    console.error("Reports summary error:", error);
-    return NextResponse.json({ error: "فشل في جلب البيانات" }, { status: 500 });
-  }
+      return NextResponse.json({
+        canSee: { sales: canSeeSales, treasuries: canSeeTreasuries, workshop: canSeeWorkshop, inventory: canSeeInventory },
+        sales: canSeeSales
+          ? {
+              today: m.salesToday,
+              week: m.salesWeek,
+              month: m.salesMonth,
+            }
+          : { today: { total: 0, count: 0 }, week: { total: 0, count: 0 }, month: { total: 0, count: 0 } },
+        workshop: canSeeWorkshop ? m.workshopByStage : {},
+        lowStockCount: canSeeInventory ? m.lowStockCount : 0,
+        pendingInvoices: canSeeSales ? m.pendingInvoices : { count: 0, remaining: 0 },
+        treasuries: canSeeTreasuries ? m.treasuryBalances : {},
+        dailySales: canSeeSales ? m.dailySales : [],
+      });
+    } catch (error) {
+      console.error("Reports summary error:", error);
+      return NextResponse.json({ error: "فشل في جلب البيانات" }, { status: 500 });
+    }
+  });
 }

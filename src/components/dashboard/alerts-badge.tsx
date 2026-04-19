@@ -24,7 +24,8 @@ export function AlertsBadge() {
       } catch {}
     }
     fetchSummary();
-    const interval = setInterval(fetchSummary, 2 * 60 * 1000); // كل دقيقتين
+    /* مواءمة مع NotificationsProvider (8 د) لتقليل استدعاءات /api/admin/reports/summary وFluid CPU على Vercel */
+    const interval = setInterval(fetchSummary, 8 * 60 * 1000);
     return () => clearInterval(interval);
   }, []);
 
