@@ -297,12 +297,18 @@ async function fetchOpenAiAcSpecs(make: string, model: string, year: number | nu
   }
 }
 
-/** يحاول Gemini ثم Groq ثم OpenAI */
+/**
+ * يحاول Gemini ثم Groq ثم OpenAI.
+ * عيّن AC_SPECS_AI_GEMINI_ONLY=1 لتقليل وقت المعالج والاستدعاءات (مزوّد واحد فقط).
+ */
 export async function fetchAcSpecsWithAi(
   make: string,
   model: string,
   year: number | null
 ): Promise<AcSpecsAiPayload | null> {
+  if (process.env.AC_SPECS_AI_GEMINI_ONLY === "1") {
+    return fetchGeminiAcSpecs(make, model, year);
+  }
   const g = await fetchGeminiAcSpecs(make, model, year);
   if (g) return g;
   const q = await fetchGroqAcSpecs(make, model, year);

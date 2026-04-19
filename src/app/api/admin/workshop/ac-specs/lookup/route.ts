@@ -5,11 +5,18 @@ import { canAccess } from "@/lib/permissions";
 import { findAcSpecLocal, normalizeKey, resolveAcSpecsAiPathOnly } from "@/lib/ac-specs-resolve";
 import {
   AC_SPECS_LOOKUP_COST_EGP,
+  AC_SPECS_MIN_BALANCE_EGP,
   chargeAcSpecsLookup,
+  getCompanyWalletBalanceEgp,
   refundAcSpecsLookup,
 } from "@/lib/ac-specs-wallet";
 
 const ALLOWED_ROLES = ["super_admin", "tenant_owner", "employee"] as const;
+
+/** تعطيل الخدمة افتراضياً لتوفير موارد التشغيل؛ فعّلها بتعيين DISABLE_AC_SPECS_LOOKUP=0 */
+function isAcSpecsLookupDisabled(): boolean {
+  return process.env.DISABLE_AC_SPECS_LOOKUP !== "0";
+}
 
 function errorChainText(err: unknown): string {
   const parts: string[] = [];
@@ -60,6 +67,16 @@ function specForClient(row: {
 }
 
 export async function POST(request: Request) {
+  if (isAcSpecsLookupDisabled()) {
+    return NextResponse.json(
+      {
+        error:
+          "تم إيقاف استعلام مواصفات التكييف مؤقتاً. لتفعيله مرة أخرى عيّن DISABLE_AC_SPECS_LOOKUP=0 في إعدادات البيئة.",
+      },
+      { status: 410 }
+    );
+  }
+
   const session = await auth();
   const companyId = getCompanyId(session);
   if (!session?.user || !companyId || !ALLOWED_ROLES.includes(session.user.role as (typeof ALLOWED_ROLES)[number])) {
@@ -98,16 +115,35 @@ export async function POST(request: Request) {
   let chargeTxId: string | null = null;
 
   try {
+    /* 1) التحقق من الدفع أولاً — قبل البحث المحلي أو الذكاء الاصطناعي */
+    if (!skipWallet) {
+      const balance = await getCompanyWalletBalanceEgp(companyId);
+      if (balance < AC_SPECS_MIN_BALANCE_EGP) {
+        return NextResponse.json(
+          { error: "رصيد المحفظة أقل من 1 جنيه. يرجى الشحن للمتابعة." },
+          { status: 402 }
+        );
+      }
+    }
+
+    /* 2) بحث محلي صارم — بدون استدعاء ac-specs-ai */
     const local = await findAcSpecLocal(makeKey, modelKey, year);
     if (local) {
+      if (!skipWallet) {
+        const charge = await chargeAcSpecsLookup(companyId, session.user.id);
+        if (!charge.ok) {
+          return NextResponse.json({ error: "رصيدك غير كافٍ" }, { status: 402 });
+        }
+      }
       return NextResponse.json({
         source: "local" as const,
-        charged: false,
-        cost_egp: 0,
+        charged: !skipWallet,
+        cost_egp: skipWallet ? 0 : AC_SPECS_LOOKUP_COST_EGP,
         spec: specForClient(local),
       });
     }
 
+    /* 3) الذكاء الاصطناعي فقط بعد فشل المحلي (والرصيد ≥ 1 مُتحقق مسبقاً) */
     if (!skipWallet) {
       const charge = await chargeAcSpecsLookup(companyId, session.user.id);
       if (!charge.ok) {

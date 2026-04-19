@@ -4,6 +4,9 @@ import { randomUUID } from "crypto";
 /** تكلفة كل استعلام تكييف (محفظة الشركة المرتبطة بالمستخدم) */
 export const AC_SPECS_LOOKUP_COST_EGP = 1;
 
+/** أقل رصيد مطلوب قبل السماح بالاستعلام (محلي أو ذكاء اصطناعي) */
+export const AC_SPECS_MIN_BALANCE_EGP = 1;
+
 const CHARGE_DESC = "رسوم استعلام فني - تكييف";
 
 export type AcSpecsChargeOk = { walletId: string; transactionId: string };
@@ -29,6 +32,12 @@ async function ensureCompanyWallet(companyId: string): Promise<{ id: string; bal
   }
   const row = r.rows[0];
   return { id: String(row?.id ?? ""), balance: Number(row?.balance ?? 0) };
+}
+
+/** رصيد محفظة الشركة بالجنيه (0 إن لم توجد محفظة بعد). */
+export async function getCompanyWalletBalanceEgp(companyId: string): Promise<number> {
+  const { balance } = await ensureCompanyWallet(companyId);
+  return balance;
 }
 
 /**
