@@ -18,7 +18,9 @@ export default async function PurchasesPage({
     <div className="p-4 md:p-8">
       <div className="mb-8">
         <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">فواتير الشراء</h1>
-        <p className="text-gray-500 dark:text-gray-400 mt-1">تسجيل مشتريات المخزون من الموردين</p>
+        <p className="text-gray-500 dark:text-gray-400 mt-1">
+          تسجيل مشتريات المخزون من الموردين — تُحفظ المسودة تلقائياً على هذا الجهاز عند الانتقال لشاشة أخرى والعودة.
+        </p>
       </div>
 
       <PurchasesContent initialItemId={params.item} initialQty={params.qty} initialSupplierId={params.supplier} />

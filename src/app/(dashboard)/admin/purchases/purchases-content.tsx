@@ -47,6 +47,8 @@ type PurchaseDraftPayload = {
   discountType: "percent" | "fixed";
   discountValue: string;
   itemCategoryFilter: string;
+  /** سطر «إضافة صنف» قبل الضغط على إضافة — يُستعاد عند العودة */
+  pendingLine?: { item_id: string; quantity: string; unit_price: string };
 };
 
 function loadPurchaseDraft(): Partial<PurchaseDraftPayload> | null {
@@ -63,17 +65,28 @@ function loadPurchaseDraft(): Partial<PurchaseDraftPayload> | null {
 function savePurchaseDraft(data: PurchaseDraftPayload) {
   if (typeof window === "undefined") return;
   try {
+    const hasPending = Boolean(data.pendingLine?.item_id?.trim());
     const hasProgress =
       data.cart.length > 0 ||
       Boolean(data.supplierId) ||
       Boolean(data.notes?.trim()) ||
       data.taxEnabled ||
-      data.discountEnabled;
+      data.discountEnabled ||
+      hasPending;
     if (!hasProgress) {
       localStorage.removeItem(PURCHASE_DRAFT_KEY);
       return;
     }
-    localStorage.setItem(PURCHASE_DRAFT_KEY, JSON.stringify(data));
+    const { pendingLine, ...rest } = data;
+    const payload: Record<string, unknown> = { ...rest };
+    if (hasPending && pendingLine?.item_id) {
+      payload.pendingLine = {
+        item_id: pendingLine.item_id,
+        quantity: pendingLine.quantity,
+        unit_price: pendingLine.unit_price,
+      };
+    }
+    localStorage.setItem(PURCHASE_DRAFT_KEY, JSON.stringify(payload));
   } catch {}
 }
 
@@ -203,7 +216,19 @@ export function PurchasesContent({
   useEffect(() => {
     if (initialItemId || items.length === 0 || draftLoaded) return;
     const draft = loadPurchaseDraft();
-    if (!draft?.cart?.length && !draft?.supplierId && !draft?.notes?.trim() && !draft?.taxEnabled && !draft?.discountEnabled) {
+    if (!draft) {
+      setDraftLoaded(true);
+      return;
+    }
+    const hasPendingDraft = Boolean(draft.pendingLine?.item_id?.trim());
+    if (
+      !draft.cart?.length &&
+      !draft.supplierId &&
+      !draft.notes?.trim() &&
+      !draft.taxEnabled &&
+      !draft.discountEnabled &&
+      !hasPendingDraft
+    ) {
       setDraftLoaded(true);
       return;
     }
@@ -234,7 +259,21 @@ export function PurchasesContent({
     if (draft.itemCategoryFilter !== undefined && draft.itemCategoryFilter !== "") {
       setItemCategoryFilter(draft.itemCategoryFilter);
     }
-    if (merged.length > 0 || draft.supplierId || draft.notes?.trim() || draft.taxEnabled || draft.discountEnabled) {
+    const pl = draft.pendingLine;
+    if (pl?.item_id && items.some((i) => i.id === pl.item_id)) {
+      setAddItemId(pl.item_id);
+      if (pl.quantity != null && String(pl.quantity).trim() !== "") setAddQty(String(pl.quantity));
+      if (pl.unit_price != null && String(pl.unit_price).trim() !== "") setAddPrice(String(pl.unit_price));
+    }
+
+    if (
+      merged.length > 0 ||
+      draft.supplierId ||
+      draft.notes?.trim() ||
+      draft.taxEnabled ||
+      draft.discountEnabled ||
+      (pl?.item_id && items.some((i) => i.id === pl.item_id))
+    ) {
       setRestoredFromDraft(true);
     }
     setDraftLoaded(true);
@@ -242,6 +281,10 @@ export function PurchasesContent({
 
   useEffect(() => {
     if (!draftLoaded || !allowPurchaseDraftPersist) return;
+    const pendingLine =
+      addItemId.trim() !== ""
+        ? { item_id: addItemId.trim(), quantity: addQty, unit_price: addPrice }
+        : undefined;
     savePurchaseDraft({
       cart,
       supplierId,
@@ -252,6 +295,7 @@ export function PurchasesContent({
       discountType,
       discountValue,
       itemCategoryFilter,
+      ...(pendingLine ? { pendingLine } : {}),
     });
   }, [
     draftLoaded,
@@ -265,6 +309,55 @@ export function PurchasesContent({
     discountType,
     discountValue,
     itemCategoryFilter,
+    addItemId,
+    addQty,
+    addPrice,
+  ]);
+
+  /** حفظ فوري عند التنقل لشاشة أخرى (لا يُنتظر دورة React) */
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const flush = () => {
+      if (!draftLoaded || !allowPurchaseDraftPersist) return;
+      const pendingLine =
+        addItemId.trim() !== ""
+          ? { item_id: addItemId.trim(), quantity: addQty, unit_price: addPrice }
+          : undefined;
+      savePurchaseDraft({
+        cart,
+        supplierId,
+        notes,
+        taxEnabled,
+        taxRate,
+        discountEnabled,
+        discountType,
+        discountValue,
+        itemCategoryFilter,
+        ...(pendingLine ? { pendingLine } : {}),
+      });
+    };
+    const onHide = () => flush();
+    document.addEventListener("visibilitychange", onHide);
+    window.addEventListener("pagehide", onHide);
+    return () => {
+      document.removeEventListener("visibilitychange", onHide);
+      window.removeEventListener("pagehide", onHide);
+    };
+  }, [
+    draftLoaded,
+    allowPurchaseDraftPersist,
+    cart,
+    supplierId,
+    notes,
+    taxEnabled,
+    taxRate,
+    discountEnabled,
+    discountType,
+    discountValue,
+    itemCategoryFilter,
+    addItemId,
+    addQty,
+    addPrice,
   ]);
 
   useEffect(() => {
